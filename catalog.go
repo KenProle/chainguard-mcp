@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -10,44 +9,30 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
 
-const (
-	defaultSitemapURL  = "https://images.chainguard.dev/sitemap.xml"
-	defaultRegistryURL = "https://cgr.dev"
-	defaultRepoPrefix  = "chainguard"
-)
-
-// ErrNotPublic is returned when the registry refuses anonymous access to an
-// image's tags, which is the case for images outside Chainguard's free tier.
-var ErrNotPublic = errors.New("image tags are not publicly accessible (likely requires a Chainguard subscription)")
+const defaultSitemapURL = "https://images.chainguard.dev/sitemap.xml"
 
 // imagePath matches image overview pages in the directory sitemap.
 var imagePath = regexp.MustCompile(`^/directory/image/([^/]+)/overview$`)
 
-// Catalog lists Chainguard images from the public images directory and looks
-// up tags from the cgr.dev registry. The image list is cached for ttl.
+// Catalog lists Chainguard images from the public images directory. The
+// cgr.dev registry doesn't support the catalog API, so the directory's
+// sitemap is the source of truth. The list is cached for TTL.
 type Catalog struct {
-	HTTP        *http.Client
-	SitemapURL  string
-	RegistryURL string
-	TTL         time.Duration
+	HTTP       *http.Client
+	SitemapURL string
+	TTL        time.Duration
 
 	mu        sync.Mutex
 	images    []string
 	fetchedAt time.Time
 }
 
-func NewCatalog() *Catalog {
-	return &Catalog{
-		HTTP:        &http.Client{Timeout: 30 * time.Second},
-		SitemapURL:  defaultSitemapURL,
-		RegistryURL: defaultRegistryURL,
-		TTL:         time.Hour,
-	}
+func NewCatalog(client *http.Client) *Catalog {
+	return &Catalog{HTTP: client, SitemapURL: defaultSitemapURL, TTL: time.Hour}
 }
 
 // Images returns the sorted list of image names in the Chainguard directory.
@@ -113,68 +98,20 @@ func (c *Catalog) fetchImages(ctx context.Context) ([]string, error) {
 	return images, nil
 }
 
-// Tags returns the human-readable tags for an image (signature, attestation
-// and SBOM tags are filtered out). Only publicly pullable images work.
-func (c *Catalog) Tags(ctx context.Context, image string) ([]string, error) {
-	repo := defaultRepoPrefix + "/" + image
-	token, err := c.anonymousToken(ctx, repo)
+// Contains reports whether image is in the catalog.
+func (c *Catalog) Contains(ctx context.Context, image string) (bool, error) {
+	images, err := c.Images(ctx)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.RegistryURL+"/v2/"+repo+"/tags/list", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("listing tags: %w", err)
-	}
-	defer resp.Body.Close()
-	switch resp.StatusCode {
-	case http.StatusOK:
-	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
-		return nil, ErrNotPublic
-	default:
-		return nil, fmt.Errorf("listing tags: unexpected status %s", resp.Status)
-	}
-
-	var body struct {
-		Tags []string `json:"tags"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("decoding tags: %w", err)
-	}
-	var tags []string
-	for _, t := range body.Tags {
-		if !strings.HasPrefix(t, "sha256-") {
-			tags = append(tags, t)
+	_, found := sort.Find(len(images), func(i int) int {
+		switch {
+		case image < images[i]:
+			return -1
+		case image > images[i]:
+			return 1
 		}
-	}
-	sort.Strings(tags)
-	return tags, nil
-}
-
-func (c *Catalog) anonymousToken(ctx context.Context, repo string) (string, error) {
-	q := url.Values{"service": {"cgr.dev"}, "scope": {"repository:" + repo + ":pull"}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.RegistryURL+"/token?"+q.Encode(), nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("fetching registry token: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", ErrNotPublic
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return "", fmt.Errorf("decoding registry token: %w", err)
-	}
-	return body.Token, nil
+		return 0
+	})
+	return found, nil
 }
