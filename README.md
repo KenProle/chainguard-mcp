@@ -60,8 +60,10 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 - "What environment variables does cgr.dev/chainguard/node set?"
 - "Give me a digest-pinned FROM line for the Chainguard go image."
 
-### Packages
+### Packages and SBOMs
 
+- "Show me the SBOM for the Chainguard python image."
+- "Give me the SBOM for the arm64 version of the Chainguard node image as a table."
 - "What version of OpenSSL is in the Chainguard python image?"
 - "List the licenses of every package in the Chainguard node image."
 - "Compare the packages in python:latest and python:latest-dev."
