@@ -46,7 +46,7 @@ Each question builds on the one before:
    ```
    ````
 
-In Claude Code, the `migrate_dockerfile` prompt is also available as `/mcp__chainguard__migrate_dockerfile`.
+Claude Code also turns the built-in migration prompt into a slash command: type `/mcp__chainguard__migrate_dockerfile` followed by your Dockerfile.
 
 ### Discovery
 
