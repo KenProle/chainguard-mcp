@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -216,5 +219,77 @@ func TestMigratePrompt(t *testing.T) {
 	text := res.Messages[0].Content.(*mcp.TextContent).Text
 	if !strings.Contains(text, "find_alternative") || !strings.Contains(text, "FROM node:20") {
 		t.Fatalf("unexpected prompt text: %s", text)
+	}
+}
+
+func TestSaveSBOM(t *testing.T) {
+	svc := newFakeService(t)
+	svc.SBOMDir = t.TempDir()
+	s := mcpClient(t, svc)
+
+	var saved SavedSBOM
+	mustCall(t, s, "save_sbom", map[string]any{"image": "python"}, &saved)
+	wantPath := filepath.Join(svc.SBOMDir, "python-latest-amd64.spdx.json")
+	if saved.Path != wantPath || saved.PackageCount != 3 || saved.SPDXVersion != "SPDX-2.3" || !strings.HasPrefix(saved.Digest, "sha256:") {
+		t.Fatalf("unexpected result: %+v", saved)
+	}
+
+	// The file is the full, pretty-printed SPDX document.
+	b, err := os.ReadFile(saved.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		SPDXVersion   string           `json:"spdxVersion"`
+		Packages      []map[string]any `json:"packages"`
+		Relationships []map[string]any `json:"relationships"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatalf("saved file isn't valid JSON: %v", err)
+	}
+	if doc.SPDXVersion != "SPDX-2.3" || len(doc.Packages) != 9 || len(doc.Relationships) != 3 || len(b) != saved.SizeBytes {
+		t.Fatalf("saved file is incomplete: version=%q packages=%d relationships=%d", doc.SPDXVersion, len(doc.Packages), len(doc.Relationships))
+	}
+	if !strings.Contains(string(b), "\n  \"") {
+		t.Error("saved file should be indented")
+	}
+
+	// Existing files are only replaced with overwrite.
+	if msg := callTool(t, s, "save_sbom", map[string]any{"image": "python"}, nil); !strings.Contains(msg, "already exists") {
+		t.Fatalf("expected already-exists error, got %q", msg)
+	}
+	mustCall(t, s, "save_sbom", map[string]any{"image": "python", "overwrite": true}, nil)
+
+	// Custom names get a .json extension; paths are rejected.
+	var custom SavedSBOM
+	mustCall(t, s, "save_sbom", map[string]any{"image": "python", "tag": "latest-dev", "filename": "python-dev"}, &custom)
+	if filepath.Base(custom.Path) != "python-dev.json" || custom.PackageCount != 3 {
+		t.Fatalf("unexpected result: %+v", custom)
+	}
+	for _, bad := range []string{"../escape.json", "sub/dir.json", `..\escape.json`, ".hidden.json", "C:evil.json"} {
+		if msg := callTool(t, s, "save_sbom", map[string]any{"image": "python", "filename": bad}, nil); !strings.Contains(msg, "invalid filename") {
+			t.Errorf("%q: expected invalid-filename error, got %q", bad, msg)
+		}
+	}
+	entries, _ := os.ReadDir(svc.SBOMDir)
+	if len(entries) != 2 {
+		t.Errorf("want exactly 2 files in the SBOM folder, got %d", len(entries))
+	}
+
+	if msg := callTool(t, s, "save_sbom", map[string]any{"image": "loki-fips"}, nil); !strings.Contains(msg, "not publicly accessible") {
+		t.Errorf("expected not-public error, got %q", msg)
+	}
+}
+
+func TestSaveSBOMDisabledWithoutDir(t *testing.T) {
+	s := mcpClient(t, newFakeService(t)) // SBOMDir unset, as in HTTP mode
+	res, err := s.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range res.Tools {
+		if tool.Name == "save_sbom" {
+			t.Fatal("save_sbom should not be offered without an SBOM folder")
+		}
 	}
 }

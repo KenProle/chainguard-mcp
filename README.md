@@ -11,6 +11,7 @@ An MCP server that helps AI assistants discover, inspect and adopt [Chainguard](
 | `get_image_details` | Platforms and download sizes, digest, creation time, user, entrypoint, command, working directory and environment. |
 | `pin_image` | Resolve a tag to its digest, e.g. `cgr.dev/chainguard/python:latest@sha256:…`, for reproducible builds. |
 | `get_image_packages` | OS packages from the image's signed SBOM, with versions, licenses and source packages, plus whether it has a shell or `apk`. |
+| `save_sbom` | Save the image's full SPDX SBOM as a JSON file, for compliance or scanning tools. See [Saving SBOMs](#saving-sboms). |
 | `check_vulnerabilities` | Look up a CVE/GHSA ID against the image's packages, or summarize recorded fixes per package. |
 | `find_alternative` | Suggest the Chainguard image to replace an upstream one, e.g. `node:20-alpine` → `cgr.dev/chainguard/node`. |
 
@@ -64,6 +65,7 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 
 - "Show me the SBOM for the Chainguard python image."
 - "Give me the SBOM for the arm64 version of the Chainguard node image as a table."
+- "Save the full SBOM for the Chainguard python image."
 - "What version of OpenSSL is in the Chainguard python image?"
 - "List the licenses of every package in the Chainguard node image."
 - "Compare the packages in python:latest and python:latest-dev."
@@ -114,6 +116,19 @@ Add it to Claude Code:
 claude mcp add -s user chainguard -- /path/to/chainguard-mcp
 ```
 
+### Saving SBOMs
+
+`save_sbom` writes files named like `python-latest-amd64.spdx.json`, and never overwrites an existing file unless asked to. Where they go depends on how the server runs:
+
+- **Stdio mode:** the folder the server was started in. For Claude Code, that's your project folder.
+- **HTTP mode:** saving is turned off, because remote clients would be writing files to the server's machine.
+
+Use `-sbom-dir` to choose a folder in either mode:
+
+```bash
+claude mcp add -s user chainguard -- /path/to/chainguard-mcp -sbom-dir /path/to/sboms
+```
+
 ## Docker
 
 The image is built on Chainguard's `go` (build) and `static` (runtime) images, and runs as a non-root user.
@@ -133,6 +148,14 @@ Stdio mode. Passing an empty `-http=` disables HTTP:
 ```bash
 claude mcp add chainguard -- docker run -i --rm chainguard-mcp -http=
 ```
+
+To save SBOMs from the container, mount a folder and point `-sbom-dir` at it:
+
+```bash
+docker run -i --rm -v "$PWD/sboms:/sboms" chainguard-mcp -http= -sbom-dir /sboms
+```
+
+On Linux, the folder must be writable by the container's user (UID 65532).
 
 Multi-arch build (cross-compiles, no emulation needed):
 
@@ -174,7 +197,7 @@ git push origin v0.2.0
 | `catalog.go` | Image list from the directory sitemap. |
 | `registry.go` | Anonymous cgr.dev client: tokens, free-tier checks, tags, manifests, blobs. |
 | `details.go` | `get_image_details` and `pin_image`. |
-| `sbom.go` | SBOM attestation parsing for `get_image_packages`. |
+| `sbom.go` | SBOM attestation parsing for `get_image_packages`, and saving for `save_sbom`. |
 | `vulns.go` | Wolfi security database and APK version comparison. |
 | `alternatives.go` | Upstream image → Chainguard image mapping. |
 

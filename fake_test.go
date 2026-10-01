@@ -111,7 +111,7 @@ func (f *fakeChainguard) addSBOM(image, digest string, pkgs []fakePkg) {
 	statement := map[string]any{
 		"_type":         "https://in-toto.io/Statement/v0.1",
 		"predicateType": predicateSPDX,
-		"predicate":     map[string]any{"packages": packages, "relationships": relationships},
+		"predicate":     map[string]any{"spdxVersion": "SPDX-2.3", "packages": packages, "relationships": relationships},
 	}
 	envelope := f.addBlob(map[string]any{
 		"payloadType": "application/vnd.in-toto+json",

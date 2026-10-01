@@ -16,6 +16,9 @@ type Service struct {
 	Catalog  *Catalog
 	Registry *Registry
 	SecDB    *SecDB
+	// SBOMDir is where save_sbom writes files. The tool is only offered
+	// when it's set.
+	SBOMDir string
 }
 
 func NewService() *Service {
@@ -99,6 +102,14 @@ type GetImagePackagesOutput struct {
 	HasAPK   bool      `json:"has_apk" jsonschema:"whether the apk package manager is installed"`
 	Total    int       `json:"total" jsonschema:"number of packages in the image"`
 	Packages []Package `json:"packages" jsonschema:"packages matching the query (all if no query)"`
+}
+
+type SaveSBOMInput struct {
+	Image     string `json:"image" jsonschema:"image name as returned by list_images, e.g. 'python'"`
+	Tag       string `json:"tag,omitempty" jsonschema:"tag to export (default 'latest')"`
+	Arch      string `json:"arch,omitempty" jsonschema:"CPU architecture: 'amd64' (default) or 'arm64'"`
+	Filename  string `json:"filename,omitempty" jsonschema:"plain file name without folders (default '<image>-<tag>-<arch>.spdx.json')"`
+	Overwrite bool   `json:"overwrite,omitempty" jsonschema:"replace the file if it already exists"`
 }
 
 type CheckVulnerabilitiesInput struct {
@@ -250,6 +261,29 @@ func newServer(svc *Service) *mcp.Server {
 		}
 		return nil, out, nil
 	})
+
+	if svc.SBOMDir != "" {
+		mcp.AddTool(server, &mcp.Tool{
+			Name: "save_sbom",
+			Description: "Save the full SPDX SBOM (software bill of materials) of a Chainguard image as a JSON file, for compliance or scanning tools. " +
+				"Files are saved to the server's SBOM folder (" + svc.SBOMDir + "); the result includes the full path. Only works for free-tier images.",
+			Annotations: &mcp.ToolAnnotations{IdempotentHint: true, DestructiveHint: new(false)},
+		}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveSBOMInput) (*mcp.CallToolResult, *SavedSBOM, error) {
+			image, tag, err := imageAndTag(in.Image, in.Tag)
+			if err != nil {
+				return nil, nil, err
+			}
+			arch := strings.TrimSpace(in.Arch)
+			if arch == "" {
+				arch = "amd64"
+			}
+			saved, err := svc.Registry.SaveSBOM(ctx, svc.SBOMDir, image, tag, arch, in.Filename, in.Overwrite)
+			if err != nil {
+				return nil, nil, notPublicHint(image, err)
+			}
+			return nil, saved, nil
+		})
+	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_vulnerabilities",

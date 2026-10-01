@@ -13,7 +13,9 @@ func TestLive(t *testing.T) {
 	if os.Getenv("CHAINGUARD_LIVE") != "1" {
 		t.Skip("set CHAINGUARD_LIVE=1 to run against the live Chainguard endpoints")
 	}
-	s := mcpClient(t, NewService())
+	svc := NewService()
+	svc.SBOMDir = t.TempDir()
+	s := mcpClient(t, svc)
 
 	t.Run("list_images", func(t *testing.T) {
 		var out ListImagesOutput
@@ -71,6 +73,15 @@ func TestLive(t *testing.T) {
 		mustCall(t, s, "get_image_packages", map[string]any{"image": "python", "tag": "latest-dev", "arch": "arm64"}, &dev)
 		if !dev.HasShell || !dev.HasAPK {
 			t.Fatalf("expected latest-dev to have a shell and apk: %+v", dev)
+		}
+	})
+
+	t.Run("save_sbom", func(t *testing.T) {
+		var out SavedSBOM
+		mustCall(t, s, "save_sbom", map[string]any{"image": "python", "arch": "arm64"}, &out)
+		t.Logf("%s: %d bytes, %s, %d packages", out.Path, out.SizeBytes, out.SPDXVersion, out.PackageCount)
+		if out.PackageCount == 0 || out.SizeBytes < 10000 || !strings.HasPrefix(out.SPDXVersion, "SPDX-") {
+			t.Fatalf("unexpected result: %+v", out)
 		}
 	})
 
