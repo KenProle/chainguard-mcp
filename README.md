@@ -57,3 +57,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t chainguard-mcp .
 ## Test
 
 `go test ./...` runs an end-to-end test against the live endpoints. Use `-short` to skip it when offline.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
