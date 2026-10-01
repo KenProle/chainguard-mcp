@@ -18,6 +18,66 @@ It also provides a `migrate_dockerfile` **prompt** that walks the assistant thro
 
 Every tool except `list_images` and `find_alternative` needs anonymous registry access, so it only works for **free-tier** images. Paid images return a clear error.
 
+## Example questions
+
+Once the server is connected, ask Claude questions like these. Claude picks the right tools, and often chains several together.
+
+### A quick demo
+
+Each question builds on the one before:
+
+1. "What free Chainguard images are there for Python?"
+2. "Tell me about the Chainguard python image. Does it run as root? What architectures does it support?"
+3. "Does the python image have a shell? What about latest-dev?"
+4. "Is the python image affected by CVE-2022-3602?"
+5. "I'm using node:20-alpine. What's the Chainguard equivalent?"
+6. Paste a Dockerfile and ask Claude to migrate it:
+
+   ````
+   Migrate this Dockerfile to Chainguard images and pin them by digest:
+
+   ```dockerfile
+   FROM python:3.12-slim
+   WORKDIR /app
+   COPY requirements.txt .
+   RUN pip install -r requirements.txt
+   COPY . .
+   CMD ["python", "app.py"]
+   ```
+   ````
+
+In Claude Code, the `migrate_dockerfile` prompt is also available as `/mcp__chainguard__migrate_dockerfile`.
+
+### Discovery
+
+- "How many Chainguard images are there in total?"
+- "List all the FIPS images for Java."
+- "Which Chainguard images exist for PostgreSQL?"
+
+### Details and pinning
+
+- "How big is the Chainguard static image to download?"
+- "What environment variables does cgr.dev/chainguard/node set?"
+- "Give me a digest-pinned FROM line for the Chainguard go image."
+
+### Packages
+
+- "What version of OpenSSL is in the Chainguard python image?"
+- "List the licenses of every package in the Chainguard node image."
+- "Compare the packages in python:latest and python:latest-dev."
+
+### Vulnerabilities
+
+- "Summarize the security fixes recorded for the Chainguard python image."
+- "Are there any fixes the python image is missing?"
+- "Is the Chainguard node image affected by CVE-2024-12797?"
+
+### Alternatives
+
+- "What should I use instead of gcr.io/distroless/static-debian12?"
+- "We use eclipse-temurin:21-jre and mcr.microsoft.com/dotnet/aspnet:8.0. What are the Chainguard replacements, and are they free?"
+- "Replace ubuntu:24.04 with a Chainguard base image."
+
 ## Data sources
 
 | Data | Source |
