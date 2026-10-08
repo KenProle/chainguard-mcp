@@ -69,5 +69,5 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 ## CI and releases
 
 - `.github/workflows/ci.yml` runs gofmt (Linux only), vet and tests on Linux and Windows, `-race` on Linux, a `Web` job (lint, typecheck, test, build), a Docker build plus smoke test that the UI loads, and a GoReleaser snapshot.
-- `main` is protected by a ruleset that requires the CI jobs named `Test (ubuntu-latest)`, `Test (windows-latest)`, `Docker build` and `Release config check`. Renaming a job means updating the ruleset too. The repo owner has an admin bypass, so direct pushes print "Bypassed rule violations"; that's expected.
+- `main` is protected by a ruleset that requires the CI jobs named `Test (ubuntu-latest)`, `Test (windows-latest)`, `Web`, `Docker build` and `Release config check`. Renaming a job means updating the ruleset too. The repo owner has an admin bypass, so direct pushes print "Bypassed rule violations"; that's expected.
 - Pushing a `v*` tag runs `release.yml`: GoReleaser's `before` hooks build the web UI, then it builds linux/darwin/windows × amd64/arm64 archives and publishes a GitHub Release. The version is injected with `-X main.version`. Commits prefixed `docs:` or `test:` are left out of the release changelog.
