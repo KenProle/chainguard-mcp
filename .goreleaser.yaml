@@ -3,6 +3,12 @@
 version: 2
 project_name: chainguard-mcp
 
+before:
+  hooks:
+    # Build the web UI so the binaries embed it (see webui.go).
+    - npm --prefix web ci --no-fund --no-audit
+    - npm --prefix web run build
+
 builds:
   - env:
       - CGO_ENABLED=0

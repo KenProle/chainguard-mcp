@@ -3,3 +3,7 @@
 !go.sum
 !*.go
 *_test.go
+!web/
+web/node_modules/
+web/dist/
+web/**/*.test.tsx

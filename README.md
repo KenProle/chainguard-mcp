@@ -1,6 +1,24 @@
 # chainguard-mcp
 
-An MCP server that helps AI assistants discover, inspect and adopt [Chainguard](https://www.chainguard.dev/) container images.
+An MCP server that helps AI assistants discover, inspect and adopt [Chainguard](https://www.chainguard.dev/) container images, plus a web UI for browsing the same data yourself.
+
+This is an unofficial project, not affiliated with Chainguard.
+
+## Web UI
+
+Run the server in HTTP mode and open http://127.0.0.1:8080/:
+
+```bash
+./chainguard-mcp -http 127.0.0.1:8080
+```
+
+- **Catalog:** search all images, filter to free ones, and see which need a subscription.
+- **Image details:** the pinned reference to use in a Dockerfile, the user it runs as, entrypoint, platforms and download sizes.
+- **Packages & SBOM:** every OS package from the image's signed SBOM, whether it has a shell or package manager, and a download of the full SPDX SBOM.
+- **Security:** recorded vulnerability fixes per package, and a CVE/GHSA lookup.
+- **Find alternative:** enter an image you use today, like `node:20-alpine`, to get its Chainguard replacement and migration notes.
+
+The UI is built into the same binary and calls the same code as the MCP tools, through a JSON API under `/api/`.
 
 ## Tools
 
@@ -99,14 +117,18 @@ The Wolfi database records which vulnerabilities each package version **fixes**,
 Download a binary for your platform from [Releases](https://github.com/KenProle/chainguard-mcp/releases), or build from source:
 
 ```bash
+npm --prefix web ci
+npm --prefix web run build   # optional: builds the web UI, which the Go binary embeds
 go build -o chainguard-mcp .
 ```
+
+Without the UI build, everything else still works and `/` shows how to build it.
 
 ## Run
 
 ```bash
 ./chainguard-mcp                     # stdio (for Claude Desktop / Claude Code)
-./chainguard-mcp -http 127.0.0.1:8080  # Streamable HTTP at /mcp, health check at /healthz
+./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API at /api/, health check at /healthz
 ./chainguard-mcp -version
 ```
 
@@ -131,13 +153,13 @@ claude mcp add -s user chainguard -- /path/to/chainguard-mcp -sbom-dir /path/to/
 
 ## Docker
 
-The image is built on Chainguard's `go` (build) and `static` (runtime) images, and runs as a non-root user.
+The image is built on Chainguard's `node` and `go` images (build) and `static` image (runtime), and runs as a non-root user. It includes the web UI.
 
 ```bash
 docker build -t chainguard-mcp .
 ```
 
-HTTP mode (the default). Bind the host port to `127.0.0.1` so it isn't reachable from your network:
+HTTP mode with the web UI (the default). Bind the host port to `127.0.0.1` so it isn't reachable from your network, then open http://127.0.0.1:8080/:
 
 ```bash
 docker run -d --rm -p 127.0.0.1:8080:8080 chainguard-mcp
@@ -163,7 +185,7 @@ Multi-arch build (cross-compiles, no emulation needed):
 docker buildx build --platform linux/amd64,linux/arm64 -t chainguard-mcp .
 ```
 
-## Test
+## Develop and test
 
 ```bash
 go test ./...
@@ -175,9 +197,24 @@ The tests run offline against a fake Chainguard registry (`fake_test.go`). To al
 CHAINGUARD_LIVE=1 go test -run TestLive -v ./...
 ```
 
+The web UI is a React + TypeScript app in `web/`, built with Vite. It needs Node.js 24:
+
+```bash
+cd web
+npm ci
+npm run lint && npm run typecheck && npm test
+```
+
+For live reloading while working on the UI, run the Go server and the Vite dev server together, then open http://localhost:5173/. Vite forwards `/api` requests to the Go server.
+
+```bash
+go run . -http 127.0.0.1:8080
+npm --prefix web run dev
+```
+
 ## Releasing
 
-CI (`.github/workflows/ci.yml`) runs formatting, vet and tests on Linux and Windows, builds the Docker image, and dry-runs the release on every push to `main`.
+CI (`.github/workflows/ci.yml`) runs formatting, vet and tests on Linux and Windows, lints, typechecks, tests and builds the web UI, builds the Docker image and checks the UI loads, and dry-runs the release on every push to `main`.
 
 To publish a release, push a version tag:
 
@@ -186,20 +223,24 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-`.github/workflows/release.yml` then uses [GoReleaser](https://goreleaser.com) to build binaries for Linux, macOS and Windows (amd64 and arm64) and attach them to a GitHub Release with checksums.
+`.github/workflows/release.yml` then uses [GoReleaser](https://goreleaser.com) to build the web UI and binaries for Linux, macOS and Windows (amd64 and arm64) and attach them to a GitHub Release with checksums.
 
 ## Project layout
 
 | File | Contents |
 |------|----------|
 | `main.go` | Flags and transport setup (stdio or HTTP). |
+| `service.go` | Shared logic behind both the MCP tools and the web API. |
 | `tools.go` | MCP tool and prompt definitions. |
+| `web.go` | JSON API under `/api/`, security headers, and serving the UI. |
+| `webui.go` | Embeds the built UI from `web/dist`. |
 | `catalog.go` | Image list from the directory sitemap. |
 | `registry.go` | Anonymous cgr.dev client: tokens, free-tier checks, tags, manifests, blobs. |
 | `details.go` | `get_image_details` and `pin_image`. |
 | `sbom.go` | SBOM attestation parsing for `get_image_packages`, and saving for `save_sbom`. |
 | `vulns.go` | Wolfi security database and APK version comparison. |
 | `alternatives.go` | Upstream image → Chainguard image mapping. |
+| `web/` | React + TypeScript web UI. |
 
 ## License
 

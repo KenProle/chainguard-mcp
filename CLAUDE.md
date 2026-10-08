@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Go MCP server (official SDK `github.com/modelcontextprotocol/go-sdk`) that lets AI assistants discover and inspect Chainguard container images. Everything is one `main` package. It talks to Chainguard's public endpoints anonymously, so most tools only work for free-tier images.
+A Go MCP server (official SDK `github.com/modelcontextprotocol/go-sdk`) that lets AI assistants discover and inspect Chainguard container images, plus a React web UI over the same data. The Go code is one `main` package; the UI lives in `web/`. It talks to Chainguard's public endpoints anonymously, so most tools only work for free-tier images.
 
 ## Commands
 
@@ -16,15 +16,26 @@ CHAINGUARD_LIVE=1 go test -run TestLive -v ./...     # end-to-end against real C
 CHAINGUARD_LIVE=1 go test -run 'TestLive/pin_image' -v ./...  # one live subtest
 gofmt -l . && go vet ./...                           # CI fails on unformatted files
 docker build -t chainguard-mcp .
+
+# Web UI (Node 24; on this Windows machine Node is at "C:Program Files
+odejs")
+npm --prefix web ci
+npm --prefix web run lint && npm --prefix web run typecheck && npm --prefix web test
+npm --prefix web run build          # outputs web/dist, which the Go binary embeds
+npm --prefix web run dev            # Vite on :5173, proxies /api to a Go server on 127.0.0.1:8080
 ```
 
-Run modes: stdio by default; `-http 127.0.0.1:8080` serves Streamable HTTP at `/mcp` (plus `/healthz`); `-sbom-dir` sets where `save_sbom` writes; `-version`. In Docker, `-http=` (empty) switches the container to stdio.
+Run modes: stdio by default; `-http 127.0.0.1:8080` serves the web UI at `/`, its JSON API under `/api/`, Streamable HTTP MCP at `/mcp`, and `/healthz`; `-sbom-dir` sets where `save_sbom` writes; `-version`. In Docker, `-http=` (empty) switches the container to stdio.
 
 On Windows, rebuilding the exe while a Claude Code session is running it leaves a `chainguard-mcp.exe~` backup. It's gitignored; don't commit it.
 
 ## Architecture
 
-`tools.go` defines `Service` (bundling `Catalog`, `Registry`, `SecDB`, `SBOMDir`) and registers every tool and the `migrate_dockerfile` prompt in `newServer`. Each tool handler takes a typed input struct: the SDK generates the tool's JSON schema from the struct's `json` and `jsonschema` tags, so adding a parameter means adding a field. Output structs are returned as structured content the same way.
+`service.go` defines `Service` (bundling `Catalog`, `Registry`, `SecDB`, `SBOMDir`), the tool input/output types, input validation and one method per operation. Both front ends are thin wrappers over those methods: `tools.go` registers the MCP tools and the `migrate_dockerfile` prompt, and `web.go` exposes the same methods as `GET /api/...` JSON endpoints. Put new logic in a `Service` method, not in a handler, so MCP and the UI stay identical.
+
+MCP tool handlers take typed input structs: the SDK generates each tool's JSON schema from the `json` and `jsonschema` tags, so adding a parameter means adding a field. The same output structs are the API's JSON responses, and `web/src/api.ts` mirrors them by hand, so change both together.
+
+Validation failures are `*InputError`; `web.go`'s `writeError` maps `InputError` → 400 `invalid_input`, `ErrNotPublic` → 403 `not_public`, `ErrNotFound` → 404 `not_found`, anything else → 502. The UI switches on these `code` values (e.g. the paid-image message).
 
 Data sources, and facts about them that aren't obvious from the code:
 
@@ -38,15 +49,25 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 
 `save_sbom` is only registered when `Service.SBOMDir` is set. `main.go` defaults it to the working directory in stdio mode and leaves it empty in HTTP mode, so remote clients can't write to the server's disk unless `-sbom-dir` is given. Writes go through `os.Root` with validated plain file names; keep it that way.
 
+## Web UI
+
+- `webui.go` embeds `web/dist` with `//go:embed all:web/dist`. `web/dist/.gitkeep` is committed so `go build`/`go test` work without Node; Vite empties `dist/` on build, so a plugin in `web/vite.config.ts` recreates `.gitkeep`. Without a built UI, `/` returns 503 with build instructions.
+- `web.go` serves unknown non-file paths as `index.html` for client-side routing, sets a strict CSP (`default-src 'self'`, no inline script or style), and streams SBOM downloads instead of writing to disk.
+- Stack: React 19, React Router 8, TanStack Query, Tailwind 4, Vitest + Testing Library, oxlint (not ESLint). TypeScript is strict.
+- URL state: the catalog's search, filter and page, and the image page's tag and tab, live in the query string. React Router's functional `setSearchParams` sees stale params inside delayed callbacks, so `CatalogPage` builds updates from a ref holding the latest params.
+- Keep shared constants and helpers in `web/src/styles.ts`, not in component files, or Vite fast refresh breaks.
+
 ## Tests
 
 - `fake_test.go`: `fakeChainguard` serves the sitemap, token endpoint, registry (tags, manifests, blobs, `.att` attestations shaped like apko's) and secdb. `newFakeService` wires a `Service` to it. Add fixtures here when a tool needs new data.
 - `tools_test.go`: tool-level tests through a real in-memory MCP client (`mcpClient`, `mustCall`, `callTool` in `mcp_test.go`). `callTool` returns the tool's error text, for asserting error cases.
 - `unit_test.go`: pure functions (version comparison, reference parsing, validation).
+- `web_test.go`: every API endpoint, error code, SBOM download headers, SPA fallback, the UI-not-built page and security headers, using `newFakeService` and an `fstest.MapFS` UI.
+- `web/src/pages/pages.test.tsx`: page tests with `fetch` stubbed by `mockApi` (`web/src/test/render.tsx`).
 - `live_test.go`: skipped unless `CHAINGUARD_LIVE=1`; not run in CI. Chainguard rebuilds images constantly and renames packages, so assert stable properties (an OpenSSL library has an openssl origin), not exact package names or counts.
 
 ## CI and releases
 
-- `.github/workflows/ci.yml` runs gofmt (Linux only), vet and tests on Linux and Windows, `-race` on Linux, a Docker build plus `-version` smoke test, and a GoReleaser snapshot.
+- `.github/workflows/ci.yml` runs gofmt (Linux only), vet and tests on Linux and Windows, `-race` on Linux, a `Web` job (lint, typecheck, test, build), a Docker build plus smoke test that the UI loads, and a GoReleaser snapshot.
 - `main` is protected by a ruleset that requires the CI jobs named `Test (ubuntu-latest)`, `Test (windows-latest)`, `Docker build` and `Release config check`. Renaming a job means updating the ruleset too. The repo owner has an admin bypass, so direct pushes print "Bypassed rule violations"; that's expected.
-- Pushing a `v*` tag runs `release.yml`: GoReleaser builds linux/darwin/windows × amd64/arm64 archives and publishes a GitHub Release. The version is injected with `-X main.version`. Commits prefixed `docs:` or `test:` are left out of the release changelog.
+- Pushing a `v*` tag runs `release.yml`: GoReleaser's `before` hooks build the web UI, then it builds linux/darwin/windows × amd64/arm64 archives and publishes a GitHub Release. The version is injected with `-X main.version`. Commits prefixed `docs:` or `test:` are left out of the release changelog.

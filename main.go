@@ -2,7 +2,8 @@
 // container images.
 //
 // By default it speaks MCP over stdio. Pass -http 127.0.0.1:8080 to serve
-// the Streamable HTTP transport at /mcp instead.
+// the Streamable HTTP transport at /mcp instead, along with a web UI at /
+// and its JSON API under /api/.
 package main
 
 import (
@@ -57,7 +58,8 @@ func main() {
 		mux := http.NewServeMux()
 		mux.Handle("/mcp", handler)
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintln(w, "ok") })
-		log.Printf("chainguard-mcp %s listening on %s/mcp", version, *httpAddr)
+		mux.Handle("/", newWebHandler(svc, embeddedUI()))
+		log.Printf("chainguard-mcp %s: web UI at http://%s/, MCP at http://%s/mcp", version, *httpAddr, *httpAddr)
 		log.Fatal(http.ListenAndServe(*httpAddr, mux))
 	}
 

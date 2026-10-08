@@ -341,5 +341,5 @@ func (r *Registry) PlatformManifest(ctx context.Context, image, tag, arch string
 			return m, digest, topDigest, nil
 		}
 	}
-	return nil, "", "", fmt.Errorf("%s:%s has no %s variant (available: %s)", image, tag, arch, strings.Join(available, ", "))
+	return nil, "", "", fmt.Errorf("%s:%s has no %s variant (available: %s): %w", image, tag, arch, strings.Join(available, ", "), ErrNotFound)
 }

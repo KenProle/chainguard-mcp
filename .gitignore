@@ -1,4 +1,9 @@
 # Build output
 *.exe
 *.exe~
-dist/
+/dist/
+
+# Web UI
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep

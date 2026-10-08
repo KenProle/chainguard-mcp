@@ -197,12 +197,12 @@ func alternativeNotes(p parsedRef, r *AlternativesResult) []string {
 		notes = append(notes, "Use :"+r.DevTag+" (includes a shell and the apk package manager) for build stages, and the minimal :latest for the final runtime stage.")
 	}
 	if p.tag != "" && p.tag != "latest" && r.Recommended.Free != nil && *r.Recommended.Free {
-		notes = append(notes, "The free tier only provides the latest version. Specific version tags (like "+p.tag+") require a subscription; pin by digest with pin_image for reproducibility.")
+		notes = append(notes, "The free tier only provides the latest version. Specific version tags (like "+p.tag+") require a subscription, so pin :latest by digest for reproducible builds.")
 	}
 	if r.Recommended.Image == "wolfi-base" {
 		notes = append(notes, "wolfi-base is a minimal general-purpose base image. Install packages with `apk add` instead of apt/yum/dnf.")
 	}
-	notes = append(notes, "Chainguard images usually run as a non-root user and may have a different entrypoint; check with get_image_details.")
+	notes = append(notes, "Chainguard images usually run as a non-root user and may have a different entrypoint, so check the image's user and entrypoint before switching.")
 	return notes
 }
 
