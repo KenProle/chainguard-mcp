@@ -65,9 +65,11 @@ func TestLive(t *testing.T) {
 		var out GetImagePackagesOutput
 		mustCall(t, s, "get_image_packages", map[string]any{"image": "python"}, &out)
 		t.Logf("total=%d shell=%v apk=%v", out.Total, out.HasShell, out.HasAPK)
-		i := slices.IndexFunc(out.Packages, func(p Package) bool { return p.Name == "libssl3" })
-		if i < 0 || out.Packages[i].Origin != "openssl" {
-			t.Fatalf("expected libssl3 from openssl, got %+v", out.Packages)
+		// Package names change upstream (libssl3 became openssl-4.0-libssl), so
+		// only check that an OpenSSL library is traced to an OpenSSL origin.
+		i := slices.IndexFunc(out.Packages, func(p Package) bool { return strings.Contains(p.Name, "libssl") })
+		if i < 0 || !strings.HasPrefix(out.Packages[i].Origin, "openssl") || out.Packages[i].Origin == out.Packages[i].Name {
+			t.Fatalf("expected an OpenSSL library with an openssl origin, got %+v", out.Packages)
 		}
 		var dev GetImagePackagesOutput
 		mustCall(t, s, "get_image_packages", map[string]any{"image": "python", "tag": "latest-dev", "arch": "arm64"}, &dev)
@@ -102,6 +104,14 @@ func TestLive(t *testing.T) {
 	})
 
 	t.Run("find_alternative", func(t *testing.T) {
+		var node AlternativesResult
+		mustCall(t, s, "find_alternative", map[string]any{"image": "node:20-alpine"}, &node)
+		for _, a := range node.Alternatives {
+			if !isVariant(a.Image, "node") {
+				t.Errorf("unrelated alternative for node: %s", a.Image)
+			}
+		}
+
 		for in, want := range map[string]string{
 			"node:20-alpine":                      "node",
 			"docker.io/library/golang:1.23":       "go",

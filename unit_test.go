@@ -106,3 +106,64 @@ func TestAnalyzeVulnsUncovered(t *testing.T) {
 		t.Fatalf("unexpected report: %+v", r)
 	}
 }
+
+func TestIsVariant(t *testing.T) {
+	// Real catalog names: variants vs. unrelated projects sharing a prefix.
+	tests := []struct {
+		img, base string
+		want      bool
+	}{
+		{"node-fips", "node", true},
+		{"postgres-iamguarded-fips", "postgres", true},
+		{"jdk-crac", "jdk", true},
+		{"go-msft-fips", "go", true},
+		{"node-local-dns", "node", false},
+		{"node-problem-detector-fips", "node", false},
+		{"postgres-operator", "postgres", false},
+		{"go-ipfs", "go", false},
+		{"nodejs", "node", false}, // no separator
+		{"python", "python", false},
+	}
+	for _, tt := range tests {
+		if got := isVariant(tt.img, tt.base); got != tt.want {
+			t.Errorf("isVariant(%q, %q) = %v, want %v", tt.img, tt.base, got, tt.want)
+		}
+	}
+}
+
+func TestAnalyzeVulnsVersionStreamFallback(t *testing.T) {
+	// Wolfi keeps OpenSSL's history under "openssl" while images install the
+	// versioned "openssl-4.0" package.
+	fixes := map[string]map[string][]string{
+		"openssl": {
+			"0":        {"CVE-2023-0466"},
+			"3.0.7-r0": {"CVE-2022-3602"},
+			"4.1.0-r0": {"CVE-2099-0002"}, // a newer stream's fix
+		},
+		"python-3.13": {"3.13.9-r0": {"CVE-2099-0003"}},
+	}
+	pkgs := []Package{
+		{Name: "openssl-4.0-libssl", Version: "4.0.3-r5", Origin: "openssl-4.0", Distro: "wolfi"},
+		{Name: "python-3.13", Version: "3.13.7-r0", Origin: "python-3.13", Distro: "wolfi"},
+	}
+
+	r := analyzeVulns(pkgs, fixes, "CVE-2022-3602")
+	if len(r.Matches) != 1 || r.Matches[0].Status != StatusFixed || r.Matches[0].RecordsFrom != "openssl" {
+		t.Fatalf("want CVE-2022-3602 fixed via openssl records, got %+v", r.Matches)
+	}
+
+	// A newer-stream fix found via the fallback is skipped, not reported as vulnerable.
+	if r := analyzeVulns(pkgs, fixes, "CVE-2099-0002"); len(r.Matches) != 0 {
+		t.Errorf("fallback should skip newer-stream fixes, got %+v", r.Matches)
+	}
+
+	// A package with its own records still reports pending fixes.
+	summary := analyzeVulns(pkgs, fixes, "")
+	if summary.TotalFixed != 1 || summary.TotalNotAffected != 1 {
+		t.Errorf("unexpected totals: fixed=%d not_affected=%d", summary.TotalFixed, summary.TotalNotAffected)
+	}
+	py := summary.Packages[1]
+	if py.RecordsFrom != "" || !slices.Equal(py.PendingFixes, []string{"CVE-2099-0003"}) {
+		t.Errorf("python-3.13 should use its own records: %+v", py)
+	}
+}

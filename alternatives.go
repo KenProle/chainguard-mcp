@@ -128,8 +128,8 @@ func (s *Service) FindAlternatives(ctx context.Context, ref string) (*Alternativ
 		}
 	}
 
-	// Related images share the recommended (or upstream) name as a prefix,
-	// e.g. python → python-fips, jdk → jdk-lts.
+	// Related images are variants of the recommended (or upstream) name,
+	// e.g. python → python-fips, jdk → jdk-crac.
 	base := recommended
 	if base == "" && len(parsed.path) > 0 {
 		base = parsed.path[len(parsed.path)-1]
@@ -137,7 +137,7 @@ func (s *Service) FindAlternatives(ctx context.Context, ref string) (*Alternativ
 	var related []string
 	if base != "" {
 		for _, img := range images {
-			if img != recommended && strings.HasPrefix(img, base+"-") {
+			if img != recommended && isVariant(img, base) {
 				related = append(related, img)
 			}
 		}
@@ -204,4 +204,26 @@ func alternativeNotes(p parsedRef, r *AlternativesResult) []string {
 	}
 	notes = append(notes, "Chainguard images usually run as a non-root user and may have a different entrypoint; check with get_image_details.")
 	return notes
+}
+
+// variantSuffixes are name parts Chainguard appends to make a variant of an
+// image, e.g. node-fips or postgres-iamguarded-fips. Other suffixes usually
+// mean a different project (node-local-dns, postgres-operator).
+var variantSuffixes = map[string]bool{
+	"fips": true, "iamguarded": true, "crac": true, "openssl": true,
+	"lts": true, "msft": true, "geomys": true, "slim": true, "glibc": true, "musl": true,
+}
+
+// isVariant reports whether img is base plus only variant suffixes.
+func isVariant(img, base string) bool {
+	rest, ok := strings.CutPrefix(img, base+"-")
+	if !ok {
+		return false
+	}
+	for part := range strings.SplitSeq(rest, "-") {
+		if !variantSuffixes[part] {
+			return false
+		}
+	}
+	return true
 }

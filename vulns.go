@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -93,6 +94,7 @@ type CVEMatch struct {
 	Status           string   `json:"status" jsonschema:"not_affected, fixed, or vulnerable"`
 	FixedVersion     string   `json:"fixed_version,omitempty"`
 	Subpackages      []string `json:"subpackages" jsonschema:"installed packages built from this origin"`
+	RecordsFrom      string   `json:"records_from,omitempty" jsonschema:"base package whose records were used, when this versioned package has none of its own"`
 }
 
 type PackageFixes struct {
@@ -101,6 +103,27 @@ type PackageFixes struct {
 	FixedCount       int      `json:"fixed_count" jsonschema:"vulnerabilities fixed at or before the installed version"`
 	NotAffectedCount int      `json:"not_affected_count" jsonschema:"vulnerabilities recorded as never affecting this package"`
 	PendingFixes     []string `json:"pending_fixes,omitempty" jsonschema:"IDs fixed only in newer versions than the one installed"`
+	RecordsFrom      string   `json:"records_from,omitempty" jsonschema:"base package whose records were used, when this versioned package has none of its own"`
+}
+
+// versionStream matches a version suffix on a package name, e.g. "-4.0" in
+// "openssl-4.0" or "-3.13" in "python-3.13".
+var versionStream = regexp.MustCompile(`-\d+(?:\.\d+)*$`)
+
+// lookupSecfixes returns the security records for an origin package. Wolfi
+// splits some packages into version streams (openssl-4.0) while keeping their
+// history under the base name (openssl), so when a versioned package has no
+// records of its own this falls back to the base name and returns it.
+func lookupSecfixes(fixes map[string]map[string][]string, origin string) (map[string][]string, string) {
+	if f, ok := fixes[origin]; ok {
+		return f, ""
+	}
+	if base := versionStream.ReplaceAllString(origin, ""); base != origin {
+		if f, ok := fixes[base]; ok {
+			return f, base
+		}
+	}
+	return nil, ""
 }
 
 type VulnReport struct {
@@ -154,7 +177,9 @@ func analyzeVulns(pkgs []Package, fixes map[string]map[string][]string, id strin
 	for _, name := range names {
 		o := origins[name]
 		pf := PackageFixes{Package: name, InstalledVersion: o.version}
-		for ver, ids := range fixes[name] {
+		secfixes, recordsFrom := lookupSecfixes(fixes, name)
+		pf.RecordsFrom = recordsFrom
+		for ver, ids := range secfixes {
 			for _, vid := range ids {
 				var status string
 				switch {
@@ -164,12 +189,16 @@ func analyzeVulns(pkgs []Package, fixes map[string]map[string][]string, id strin
 				case compareAPKVersions(o.version, ver) >= 0:
 					status = StatusFixed
 					pf.FixedCount++
+				case recordsFrom != "":
+					// The base package's history spans other release streams,
+					// so a fix in a newer version may not apply to this one.
+					continue
 				default:
 					status = StatusVulnerable
 					pf.PendingFixes = append(pf.PendingFixes, vid)
 				}
 				if id != "" && strings.EqualFold(vid, id) {
-					m := CVEMatch{Package: name, InstalledVersion: o.version, Status: status, Subpackages: o.subs}
+					m := CVEMatch{Package: name, InstalledVersion: o.version, Status: status, Subpackages: o.subs, RecordsFrom: recordsFrom}
 					if ver != "0" {
 						m.FixedVersion = ver
 					}
