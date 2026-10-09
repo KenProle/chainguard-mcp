@@ -14,14 +14,14 @@ Run the server in HTTP mode and open http://127.0.0.1:8080/:
 
 - **Catalog:** search all images, filter to free ones, and see which need a subscription.
 - **Image details:** the pinned reference to use in a Dockerfile, the user it runs as, entrypoint, platforms and download sizes.
-- **Packages & SBOM:** every OS package from the image's signed SBOM, whether it has a shell or package manager, and a download of the full SPDX SBOM.
+- **Packages & SBOM:** every OS package from the image's signed SBOM, whether it has a shell or package manager, and a download of the full SPDX SBOM. A license breakdown above the table counts packages as Permissive, Weak copyleft, Strong copyleft, Not declared or Unrecognized (an identifier outside its table); click a category to filter the table to it. Compound licenses count once: `AND` takes the most restrictive part, `OR` the least restrictive, and a `WITH` exception counts as its base license. It reflects the licenses declared in the SBOM, is informational only and isn't legal advice.
 - **Security:** recorded vulnerability fixes per package, and a CVE/GHSA lookup.
 - **Compare:** two tags of the same image side by side, by default the minimal `latest` and the development `latest-dev`. Shows how much larger one is, each tag's package count, download size, shell and `apk`, a size chart, and the packages only in one tag or at different versions. Pick any two tags and amd64 or arm64; the comparison is kept in the URL, so you can share or reload it.
 - **Find alternative:** enter an image you use today, like `node:20-alpine`, to get its Chainguard replacement and migration notes.
 
 Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), as Docker shows them.
 
-The UI is built into the same binary and calls the same code as the MCP tools, through a JSON API under `/api/`.
+The UI is built into the same binary and calls the same code as the MCP tools, through a JSON API under `/api/`. The comparison and the license breakdown are computed in the browser from that API's responses.
 
 ## Tools
 

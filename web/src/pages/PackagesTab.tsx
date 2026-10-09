@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { api } from '../api'
+import { LicenseBreakdown } from '../components/LicenseBreakdown'
 import { Badge, Card, ErrorState, Loading } from '../components/ui'
+import { type LicenseCategory, categorizeLicense } from '../licenses'
 import { inputClass } from '../styles'
 
 const arches = ['amd64', 'arm64'] as const
@@ -9,13 +11,20 @@ const arches = ['amd64', 'arm64'] as const
 export function PackagesTab({ name, tag }: { name: string; tag: string }) {
   const [arch, setArch] = useState<(typeof arches)[number]>('amd64')
   const [filter, setFilter] = useState('')
+  // The selected license category belongs to one tag and architecture, so a
+  // switch clears it without an effect.
+  const [selection, setSelection] = useState<{ key: string; category: LicenseCategory } | null>(null)
+  const key = `${tag}/${arch}`
+  const category = selection?.key === key ? selection.category : null
   const { data, error, isPending, refetch } = useQuery({
     queryKey: ['packages', name, tag, arch],
     queryFn: ({ signal }) => api.packages(name, tag, arch, signal),
   })
 
+  const categories = useMemo(() => new Map(data?.packages.map((p) => [p, categorizeLicense(p.license)])), [data])
   const q = filter.trim().toLowerCase()
-  const shown = data?.packages.filter((p) => !q || p.name.includes(q) || p.origin.includes(q)) ?? []
+  const shown =
+    data?.packages.filter((p) => (!q || p.name.includes(q) || p.origin.includes(q)) && (!category || categories.get(p) === category)) ?? []
 
   return (
     <div className="space-y-4">
@@ -56,6 +65,11 @@ export function PackagesTab({ name, tag }: { name: string; tag: string }) {
             {data.has_shell ? <Badge tone="amber">Has a shell</Badge> : <Badge tone="green">No shell</Badge>}
             {data.has_apk ? <Badge tone="amber">Has apk</Badge> : <Badge tone="green">No package manager</Badge>}
           </div>
+          <LicenseBreakdown
+            packages={data.packages}
+            selected={category}
+            onSelect={(c) => setSelection(c ? { key, category: c } : null)}
+          />
           <label className="mb-3 block">
             <span className="sr-only">Filter packages</span>
             <input

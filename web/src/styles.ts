@@ -1,6 +1,17 @@
 // Shared Tailwind class strings and formatting helpers. Kept out of the
 // component files so React fast refresh keeps working during development.
 
+import type { LicenseCategory } from './licenses'
+
+/** Bar colors for the license breakdown's categories, readable in light and dark mode. */
+export const licenseCategoryColor: Record<LicenseCategory, string> = {
+  permissive: 'fill-emerald-500 dark:fill-emerald-400',
+  weak: 'fill-amber-500 dark:fill-amber-400',
+  strong: 'fill-rose-500 dark:fill-rose-400',
+  unrecognized: 'fill-violet-500 dark:fill-violet-400',
+  none: 'fill-zinc-400 dark:fill-zinc-500',
+}
+
 export const inputClass =
   'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-900'
 
