@@ -34,7 +34,7 @@ Test names start with the scenario ID they cover (e.g. `VC-6.1 …`). Run web co
 
 - [x] 6.1 Run every check: `gofmt -l .`, `go vet ./...`, `go test ./...`, and in `web/` `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, plus `openspec validate --all --strict`. Verify: all pass, and `go test` shows no Go changes were needed.
 - [x] 6.2 Exercise the feature in the running app (build the UI, run `go run . -http 127.0.0.1:8080`) (VC-1 to VC-14). Verify in the browser: python compares `latest` vs `latest-dev` by default with live counts and sizes; switching to arm64 updates everything; `node` compares `latest` with `latest-slim`; `static` shows the no-variant message; `loki-fips` shows the subscription message; a reload keeps the comparison; the Overview tab shows decimal sizes. For `VC-14.1`: at 375 px wide in dark mode nothing overflows and the console shows no Content Security Policy violations. If the browser pane can't take screenshots, ask the user to confirm the layout visually.
-- [ ] 6.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
+- [x] 6.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
 
 ## Workflow follow-up
 
