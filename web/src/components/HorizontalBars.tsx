@@ -6,6 +6,12 @@ export type Bar = {
   colorClass?: string
   /** Accessible name of the bar's button when the chart is selectable. Defaults to "label, valueLabel". */
   accessibleLabel?: string
+  /**
+   * Draws the bar as consecutive segments instead of one rect. value is still
+   * the bar's length on the scale, so it must equal the segments' sum.
+   * Zero-value segments are not drawn.
+   */
+  segments?: { value: number; colorClass: string }[]
 }
 
 const defaultColor = 'fill-indigo-500 dark:fill-indigo-400'
@@ -30,6 +36,19 @@ export function HorizontalBars({
   onSelect?: (label: string) => void
 }) {
   const max = Math.max(0, ...bars.map((b) => b.value))
+  const width = (value: number) => (max > 0 ? (value / max) * 100 : 0)
+  const rects = (b: Bar) => {
+    if (!b.segments) {
+      return <rect x="0" y="0" height="10" width={width(b.value)} rx="1" className={b.colorClass ?? defaultColor} />
+    }
+    let x = 0
+    return b.segments.map((s, i) => {
+      if (s.value <= 0) return null
+      const start = x
+      x += width(s.value)
+      return <rect key={i} x={start} y="0" height="10" width={width(s.value)} className={s.colorClass} />
+    })
+  }
   const row = (b: Bar) => (
     <>
       <span className={`truncate font-mono text-xs text-zinc-600 dark:text-zinc-400 ${selected === b.label ? 'font-semibold text-zinc-900 dark:text-zinc-100' : ''}`}>
@@ -37,7 +56,7 @@ export function HorizontalBars({
       </span>
       <div className="flex min-w-0 items-center gap-2">
         <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="h-5 min-w-0 flex-1" aria-hidden="true">
-          <rect x="0" y="0" height="10" width={max > 0 ? (b.value / max) * 100 : 0} rx="1" className={b.colorClass ?? defaultColor} />
+          {rects(b)}
         </svg>
         <span className="w-20 shrink-0 text-right text-xs tabular-nums">{b.valueLabel}</span>
       </div>

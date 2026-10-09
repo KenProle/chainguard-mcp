@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { api, type CVEMatch } from '../api'
+import { FixesChart } from '../components/FixesChart'
 import { Badge, Card, ErrorState, Loading } from '../components/ui'
 import { buttonClass, inputClass } from '../styles'
 
@@ -105,6 +106,7 @@ export function SecurityTab({ name, tag }: { name: string; tag: string }) {
                 </ul>
               </div>
             )}
+            <FixesChart packages={summary.data.packages} />
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-zinc-500">

@@ -12,6 +12,17 @@ export const licenseCategoryColor: Record<LicenseCategory, string> = {
   none: 'fill-zinc-400 dark:fill-zinc-500',
 }
 
+/**
+ * Colors for the fixes chart's segments: fill for the bars, swatch for the
+ * legend. Fixes included are indigo rather than green so the chart doesn't
+ * read as "safe"; fixes not yet installed match the red pending-fix box.
+ */
+export const fixSegmentColor: Record<'fixed' | 'notAffected' | 'pending', { fill: string; swatch: string }> = {
+  fixed: { fill: 'fill-indigo-500 dark:fill-indigo-400', swatch: 'bg-indigo-500 dark:bg-indigo-400' },
+  notAffected: { fill: 'fill-zinc-300 dark:fill-zinc-600', swatch: 'bg-zinc-300 dark:bg-zinc-600' },
+  pending: { fill: 'fill-rose-500 dark:fill-rose-400', swatch: 'bg-rose-500 dark:bg-rose-400' },
+}
+
 export const inputClass =
   'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-900'
 
