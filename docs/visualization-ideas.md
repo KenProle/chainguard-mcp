@@ -5,7 +5,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | # | Idea | Where | Status |
 |---|---|---|---|
 | 1 | Minimal vs. `-dev` comparison | Image page | Done: the Compare tab (`image-variant-comparison`, prefix `VC`) |
-| 2 | License composition | Packages tab | Built: the license breakdown (change `add-license-breakdown`, prefix `LB`; not yet archived) |
+| 2 | License composition | Packages tab | Done: the license breakdown (`image-license-breakdown`, prefix `LB`) |
 | 3 | Security fixes per package | Security tab | Next |
 | 4 | Catalog map | Catalog page | Idea |
 | 5 | Size vs. the upstream image | Alternatives page | Idea; riskiest |

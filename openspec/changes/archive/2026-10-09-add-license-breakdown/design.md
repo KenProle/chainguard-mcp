@@ -68,7 +68,7 @@ Unit and component tests use `web/src/test/fixtures/python.ts`, which already ha
 
 ## Risks / Trade-offs
 
-- **[The mapping is a judgment call]** e.g. `MPL-2.0` as weak copyleft, `blessing` as permissive, and `OLDAP-2.8`/`CC-BY-4.0` left Unrecognized. → The table is explicit and commented in one place, the UI says it's informational, and Unrecognized makes gaps visible instead of guessing.
+- **[The mapping is a judgment call]** e.g. `MPL-2.0` as weak copyleft, `blessing` as permissive, and `OLDAP-2.8`/`CC-BY-4.0` left Unrecognized. Identifiers are added when real images show them: `tomcat` (2026-10-09) added the X11-era and graphics-library licenses (`X11`, `XFree86-*`, `libpng-*`, `IJG`, `FTL`, `Bitstream-*`), all permissive notice licenses that had left 8 of its 47 packages Unrecognized. → The table is explicit and commented in one place, the UI says it's informational, and Unrecognized makes gaps visible instead of guessing.
 - **[Deprecated or unusual identifiers]** `latest-dev` has `GPL-2.0` and `GPL-3.0` (deprecated, without `-only`) and space-padded parentheses. → Family prefixes cover deprecated GPL forms; the tokenizer splits on parentheses regardless of spacing.
 - **[Live data drifts from the examples]** Chainguard rebuilds daily and its license expressions change. → Tests use the dated fixtures; the spec's examples are dated.
 - **[Extending a shared component]** could change the Compare tab. → Both new props are optional, and `HorizontalBars`'s existing tests (including `aria-hidden` in VC-9.1) and `CompareTab.test.tsx` must pass unchanged.

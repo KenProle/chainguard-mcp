@@ -24,6 +24,11 @@ Test names start with the scenario ID they cover (e.g. `LB-1.1 …`). Run web co
 - [x] 4.2 Exercise the feature in the running app (build the UI, run `go run . -http 127.0.0.1:8080`) (LB-1 to LB-14). Verify in the browser: `python` `latest` shows the breakdown with live counts adding up to the package total; selecting a category filters the table and works with the text filter; switching architecture and tag recalculates and clears the selection; `python` `latest-dev` shows Unrecognized packages; keyboard Tab/Enter/Space work; the Compare tab's size chart looks as before; `loki-fips` still shows the subscription message. For `LB-14.1`: at 375 px wide in dark mode nothing overflows and the console shows no Content Security Policy violations. If the browser pane can't take screenshots, ask the user to confirm the layout visually.
 - [x] 4.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
 
+## 5. X11-era and graphics-library licenses
+
+- [x] 5.1 Add `X11`, `XFree86-*`, `libpng-*`, `IJG`, `FTL` and `Bitstream-*` to the Permissive rows of the mapping table in `web/src/licenses.ts` (LB-2), and add `web/src/test/fixtures/tomcat.ts`, tomcat's amd64 packages captured on 2026-10-09. Verify with unit tests in `licenses.test.ts`: `LB-2.3` (the six expressions from `libx11`, `libxi`, `libpng`, `libjpeg-turbo`, `freetype` and `ttf-dejavu` are Permissive, and the tomcat fixture counts Permissive 28, Weak copyleft 11, Strong copyleft 8), and every identifier in the tomcat fixture is recognized.
+- [x] 5.2 Run every check as in 4.1, open `tomcat`'s Packages tab in the running app and confirm it shows no Unrecognized packages, then push and confirm CI passes on that commit. Verify: all checks and CI jobs succeed.
+
 ## Workflow follow-up
 
-- Archive with `/opsx:archive` once 4.3 passes; this creates the living spec `openspec/specs/image-license-breakdown/spec.md`. Check its Purpose and requirement IDs survived the merge.
+- Archive with `/opsx:archive` once 5.2 passes; this creates the living spec `openspec/specs/image-license-breakdown/spec.md`. Check its Purpose and requirement IDs survived the merge.

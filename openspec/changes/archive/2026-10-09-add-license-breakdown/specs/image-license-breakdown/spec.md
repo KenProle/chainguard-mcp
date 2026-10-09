@@ -25,7 +25,7 @@ The license breakdown SHALL place every package in exactly one category: Permiss
 - **THEN** the package is counted as Not declared
 
 ### Requirement: LB-2 License identifier mapping
-The license breakdown SHALL map license identifiers to categories with a fixed table that covers every identifier in `python` `latest`'s packages. Permissive SHALL include `MIT`, `Apache-*`, `BSD-*`, `PSF-*`, `ISC`, `Zlib`, `blessing` and `CC-PDDC`; Weak copyleft `LGPL-*`, `MPL-*` and `EPL-*`; Strong copyleft `GPL-*` and `AGPL-*`. Any other identifier SHALL be Unrecognized.
+The license breakdown SHALL map license identifiers to categories with a fixed table that covers every identifier in `python` and `tomcat` `latest`. Permissive SHALL include `MIT`, `X11`, `XFree86-*`, `Apache-*`, `BSD-*`, `PSF-*`, `ISC`, `Zlib`, `libpng-*`, `IJG`, `FTL`, `Bitstream-*`, `blessing` and `CC-PDDC`; Weak copyleft `LGPL-*`, `MPL-*` and `EPL-*`; Strong copyleft `GPL-*` and `AGPL-*`. Any other identifier SHALL be Unrecognized.
 
 #### Scenario: LB-2.1 Common identifiers
 - **WHEN** packages are licensed `PSF-2.0` (`python-3.14`), `blessing` (`sqlite-libs`), `LGPL-2.1-or-later` (`glibc-2.44`) and `GPL-3.0-or-later` (`readline`)
@@ -34,6 +34,11 @@ The license breakdown SHALL map license identifiers to categories with a fixed t
 #### Scenario: LB-2.2 Identifier outside the mapping
 - **WHEN** a package is licensed `OLDAP-2.8` (`libldap-2.7` in `python:latest-dev`)
 - **THEN** it is categorized Unrecognized
+
+#### Scenario: LB-2.3 X11-era and graphics library licenses
+- **WHEN** the breakdown is calculated for `tomcat` `latest` on amd64 (47 packages, captured on 2026-10-09), whose packages include `XFree86-1.1` (`libx11`), `MIT AND X11` (`libxi`), `libpng-2.0` (`libpng`), `BSD-3-Clause AND IJG AND Zlib` (`libjpeg-turbo`), `FTL OR GPL-2.0-or-later` (`freetype`) and `Bitstream-Vera` (`ttf-dejavu`)
+- **THEN** those packages are categorized Permissive
+- **AND** the counts are Permissive 28, Weak copyleft 11, Strong copyleft 8, Not declared 0 and Unrecognized 0
 
 ### Requirement: LB-3 AND expressions
 When a package's license is an `AND` expression (all licenses apply), the license breakdown SHALL use the most restrictive category among its parts (Strong copyleft over Weak copyleft over Permissive). If any part is Unrecognized and no part is Strong copyleft, the package SHALL be Unrecognized.
