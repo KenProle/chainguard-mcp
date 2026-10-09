@@ -76,7 +76,7 @@ Features are specified before they're built, with [OpenSpec](https://github.com/
 - Requirements and scenarios carry stable IDs in their headers (`### Requirement: VC-3 …`, `#### Scenario: VC-3.1 …`), one prefix per capability. OpenSpec matches requirements by header text, so never renumber or reuse an ID. Tests start their names with the scenario ID they cover.
 - On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
 - `docs/visualization-ideas.md` is the backlog of web UI chart ideas not yet proposed as changes; update an idea's status when it's picked up.
-- Capability prefixes in use: `VC` (`image-variant-comparison`) and `LB` (`image-license-breakdown`).
+- Capability prefixes in use: `VC` (`image-variant-comparison`), `LB` (`image-license-breakdown`) and `SF` (`image-security-fixes`).
 
 ## CI and releases
 
