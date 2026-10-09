@@ -22,7 +22,7 @@ Test names start with the scenario ID they cover (e.g. `LB-1.1 …`). Run web co
 
 - [x] 4.1 Run every check: `gofmt -l .`, `go vet ./...`, `go test ./...`, and in `web/` `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, plus `openspec validate --all --strict`. Verify: all pass, and `git diff --stat` shows no Go changes.
 - [x] 4.2 Exercise the feature in the running app (build the UI, run `go run . -http 127.0.0.1:8080`) (LB-1 to LB-14). Verify in the browser: `python` `latest` shows the breakdown with live counts adding up to the package total; selecting a category filters the table and works with the text filter; switching architecture and tag recalculates and clears the selection; `python` `latest-dev` shows Unrecognized packages; keyboard Tab/Enter/Space work; the Compare tab's size chart looks as before; `loki-fips` still shows the subscription message. For `LB-14.1`: at 375 px wide in dark mode nothing overflows and the console shows no Content Security Policy violations. If the browser pane can't take screenshots, ask the user to confirm the layout visually.
-- [ ] 4.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
+- [x] 4.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
 
 ## Workflow follow-up
 
