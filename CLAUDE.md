@@ -66,6 +66,17 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 - `web/src/pages/pages.test.tsx`: page tests with `fetch` stubbed by `mockApi` (`web/src/test/render.tsx`).
 - `live_test.go`: skipped unless `CHAINGUARD_LIVE=1`; not run in CI. Chainguard rebuilds images constantly and renames packages, so assert stable properties (an OpenSSL library has an openssl origin), not exact package names or counts.
 
+## Spec-driven development (OpenSpec)
+
+Features are specified before they're built, with [OpenSpec](https://github.com/Fission-AI/OpenSpec) 1.14.1 (pinned; upgrade deliberately with `openspec update`).
+
+- `openspec/specs/` holds the living specs (current behavior, per capability); `openspec/changes/<name>/` holds in-flight changes: `proposal.md`, delta `specs/`, `design.md`, `tasks.md`. Archiving a change merges its deltas into the living specs.
+- `openspec/config.yaml` holds project-wide constraints and per-artifact rules that are injected into every artifact; read it before writing one.
+- Use the `/opsx:explore`, `/opsx:propose`, `/opsx:apply` and `/opsx:archive` skills, or the CLI: `openspec status --change <name>`, `openspec validate --all --strict`. CI runs the same validation.
+- Name tests after the requirement or scenario they cover.
+- On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
+- `specs/` is the pre-OpenSpec format, kept only until `002-license-breakdown` migrates.
+
 ## CI and releases
 
 - `.github/workflows/ci.yml` runs gofmt (Linux only), vet and tests on Linux and Windows, `-race` on Linux, a `Web` job (lint, typecheck, test, build), a Docker build plus smoke test that the UI loads, and a GoReleaser snapshot.

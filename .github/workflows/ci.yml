@@ -45,6 +45,10 @@ jobs:
           node-version-file: web/.nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Validate OpenSpec specs and changes
+        working-directory: .
+        # Pinned to match local development; upgrade deliberately with `openspec update`.
+        run: npx --yes @fission-ai/openspec@1.14.1 validate --all --strict --no-interactive
       - run: npm ci
       - name: Lint
         run: npm run lint

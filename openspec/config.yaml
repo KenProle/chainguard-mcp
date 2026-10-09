@@ -1,0 +1,41 @@
+schema: spec-driven
+
+# Constraints that apply to every change. Codebase facts an agent can read
+# for itself live in CLAUDE.md; this is only what the code can't tell you.
+context: |
+  Project: chainguard-mcp, an MCP server plus a React web UI for exploring Chainguard
+  container images. Unofficial; not affiliated with Chainguard, and nothing may imply it is.
+  - One source of logic: new behavior goes in Service methods (service.go), which both the
+    MCP tools and the web API call. Neither front end may grow its own copy of the logic.
+  - Data comes only from Chainguard's public, anonymous endpoints, so detail features work for
+    free-tier images only and must show a clear state for subscription-only images.
+  - Never overclaim security: the Wolfi data records fixes, not open vulnerabilities, so no
+    output may suggest an image is vulnerability-free.
+  - Web UI: strict Content Security Policy (no inline scripts or styles, so no libraries that
+    inject <style> tags); usable at 375 px wide; light and dark mode; keyboard accessible;
+    charts always have a text equivalent.
+  - Dependencies: no new Go or npm dependency without a justification in design.md.
+  - Development happens on Windows; commands and paths in tasks must work there.
+
+rules:
+  proposal:
+    - State what is out of scope.
+    - Record each decision made with the user, and the rejected alternatives.
+  specs:
+    - Every requirement uses SHALL and has at least one testable scenario.
+    - Ground examples in real data from the live endpoints rather than invented values.
+  design:
+    - Say whether the Go server or web API changes; if not, say "No API changes".
+    - Justify any new dependency, or state that none are added.
+  tasks:
+    - Each task names the requirement it implements and the test that proves it.
+    - End with a verification task that exercises the feature in the running app.
+
+operations:
+  apply:
+    guidance:
+      - Name each test after the requirement or scenario it covers, so coverage is searchable.
+      - Run the focused tests first, then the full Go and web suites before marking tasks done.
+  archive:
+    guidance:
+      - Before archiving, confirm CI passed on the commit that implements the change.
