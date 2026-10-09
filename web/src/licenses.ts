@@ -26,6 +26,12 @@ const mapping: [RegExp, LicenseCategory][] = [
   [/^PSF-/i, 'permissive'],
   [/^ISC$/i, 'permissive'],
   [/^Zlib$/i, 'permissive'],
+  [/^X11(-|$)/i, 'permissive'], // MIT-style X Consortium license
+  [/^XFree86-/i, 'permissive'],
+  [/^libpng(-|$)/i, 'permissive'],
+  [/^IJG(-|$)/i, 'permissive'], // Independent JPEG Group
+  [/^FTL$/i, 'permissive'], // FreeType License
+  [/^Bitstream-/i, 'permissive'], // font licenses, e.g. Bitstream-Vera
   [/^blessing$/i, 'permissive'], // SQLite's public-domain dedication
   [/^CC-PDDC$/i, 'permissive'], // public domain
   // Weak copyleft: changes to the licensed files or library must be shared.

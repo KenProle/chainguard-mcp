@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Package } from './api'
 import { categorizeIdentifier, categorizeLicense, licenseBreakdown } from './licenses'
 import { pythonPackages } from './test/fixtures/python'
+import { tomcatPackages } from './test/fixtures/tomcat'
 
 const pkg = (name: string, license?: string): Package => ({ name, version: '1.0-r0', origin: name, license, distro: 'wolfi' })
 
@@ -22,6 +23,24 @@ describe('categorizeIdentifier', () => {
   it('LB-2 recognizes every identifier in python:latest', () => {
     const ids = pythonPackages.latest.amd64.packages.flatMap((p) => (p.license ?? '').split(/\s+|[()]/))
     const unknown = ids.filter((id) => id && !['AND', 'OR', 'WITH', 'GCC-exception-3.1'].includes(id) && categorizeIdentifier(id) === 'unrecognized')
+    expect(unknown).toEqual([])
+  })
+
+  it('LB-2.3 treats X11-era and graphics-library licenses as permissive', () => {
+    const expressions = [
+      'XFree86-1.1', // libx11
+      'MIT AND X11', // libxi
+      'libpng-2.0', // libpng
+      'BSD-3-Clause AND IJG AND Zlib', // libjpeg-turbo
+      'FTL OR GPL-2.0-or-later', // freetype
+      'Bitstream-Vera', // ttf-dejavu
+    ]
+    expect(expressions.map(categorizeLicense)).toEqual(Array(6).fill('permissive'))
+  })
+
+  it('LB-2 recognizes every identifier in tomcat:latest', () => {
+    const ids = tomcatPackages.packages.flatMap((p) => p.license!.split(/\s+/))
+    const unknown = ids.filter((id) => !['AND', 'OR', 'WITH', 'GCC-exception-3.1', 'Classpath-exception-2.0'].includes(id) && categorizeIdentifier(id) === 'unrecognized')
     expect(unknown).toEqual([])
   })
 
@@ -112,6 +131,14 @@ describe('licenseBreakdown', () => {
       { category: 'unrecognized', count: 2 },
     ])
     expect(breakdown.reduce((n, c) => n + c.count, 0)).toBe(76)
+  })
+
+  it('LB-2.3 counts tomcat:latest on amd64 with nothing unrecognized', () => {
+    expect(licenseBreakdown(tomcatPackages.packages)).toEqual([
+      { category: 'permissive', count: 28 },
+      { category: 'weak', count: 11 },
+      { category: 'strong', count: 8 },
+    ])
   })
 
   it('LB-1.3 counts packages without a license as not declared', () => {

@@ -1,0 +1,67 @@
+// The tomcat image's packages on linux/amd64, captured from the live Chainguard
+// endpoints on 2026-10-09 (through this project's MCP server). Chainguard
+// rebuilds images daily, so this won't match today's data; it pins the example
+// used in openspec/changes/add-license-breakdown (LB-2.3).
+
+import type { ImagePackages } from '../../api'
+
+const pkg = (name: string, version: string, origin: string, license: string) => ({ name, version, origin, license, distro: 'wolfi' })
+
+export const tomcatPackages: ImagePackages = {
+  image: 'tomcat',
+  tag: 'latest',
+  arch: 'amd64',
+  digest: 'sha256:6558d006e5433cd7597f1580d5ee6eec9df1dc7a3c2ef9ededfc8aa682503c1a',
+  has_shell: true,
+  has_apk: false,
+  total: 47,
+  packages: [
+    pkg('alsa-lib', '1.2.16.1-r2', 'alsa-lib', 'LGPL-2.1-or-later'),
+    pkg('bash', '5.3-r13', 'bash', 'GPL-3.0-or-later'),
+    pkg('busybox', '1.38.0-r2', 'busybox', 'GPL-2.0-only'),
+    pkg('ca-certificates', '20260909-r2', 'ca-certificates', 'MPL-2.0 AND MIT'),
+    pkg('ca-certificates-bundle', '20260909-r2', 'ca-certificates', 'MPL-2.0 AND MIT'),
+    pkg('freetype', '2.14.3-r6', 'freetype', 'FTL OR GPL-2.0-or-later'),
+    pkg('giflib', '6.1.3-r1', 'giflib', 'MIT'),
+    pkg('glibc-2.44', '2.44-r8', 'glibc-2.44', 'LGPL-2.1-or-later'),
+    pkg('glibc-2.44-locale-posix', '2.44-r8', 'glibc-2.44', 'LGPL-2.1-or-later'),
+    pkg('java-cacerts', '20260909-r2', 'ca-certificates', 'MPL-2.0 AND MIT'),
+    pkg('java-common-jre', '0.2-r3', 'java-common', 'GPL-2.0-or-later'),
+    pkg('lcms2', '2.19.1-r2', 'lcms2', 'MIT AND GPL-3.0-only'),
+    pkg('ld-linux-2.44', '2.44-r8', 'glibc-2.44', 'LGPL-2.1-or-later'),
+    pkg('libapr', '1.7.6-r5', 'libapr', 'Apache-2.0'),
+    pkg('libbrotlicommon1', '1.2.0-r5', 'brotli', 'MIT'),
+    pkg('libbrotlidec1', '1.2.0-r5', 'brotli', 'MIT'),
+    pkg('libbrotlienc1', '1.2.0-r5', 'brotli', 'MIT'),
+    pkg('libbz2-1', '1.0.8-r25', 'bzip2', 'MPL-2.0 AND MIT'),
+    pkg('libcrypt1-2.44', '2.44-r8', 'glibc-2.44', 'LGPL-2.1-or-later'),
+    pkg('libffi', '3.8.0-r1', 'libffi', 'MIT'),
+    pkg('libgcc', '16.2.0-r1', 'gcc', 'GPL-3.0-or-later WITH GCC-exception-3.1'),
+    pkg('libjpeg-turbo', '3.2.0-r4', 'libjpeg-turbo', 'BSD-3-Clause AND IJG AND Zlib'),
+    pkg('libpng', '1.6.59-r0', 'libpng', 'libpng-2.0'),
+    pkg('libtasn1', '4.21.0-r6', 'libtasn1', 'LGPL-2.1-or-later'),
+    pkg('libx11', '1.8.13-r7', 'libx11', 'XFree86-1.1'),
+    pkg('libxau', '1.0.12-r8', 'libxau', 'MIT'),
+    pkg('libxcb', '1.17.0-r16', 'libxcb', 'MIT'),
+    pkg('libxcrypt', '4.5.2-r5', 'libxcrypt', 'GPL-2.0-or-later AND LGPL-2.1-or-later'),
+    pkg('libxdmcp', '1.1.5-r12', 'libxdmcp', 'MIT'),
+    pkg('libxext', '1.3.7-r3', 'libxext', 'MIT'),
+    pkg('libxi', '1.8.3-r1', 'libxi', 'MIT AND X11'),
+    pkg('libxrender', '0.9.12-r9', 'libxrender', 'XFree86-1.1'),
+    pkg('libxtst', '1.2.5-r8', 'libxtst', 'XFree86-1.1'),
+    pkg('ncurses', '6.6.20260926-r0', 'ncurses', 'MIT'),
+    pkg('ncurses-terminfo-base', '6.6.20260926-r0', 'ncurses', 'MIT'),
+    pkg('openjdk-25-default-jvm', '25.0.4.1-r2', 'openjdk-25', 'GPL-2.0 WITH Classpath-exception-2.0'),
+    pkg('openjdk-25-jre', '25.0.4.1-r2', 'openjdk-25', 'GPL-2.0 WITH Classpath-exception-2.0'),
+    pkg('openssl-4.0-libcrypto', '4.0.3-r5', 'openssl-4.0', 'Apache-2.0'),
+    pkg('openssl-4.0-libssl', '4.0.3-r5', 'openssl-4.0', 'Apache-2.0'),
+    pkg('openssl-provider-legacy-allowed', '4.0.2-r3', 'openssl-provider-legacy-allowed', 'Apache-2.0'),
+    pkg('p11-kit', '0.26.5-r1', 'p11-kit', 'BSD-3-Clause'),
+    pkg('p11-kit-trust', '0.26.5-r1', 'p11-kit', 'BSD-3-Clause'),
+    pkg('tomcat-11.0-openjdk-25', '11.0.27-r0', 'tomcat-11.0', 'Apache-2.0'),
+    pkg('tomcat-native', '2.0.16-r2', 'tomcat-native', 'Apache-2.0'),
+    pkg('ttf-dejavu', '2.37-r9', 'ttf-dejavu', 'Bitstream-Vera'),
+    pkg('wolfi-baselayout', '20230201-r30', 'wolfi-baselayout', 'MIT'),
+    pkg('zlib', '1.3.2.1_rc20260917-r0', 'zlib', 'MPL-2.0 AND MIT'),
+  ],
+}
