@@ -20,7 +20,7 @@ Test names start with the scenario ID they cover (e.g. `SF-1.1 …`). Run web co
 
 - [x] 4.1 Run every check: `gofmt -l .`, `go vet ./...`, `go test ./...`, and in `web/` `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, plus `openspec validate --all --strict`. Verify: all pass, and `git diff --stat` shows no Go changes.
 - [x] 4.2 Exercise the feature in the running app (build the UI, run `go run . -http 127.0.0.1:8080`) (SF-1 to SF-9). Verify in the browser: `python` `latest` shows bars whose counts match the table, in the SF-3 order, with the no-records line; switching to `latest-dev` redraws the chart; another image (e.g. `tomcat`) looks right; the Compare tab and the license breakdown look as before; `loki-fips` still shows the subscription message. For `SF-9.1`: at 375 px wide in dark mode nothing overflows and the console shows no Content Security Policy violations. If the browser pane can't take screenshots, ask the user to confirm the layout visually.
-- [ ] 4.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
+- [x] 4.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
 
 ## Workflow follow-up
 
