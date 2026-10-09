@@ -81,7 +81,13 @@ export function ImagePage() {
             )}
           </div>
 
-          <div role="tablist" aria-label="Image information" className="flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
+          {/* The baseline is an inset shadow, not a border the tabs overlap, so the
+              scrolling container has no vertical overflow (and no vertical scrollbar). */}
+          <div
+            role="tablist"
+            aria-label="Image information"
+            className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-zinc-200)] dark:shadow-[inset_0_-1px_0_var(--color-zinc-800)]"
+          >
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -91,7 +97,7 @@ export function ImagePage() {
                 aria-selected={tab === t.id}
                 aria-controls={`panel-${t.id}`}
                 onClick={() => set('tab', t.id, 'overview')}
-                className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+                className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
                   tab === t.id
                     ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300'
                     : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
