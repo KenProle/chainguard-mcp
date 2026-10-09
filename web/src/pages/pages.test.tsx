@@ -77,7 +77,7 @@ describe('ImagePage', () => {
 
     expect(await screen.findByText('cgr.dev/chainguard/python:latest@sha256:abc')).toBeInTheDocument()
     expect(screen.getByText('non-root')).toBeInTheDocument()
-    expect(screen.getByText('30 MB')).toBeInTheDocument()
+    expect(screen.getByText('31.5 MB')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
   })
 

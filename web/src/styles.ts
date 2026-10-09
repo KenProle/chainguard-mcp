@@ -7,14 +7,16 @@ export const inputClass =
 export const buttonClass =
   'inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50'
 
+/** Formats a byte count in decimal units (1 MB = 1,000,000 bytes), as Docker does. */
 export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`
+  if (n < 1000) return `${n} B`
   const units = ['KB', 'MB', 'GB']
-  let v = n / 1024
+  let v = n / 1000
   let i = 0
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024
+  // Round first, so 999,950 bytes moves up to "1.0 MB" rather than "1000.0 KB".
+  while (Math.round(v * 10) / 10 >= 1000 && i < units.length - 1) {
+    v /= 1000
     i++
   }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`
+  return `${v.toFixed(1)} ${units[i]}`
 }

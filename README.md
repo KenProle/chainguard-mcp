@@ -16,7 +16,10 @@ Run the server in HTTP mode and open http://127.0.0.1:8080/:
 - **Image details:** the pinned reference to use in a Dockerfile, the user it runs as, entrypoint, platforms and download sizes.
 - **Packages & SBOM:** every OS package from the image's signed SBOM, whether it has a shell or package manager, and a download of the full SPDX SBOM.
 - **Security:** recorded vulnerability fixes per package, and a CVE/GHSA lookup.
+- **Compare:** two tags of the same image side by side, by default the minimal `latest` and the development `latest-dev`. Shows how much larger one is, each tag's package count, download size, shell and `apk`, a size chart, and the packages only in one tag or at different versions. Pick any two tags and amd64 or arm64; the comparison is kept in the URL, so you can share or reload it.
 - **Find alternative:** enter an image you use today, like `node:20-alpine`, to get its Chainguard replacement and migration notes.
+
+Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), as Docker shows them.
 
 The UI is built into the same binary and calls the same code as the MCP tools, through a JSON API under `/api/`.
 

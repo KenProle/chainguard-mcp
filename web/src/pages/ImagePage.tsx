@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '../api'
 import { Badge, CopyableCode, ErrorState, Loading } from '../components/ui'
+import { CompareTab } from './CompareTab'
 import { OverviewTab } from './OverviewTab'
 import { PackagesTab } from './PackagesTab'
 import { SecurityTab } from './SecurityTab'
@@ -10,6 +11,7 @@ const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'packages', label: 'Packages & SBOM' },
   { id: 'security', label: 'Security' },
+  { id: 'compare', label: 'Compare' },
 ] as const
 
 type TabId = (typeof tabs)[number]['id']
@@ -60,20 +62,23 @@ export function ImagePage() {
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Pull</span>
               <CopyableCode value={`${tags.data.reference}:${tag}`} />
             </div>
-            <label className="text-sm">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Tag</span>
-              <select
-                value={tag}
-                onChange={(e) => set('tag', e.target.value, 'latest')}
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                {(tags.data.tags.includes(tag) ? tags.data.tags : [tag, ...tags.data.tags]).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* The Compare tab picks its own two tags. */}
+            {tab !== 'compare' && (
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Tag</span>
+                <select
+                  value={tag}
+                  onChange={(e) => set('tag', e.target.value, 'latest')}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                >
+                  {(tags.data.tags.includes(tag) ? tags.data.tags : [tag, ...tags.data.tags]).map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <div role="tablist" aria-label="Image information" className="flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
@@ -101,6 +106,7 @@ export function ImagePage() {
             {tab === 'overview' && <OverviewTab name={name} tag={tag} />}
             {tab === 'packages' && <PackagesTab name={name} tag={tag} />}
             {tab === 'security' && <SecurityTab name={name} tag={tag} />}
+            {tab === 'compare' && <CompareTab name={name} tags={tags.data.tags} />}
           </div>
         </>
       )}
