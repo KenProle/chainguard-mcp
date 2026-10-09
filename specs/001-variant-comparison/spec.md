@@ -23,31 +23,31 @@ The difference is large. For `python` on linux/amd64 (October 2026):
 
 ## Acceptance criteria
 
-Criteria use Given / When / Then. "The pair" means the two tags being compared.
+Each criterion is either a **scenario** (Given / when / then) or a **rule** in [EARS](https://alistairmavin.com/ears/) form: "The Compare tab shall…", "When *trigger*, the Compare tab shall…", "While *state*, …" or "If *unwanted condition*, then …". "The pair" means the two tags being compared.
 
 ### Choosing what to compare
 
-- **AC-1.1:** Given a free image, when the user opens the comparison, then the pair defaults to `latest` and `latest-dev` if both tags exist.
-- **AC-1.2:** Given an image whose tags include another `X` / `X-dev` pair (e.g. `next` / `next-dev`), when the user selects that base tag, then the pair becomes `X` and `X-dev`.
-- **AC-1.3:** Given the tag list, the user can choose any two different tags of the same image to compare (e.g. `node`'s `latest` and `latest-slim`).
-- **AC-1.4:** Given an image with fewer than two tags, or no `-dev` pair and no other tag selected, then no chart is shown and the message "This image has no -dev variant to compare against" appears, with the tag selectors still available if there are two or more tags.
-- **AC-1.5:** The selected pair and architecture are kept in the URL, so reloading or sharing the link shows the same comparison.
+- **AC-1.1:** **Given** a free image with both `latest` and `latest-dev` tags, **when** the user opens the Compare tab, **then** the pair is `latest` and `latest-dev`.
+- **AC-1.2:** **Given** an image whose tags include another `X` / `X-dev` pair (e.g. `next` / `next-dev`), **when** the user selects `X` as the base tag, **then** the pair becomes `X` and `X-dev`.
+- **AC-1.3:** The Compare tab **shall** let the user choose any two different tags of the same image as the pair (e.g. `node`'s `latest` and `latest-slim`).
+- **AC-1.4:** **If** the image has fewer than two tags, or has no `-dev` pair and the user hasn't chosen another pair, **then** the Compare tab **shall** show "This image has no -dev variant to compare against" instead of a chart, and **shall** keep the tag selectors available when the image has two or more tags.
+- **AC-1.5:** The Compare tab **shall** keep the pair and the architecture in the URL, so that reloading or sharing the link shows the same comparison.
 
 ### What it shows
 
-- **AC-1.6:** For each tag in the pair, the comparison shows the package count and the compressed download size for the selected architecture.
-- **AC-1.7:** The size difference is shown both in absolute terms (e.g. "+245.7 MB") and as a ratio (e.g. "10.1× larger"). When the two sizes are within 1%, it says "about the same size" instead of a ratio.
-- **AC-1.8:** The packages are split into three groups, each with a count: only in the first tag, only in the second tag, and in both but at different versions. Empty groups say "None".
-- **AC-1.9:** Capability differences are called out explicitly: whether each tag has a shell and whether it has `apk`.
-- **AC-1.10:** A visual size comparison (bar chart) shows the two download sizes on a shared scale starting at zero.
-- **AC-1.11:** Given the architecture toggle (amd64 / arm64), when the user switches it, then every number, list and chart updates to that architecture.
+- **AC-1.6:** The Compare tab **shall** show, for each tag in the pair, the package count and the compressed download size for the selected architecture.
+- **AC-1.7:** The Compare tab **shall** show the size difference both as an absolute amount (e.g. "+245.7 MB") and as a ratio (e.g. "10.1× larger"). **If** the two sizes are within 1% of each other, **then** it **shall** say "about the same size" instead of a ratio.
+- **AC-1.8:** The Compare tab **shall** split the packages into three groups with counts: only in the first tag, only in the second tag, and in both at different versions. **If** a group is empty, **then** it **shall** show "None".
+- **AC-1.9:** The Compare tab **shall** state, for each tag, whether it has a shell and whether it has `apk`.
+- **AC-1.10:** The Compare tab **shall** show a bar chart of the two download sizes on a shared scale starting at zero.
+- **AC-1.11:** **Given** a comparison is shown, **when** the user switches the architecture (amd64 / arm64), **then** every number, list and chart shows that architecture's data.
 
 ### States and quality
 
-- **AC-1.12:** Given a subscription-only image, the existing subscription message is shown and no comparison is attempted.
-- **AC-1.13:** While either side is loading, a loading indicator is shown; if either side fails, its error is shown with a retry option and the other side's data is not presented as a comparison.
-- **AC-1.14:** The chart has a text equivalent: the sizes, counts and ratio are available as text in the page, not only in the chart graphics.
-- **AC-1.15:** The comparison is usable at 375 px width, in light and dark mode, and causes no Content Security Policy violations.
+- **AC-1.12:** **Given** a subscription-only image, **when** the user opens the Compare tab, **then** the existing subscription message is shown and no comparison is attempted.
+- **AC-1.13:** **While** either tag's data is loading, the Compare tab **shall** show a loading indicator. **If** either tag's data fails to load, **then** it **shall** show that error with a retry option and **shall not** present the other tag's data as a comparison.
+- **AC-1.14:** The Compare tab **shall** present the sizes, counts and ratio as text on the page, not only in the chart graphics.
+- **AC-1.15:** The Compare tab **shall** be usable at 375 px width and in light and dark mode, and **shall** cause no Content Security Policy violations.
 
 ## Non-functional requirements
 

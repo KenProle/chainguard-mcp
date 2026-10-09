@@ -27,29 +27,31 @@
 
 ## Acceptance criteria
 
+Each criterion is either a **scenario** (Given / when / then) or a **rule** in [EARS](https://alistairmavin.com/ears/) form: "The license breakdown shall…", "When *trigger*, the license breakdown shall…", "While *state*, …" or "If *unwanted condition*, then …".
+
 ### Categories
 
-- **AC-2.1:** Every package is placed in exactly one category: **Permissive**, **Weak copyleft**, **Strong copyleft**, **Not declared** (no license in the SBOM), or **Unrecognized** (a license identifier not in the mapping).
-- **AC-2.2:** License identifiers map to categories through a fixed, documented table in the code that covers at least every identifier in the table above. Permissive includes `MIT`, `Apache-2.0`, `BSD-*`, `PSF-2.0`, `ISC`, `Zlib`, `blessing` and `CC-PDDC`; weak copyleft includes `LGPL-*`, `MPL-*` and `EPL-*`; strong copyleft includes `GPL-*` and `AGPL-*`.
-- **AC-2.3:** For `AND` expressions (all licenses apply), the package takes the most restrictive category among its parts: strong copyleft > weak copyleft > permissive. If any part is unrecognized and no part is strong copyleft, the package is Unrecognized.
-- **AC-2.4:** For `OR` expressions (a choice of licenses), the package takes the least restrictive category among its parts.
-- **AC-2.5:** For `WITH` exceptions (e.g. `GPL-3.0-or-later WITH GCC-exception-3.1`), the package is categorized by the base license, and the exception is shown wherever the expression is displayed.
-- **AC-2.6:** Given `python:latest` on amd64 with the licenses in the table above, the categories are: Permissive 16, Weak copyleft 6, Strong copyleft 7, Not declared 0, Unrecognized 0. (This example is a required test case.)
-- **AC-2.7:** The category counts always add up to the image's total package count.
+- **AC-2.1:** The license breakdown **shall** place every package in exactly one category: **Permissive**, **Weak copyleft**, **Strong copyleft**, **Not declared** (no license in the SBOM), or **Unrecognized** (a license identifier not in the mapping).
+- **AC-2.2:** The license breakdown **shall** map license identifiers to categories using a fixed, documented table in the code that covers at least every identifier in the table above. Permissive includes `MIT`, `Apache-2.0`, `BSD-*`, `PSF-2.0`, `ISC`, `Zlib`, `blessing` and `CC-PDDC`; weak copyleft includes `LGPL-*`, `MPL-*` and `EPL-*`; strong copyleft includes `GPL-*` and `AGPL-*`.
+- **AC-2.3:** **When** a package's license is an `AND` expression (all licenses apply), the license breakdown **shall** use the most restrictive category among its parts: strong copyleft > weak copyleft > permissive. **If** any part is unrecognized and no part is strong copyleft, **then** it **shall** categorize the package as Unrecognized.
+- **AC-2.4:** **When** a package's license is an `OR` expression (a choice of licenses), the license breakdown **shall** use the least restrictive category among its parts.
+- **AC-2.5:** **When** a package's license has a `WITH` exception (e.g. `GPL-3.0-or-later WITH GCC-exception-3.1`), the license breakdown **shall** categorize the package by the base license, and the UI **shall** show the exception wherever the expression is displayed.
+- **AC-2.6:** **Given** `python:latest` on amd64 with the licenses in the table above, **when** the breakdown is calculated, **then** the counts are Permissive 16, Weak copyleft 6, Strong copyleft 7, Not declared 0, Unrecognized 0. (This example is a required test case.)
+- **AC-2.7:** The license breakdown's category counts **shall** add up to the image's total package count.
 
 ### Display
 
-- **AC-2.8:** The Packages tab shows the breakdown above the package table: one horizontal bar per non-empty category, with its package count, sorted by count (largest first), on a shared scale starting at zero.
-- **AC-2.9:** Categories use consistent colors that also work in dark mode, and the category name and count are printed as text, not conveyed by color alone.
-- **AC-2.10:** Given the breakdown, when the user activates a category (click, or Enter/Space when focused), then the package table shows only that category's packages and the selection is visibly marked; activating it again, or a "Show all" control, clears the filter.
-- **AC-2.11:** The category filter combines with the existing text filter (both apply).
-- **AC-2.12:** Given the tag or architecture changes, the breakdown recalculates from the new package list and any category filter is cleared.
-- **AC-2.13:** A short note under the breakdown says it's based on the licenses declared in the image's SBOM, is informational only, and is not legal advice.
+- **AC-2.8:** The Packages tab **shall** show the license breakdown above the package table, as one horizontal bar per non-empty category labeled with its package count, sorted largest first, on a shared scale starting at zero.
+- **AC-2.9:** The license breakdown **shall** use consistent category colors that work in light and dark mode, and **shall** print each category's name and count as text, so color isn't the only cue.
+- **AC-2.10:** **Given** the breakdown is shown, **when** the user activates a category (click, or Enter/Space when focused), **then** the package table shows only that category's packages and the category is visibly marked as selected. **Given** a category is selected, **when** the user activates it again or the "Show all" control, **then** the package table shows all packages again.
+- **AC-2.11:** **While** a category is selected, the package table **shall** apply both the category filter and the existing text filter.
+- **AC-2.12:** **When** the tag or architecture changes, the license breakdown **shall** recalculate from the new package list and clear any category selection.
+- **AC-2.13:** The license breakdown **shall** show a note that it's based on the licenses declared in the image's SBOM, is informational only, and is not legal advice.
 
 ### Quality
 
-- **AC-2.14:** Category bars are keyboard-focusable controls with accessible names that include the category and count (e.g. "Strong copyleft, 7 packages").
-- **AC-2.15:** Usable at 375 px width, in light and dark mode, with no Content Security Policy violations.
+- **AC-2.14:** The license breakdown **shall** render each category bar as a keyboard-focusable control whose accessible name includes the category and count (e.g. "Strong copyleft, 7 packages").
+- **AC-2.15:** The license breakdown **shall** be usable at 375 px width and in light and dark mode, and **shall** cause no Content Security Policy violations.
 
 ## Non-functional requirements
 
