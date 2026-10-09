@@ -45,6 +45,11 @@ jobs:
           node-version-file: web/.nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Check OpenSpec config parses
+        working-directory: .
+        # OpenSpec silently ignores a config.yaml it can't parse, dropping all
+        # project context and rules, and `openspec validate` doesn't catch it.
+        run: npx --yes yaml@2.9.1 valid < openspec/config.yaml
       - name: Validate OpenSpec specs and changes
         working-directory: .
         # Pinned to match local development; upgrade deliberately with `openspec update`.

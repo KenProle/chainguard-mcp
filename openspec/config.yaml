@@ -24,17 +24,24 @@ rules:
   specs:
     - Every requirement uses SHALL and has at least one testable scenario.
     - Ground examples in real data from the live endpoints rather than invented values.
+    # Quoted because these rules contain ": ", which YAML would otherwise read as a key.
+    - >-
+      Start every requirement and scenario header with a stable ID, using a short prefix per
+      capability (e.g. VC for image-variant-comparison): "### Requirement: VC-3 Name" and
+      "#### Scenario: VC-3.1 Name". Find the next free number in both openspec/specs/ and
+      openspec/changes/. Never renumber or reuse an ID; a removed requirement's ID is retired.
+    - "A MODIFIED or RENAMED requirement keeps its ID; only the text after the ID may change."
   design:
     - Say whether the Go server or web API changes; if not, say "No API changes".
     - Justify any new dependency, or state that none are added.
   tasks:
-    - Each task names the requirement it implements and the test that proves it.
+    - Each task names, by ID, the requirements it implements (e.g. VC-3) and the test that proves it.
     - End with a verification task that exercises the feature in the running app.
 
 operations:
   apply:
     guidance:
-      - Name each test after the requirement or scenario it covers, so coverage is searchable.
+      - Start each test name with the scenario ID it covers (e.g. "VC-3.1 shows the no-variant message"), so searching for an ID finds its tests.
       - Run the focused tests first, then the full Go and web suites before marking tasks done.
   archive:
     guidance:

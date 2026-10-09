@@ -73,7 +73,7 @@ Features are specified before they're built, with [OpenSpec](https://github.com/
 - `openspec/specs/` holds the living specs (current behavior, per capability); `openspec/changes/<name>/` holds in-flight changes: `proposal.md`, delta `specs/`, `design.md`, `tasks.md`. Archiving a change merges its deltas into the living specs.
 - `openspec/config.yaml` holds project-wide constraints and per-artifact rules that are injected into every artifact; read it before writing one.
 - Use the `/opsx:explore`, `/opsx:propose`, `/opsx:apply` and `/opsx:archive` skills, or the CLI: `openspec status --change <name>`, `openspec validate --all --strict`. CI runs the same validation.
-- Name tests after the requirement or scenario they cover.
+- Requirements and scenarios carry stable IDs in their headers (`### Requirement: VC-3 …`, `#### Scenario: VC-3.1 …`), one prefix per capability. OpenSpec matches requirements by header text, so never renumber or reuse an ID. Tests start their names with the scenario ID they cover.
 - On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
 - `specs/` is the pre-OpenSpec format, kept only until `002-license-breakdown` migrates.
 
