@@ -43,7 +43,8 @@ export function HorizontalBars({
       </div>
     </>
   )
-  const grid = 'grid grid-cols-[minmax(0,8rem)_1fr] items-center gap-3 text-sm'
+  // On phones the label sits above its bar, so the bar gets the full width.
+  const grid = 'grid grid-cols-1 gap-1 text-sm sm:grid-cols-[minmax(0,8rem)_1fr] sm:items-center sm:gap-3'
 
   if (!onSelect) {
     return (

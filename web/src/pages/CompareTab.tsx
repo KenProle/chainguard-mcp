@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router'
 import { api, ApiError, type ImageDetails, type ImagePackages } from '../api'
 import { defaultPair, diffPackages, sizeDifference, type Pair } from '../compare'
 import { HorizontalBars } from '../components/HorizontalBars'
-import { Badge, Card, ErrorState, Loading } from '../components/ui'
+import { Badge, Card, CopyableCode, ErrorState, Loading } from '../components/ui'
 import { formatBytes } from '../styles'
 
 const arches = ['amd64', 'arm64'] as const
@@ -26,7 +26,7 @@ function resolvePair(params: URLSearchParams, tags: string[]): Pair | null {
   return defaultPair(tags)
 }
 
-export function CompareTab({ name, tags }: { name: string; tags: string[] }) {
+export function CompareTab({ name, reference, tags }: { name: string; reference: string; tags: string[] }) {
   const [params, setParams] = useSearchParams()
   const arch: Arch = params.get('arch') === 'arm64' ? 'arm64' : 'amd64'
   const pair = resolvePair(params, tags)
@@ -101,6 +101,16 @@ export function CompareTab({ name, tags }: { name: string; tags: string[] }) {
               ))}
             </fieldset>
           )}
+        </div>
+      )}
+
+      {pair && (
+        <div>
+          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Pull</span>
+          <div className="grid gap-2 lg:grid-cols-2">
+            <CopyableCode value={`${reference}:${pair.a}`} />
+            <CopyableCode value={`${reference}:${pair.b}`} />
+          </div>
         </div>
       )}
 

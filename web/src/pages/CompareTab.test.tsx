@@ -89,6 +89,27 @@ describe('Compare tab', () => {
     expect(firstTag()).toBeInTheDocument()
   })
 
+  it('shows a pull reference for each compared tag instead of the page tag', async () => {
+    mockImage('node', ['latest', 'latest-dev', 'latest-slim'])
+    renderImage('/images/node?tab=compare&tag=latest-slim')
+
+    expect(await screen.findByText('cgr.dev/chainguard/node:latest')).toBeInTheDocument()
+    expect(screen.getByText('cgr.dev/chainguard/node:latest-dev')).toBeInTheDocument()
+    expect(screen.queryByText('cgr.dev/chainguard/node:latest-slim')).not.toBeInTheDocument()
+
+    await userEvent.setup().selectOptions(secondTag(), 'latest-slim')
+    expect(screen.getByText('cgr.dev/chainguard/node:latest-slim')).toBeInTheDocument()
+    expect(screen.queryByText('cgr.dev/chainguard/node:latest-dev')).not.toBeInTheDocument()
+  })
+
+  it('shows no pull reference when there is no pair to compare', async () => {
+    mockImage('static', ['latest', 'latest-glibc'])
+    renderImage('/images/static?tab=compare')
+
+    await screen.findByText('This image has no -dev variant to compare against.')
+    expect(screen.queryByText(/cgr\.dev\/chainguard\/static/)).not.toBeInTheDocument()
+  })
+
   it('VC-1.1 compares latest with latest-dev by default', async () => {
     mockPython()
     renderImage('/images/python?tab=compare')

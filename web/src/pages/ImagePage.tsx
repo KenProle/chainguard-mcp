@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '../api'
 import { Badge, CopyableCode, ErrorState, Loading } from '../components/ui'
+import { scrollLeftToReveal } from '../scroll'
 import { CompareTab } from './CompareTab'
 import { OverviewTab } from './OverviewTab'
 import { PackagesTab } from './PackagesTab'
@@ -23,6 +25,15 @@ export function ImagePage() {
   const tag = params.get('tag') || 'latest'
 
   const tags = useQuery({ queryKey: ['tags', name], queryFn: ({ signal }) => api.tags(name, signal) })
+
+  // On narrow screens the tab bar scrolls; keep the selected tab in view.
+  const tablist = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const list = tablist.current
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!list || !selected) return
+    list.scrollLeft = scrollLeftToReveal(list.scrollLeft, list.clientWidth, selected.offsetLeft, selected.offsetWidth)
+  }, [tab, tags.isSuccess])
 
   function set(key: string, value: string, fallback: string) {
     setParams(
@@ -57,13 +68,13 @@ export function ImagePage() {
         <ErrorState error={tags.error} onRetry={() => tags.refetch()} />
       ) : (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0 flex-1 sm:max-w-xl">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Pull</span>
-              <CopyableCode value={`${tags.data.reference}:${tag}`} />
-            </div>
-            {/* The Compare tab picks its own two tags. */}
-            {tab !== 'compare' && (
+          {/* The Compare tab picks its own two tags and shows a pull reference for each. */}
+          {tab !== 'compare' && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0 flex-1 sm:max-w-xl">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Pull</span>
+                <CopyableCode value={`${tags.data.reference}:${tag}`} />
+              </div>
               <label className="text-sm">
                 <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">Tag</span>
                 <select
@@ -78,15 +89,16 @@ export function ImagePage() {
                   ))}
                 </select>
               </label>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* The baseline is an inset shadow, not a border the tabs overlap, so the
               scrolling container has no vertical overflow (and no vertical scrollbar). */}
           <div
+            ref={tablist}
             role="tablist"
             aria-label="Image information"
-            className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-zinc-200)] dark:shadow-[inset_0_-1px_0_var(--color-zinc-800)]"
+            className="relative flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-zinc-200)] dark:shadow-[inset_0_-1px_0_var(--color-zinc-800)]"
           >
             {tabs.map((t) => (
               <button
@@ -112,7 +124,7 @@ export function ImagePage() {
             {tab === 'overview' && <OverviewTab name={name} tag={tag} />}
             {tab === 'packages' && <PackagesTab name={name} tag={tag} />}
             {tab === 'security' && <SecurityTab name={name} tag={tag} />}
-            {tab === 'compare' && <CompareTab name={name} tags={tags.data.tags} />}
+            {tab === 'compare' && <CompareTab name={name} reference={tags.data.reference} tags={tags.data.tags} />}
           </div>
         </>
       )}
