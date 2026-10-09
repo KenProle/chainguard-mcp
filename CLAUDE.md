@@ -75,7 +75,7 @@ Features are specified before they're built, with [OpenSpec](https://github.com/
 - Use the `/opsx:explore`, `/opsx:propose`, `/opsx:apply` and `/opsx:archive` skills, or the CLI: `openspec status --change <name>`, `openspec validate --all --strict`. CI runs the same validation.
 - Requirements and scenarios carry stable IDs in their headers (`### Requirement: VC-3 …`, `#### Scenario: VC-3.1 …`), one prefix per capability. OpenSpec matches requirements by header text, so never renumber or reuse an ID. Tests start their names with the scenario ID they cover.
 - On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
-- `specs/` is the pre-OpenSpec format, kept only until `002-license-breakdown` migrates.
+- Capability prefixes in use: `VC` (`image-variant-comparison`) and `LB` (`image-license-breakdown`, proposed).
 
 ## CI and releases
 
