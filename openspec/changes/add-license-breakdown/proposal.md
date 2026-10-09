@@ -45,8 +45,6 @@ Made with the user on 2026-10-08:
 - **Compound `AND` expressions:** the most restrictive part decides the category, so each package lands in exactly one category. *Rejected:* counting the package in every category it touches, which makes the totals exceed the package count.
 - **`WITH` exceptions:** categorized by the base license; deciding what an exception permits is a legal judgment the tool shouldn't make. *Rejected:* treating runtime-library exceptions (e.g. `GCC-exception-3.1`) as weak copyleft.
 - **Computed in the browser** from the existing packages response, with no new API endpoint or request, and the classification logic in a pure, unit-tested function separate from the chart.
-
-Proposed for review (real `latest-dev` data needs these):
 - **`OR` with an unrecognized part:** mirrors the `AND` rule. The least restrictive part decides, but if any part is unrecognized and no part is permissive, the package is Unrecognized, since the unknown license might be the least restrictive choice.
 - **Parentheses and precedence:** follow SPDX: `WITH` binds tightest, then `AND`, then `OR`, and parentheses group. `git` is Strong copyleft because its `AND` includes `GPL-2.0-or-later`, whatever the parenthesized choice resolves to.
 - **The mapping covers the common families only.** `OLDAP-2.8` and `CC-BY-4.0` are not in it, so `python:latest-dev` shows 2 Unrecognized packages. *Alternative:* add them (and `Artistic-*`) to Permissive now; left out because classifying them is a judgment worth making deliberately, and the Unrecognized category exists for exactly this case. Adding identifiers later only edits the table.
