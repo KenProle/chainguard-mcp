@@ -9,6 +9,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | 3 | Security fixes per package | Security tab | Done: the fixes chart (`image-security-fixes`, prefix `SF`) |
 | 4 | Catalog map | Catalog page | Done: the Map view (`catalog-map`, prefix `CM`) |
 | 5 | Size vs. the upstream image | Alternatives page | Idea; riskiest |
+| 6 | Catalog history | Catalog page, image page, MCP | Scoped: collector first (`add-catalog-history-collector`, prefix `CH`), then `add-catalog-history-view` |
 
 ## 1. Minimal vs. `-dev` comparison
 
@@ -38,9 +39,22 @@ A treemap of all images (about 3,166) grouped into families, such as `nginx` wit
 
 A bar comparing an upstream image (e.g. Docker Hub's `node:20`) with its Chainguard replacement. The most persuasive comparison, but the most work: it needs new Go code that reads Docker Hub's registry, which rate-limits anonymous requests.
 
+## 6. Catalog history
+
+What Chainguard added, retired, or moved between free and subscription, and how the catalog has grown (675 images in April 2024, 3,171 on 2026-10-10, 59 free). Scoped in `/opsx:explore` on 2026-10-10 and split in two:
+
+1. **`add-catalog-history-collector`** (the `catalog-history` capability, prefix `CH`): a daily snapshot by a scheduled GitHub Action, one JSON line per day on the `data` branch, with a backfill of image names from 17 monthly Internet Archive captures of the sitemap since 2024-04. Free-tier status can't be backfilled, so it starts on the first live day. Done first so history starts accumulating.
+2. **`add-catalog-history-view`** (not yet proposed). Decided scope:
+   - **Goal:** knowing what changed (added, removed, became free or subscription), plus a chart of total vs. free images over time.
+   - **Delivery:** the server embeds the history at build time and fetches a newer copy of the file from GitHub when online, falling back to the embedded copy; the API says how old its data is. The `openspec/config.yaml` exception for this file is added by the collector change. The browser can't fetch from GitHub under the CSP, so the server serves the history through its own API.
+   - **Logic** in a `Service` method, shared by the API and MCP (`GET /api/history`).
+   - **Web UI:** a **History** view on the catalog page, next to List and Map: the chart at the top (the free line starts on the first live day), then a timeline of changes ("Oct 10: 5 added: verdaccio, …"), filtered by the catalog's search. Plus an "in the catalog since …" line on each image page.
+   - **MCP:** a `catalog_changes` tool (`since` date, optional `query`; returns added, removed, became free or subscription, and totals), and a first-seen date in `get_image_details`.
+   - **Honesty:** before the first live snapshot, dates are only as precise as the monthly captures, so they read "between 2025-02 and 2025-03", never an exact day. Show the last snapshot's age, so a stalled collector is visible.
+
 ## Skipped: charts over time
 
-"Fixes over time" or "image freshness" timelines. The security database records which *versions* fixed each CVE, not *dates*, so a timeline would be guesswork. Real trends would need snapshots saved over weeks, which is a feature of its own.
+"Fixes over time" or "image freshness" timelines. The security database records which *versions* fixed each CVE, not *dates*, so a timeline would be guesswork. Real trends need snapshots saved over time, which is what idea 6 does for the catalog.
 
 ## How to build them
 
