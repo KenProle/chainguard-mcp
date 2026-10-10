@@ -63,7 +63,7 @@ export function HorizontalBars({
         <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="h-5 min-w-0 flex-1" aria-hidden="true">
           {rects(b)}
         </svg>
-        <span className="w-20 shrink-0 text-right text-xs tabular-nums">{b.valueLabel}</span>
+        <span className="min-w-20 shrink-0 whitespace-nowrap text-right text-xs tabular-nums">{b.valueLabel}</span>
       </div>
     </>
   )

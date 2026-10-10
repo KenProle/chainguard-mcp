@@ -148,6 +148,16 @@ export function zoomLabel(label: string, images: number, free?: number): string 
   return `Zoom into ${label}, ${count(images, 'image', 'images')}${free === undefined ? '' : `, ${free.toLocaleString('en-US')} free`}`
 }
 
+/** A phone bar's value text, e.g. "58 of 1,733 free". */
+export function barCountLabel(images: number, free: number): string {
+  return `${free.toLocaleString('en-US')} of ${images.toLocaleString('en-US')} free`
+}
+
+/** A zoomed block's text for screen readers, e.g. "crossplane: 194 images, 0 free". */
+export function blockText(label: string, images: number, free: number): string {
+  return `${label}: ${count(images, 'image', 'images')}, ${free.toLocaleString('en-US')} free`
+}
+
 /** The treemap's accessible name while zoomed into a group. free is null while statuses are loading. */
 export function zoomedSummary(label: string, images: number, blocks: number, free: number | null): string {
   const status = free === null ? '. Free-tier status is still loading.' : `: ${free.toLocaleString('en-US')} free.`

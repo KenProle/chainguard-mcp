@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  barCountLabel,
+  blockText,
   blockBars,
   familiesInGroup,
   familyRows,
@@ -231,5 +233,15 @@ describe('zooming into a group', () => {
   it('CM-17.3 says that a click on a group header zooms in', () => {
     expect(headerTooltip('kubernetes', 51, true)).toBe('kubernetes: 51 images · click to zoom in')
     expect(headerTooltip('flux', 30)).toBe('flux: 30 images')
+  })
+
+  it('CM-11.1 labels a phone bar with its free and image counts', () => {
+    expect(barCountLabel(1730, 58)).toBe('58 of 1,730 free')
+    expect(barCountLabel(14, 1)).toBe('1 of 14 free')
+  })
+
+  it('CM-11.3 describes a zoomed block for screen readers', () => {
+    expect(blockText('crossplane', 194, 0)).toBe('crossplane: 194 images, 0 free')
+    expect(blockText('zipkin', 1, 1)).toBe('zipkin: 1 image, 1 free')
   })
 })

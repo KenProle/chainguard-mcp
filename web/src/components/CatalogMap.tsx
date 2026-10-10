@@ -2,7 +2,9 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-qu
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef } from 'react'
 import { api, type GroupBy } from '../api'
 import {
+  barCountLabel,
   blockBars,
+  blockText,
   type FamilySort,
   type FreeStatus,
   familiesInGroup,
@@ -265,17 +267,25 @@ export function CatalogMap({
           </div>
           <div className="p-2 sm:hidden">
             {zoomed ? (
-              <HorizontalBars
-                bars={blockBars(zoomed).map((b) => {
-                  const c = statusCounts([b], statuses)
-                  return {
-                    label: b.label,
-                    value: b.images.length,
-                    valueLabel: `${c.free.toLocaleString('en-US')} free`,
-                    segments: legend.map((l) => ({ value: c[l.status], colorClass: freeStatusColor[l.status].fill })),
-                  }
-                })}
-              />
+              <>
+                <HorizontalBars
+                  bars={blockBars(zoomed).map((b) => {
+                    const c = statusCounts([b], statuses)
+                    return {
+                      label: b.label,
+                      value: b.images.length,
+                      valueLabel: barCountLabel(b.images.length, c.free),
+                      segments: legend.map((l) => ({ value: c[l.status], colorClass: freeStatusColor[l.status].fill })),
+                    }
+                  })}
+                />
+                {/* These bars are hidden from assistive technology, so list the same numbers as text. */}
+                <ul className="sr-only">
+                  {blockBars(zoomed).map((b) => (
+                    <li key={b.label}>{blockText(b.label, b.images.length, statusCounts([b], statuses).free)}</li>
+                  ))}
+                </ul>
+              </>
             ) : (
               <HorizontalBars
                 bars={groups.data.groups.map((g) => {
@@ -284,7 +294,7 @@ export function CatalogMap({
                   return {
                     label,
                     value: g.images.length,
-                    valueLabel: `${c.free.toLocaleString('en-US')} free`,
+                    valueLabel: barCountLabel(g.images.length, c.free),
                     accessibleLabel: zoomLabel(label, g.images.length, c.free),
                     segments: legend.map((l) => ({ value: c[l.status], colorClass: freeStatusColor[l.status].fill })),
                   }

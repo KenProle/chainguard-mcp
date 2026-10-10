@@ -344,12 +344,13 @@ describe('Catalog map view', { timeout: 20_000 }, () => {
       'IAM-guarded FIPS',
       'Other variants (7 kinds)',
     ])
-    expect(rows.map((r) => r.lastElementChild?.textContent?.match(/\d+ free/)?.[0])).toEqual([
-      '58 free',
-      '0 free',
-      '0 free',
-      '0 free',
-      '1 free',
+    // Each bar shows its image count as text, not only as the bar's length.
+    expect(rows.map((r) => r.lastElementChild?.textContent?.match(/[\d,]+ of [\d,]+ free/)?.[0])).toEqual([
+      '58 of 1,730 free',
+      '0 of 1,210 free',
+      '0 of 117 free',
+      '0 of 95 free',
+      '1 of 14 free',
     ])
     const base = [...rows[0].querySelectorAll('rect')].map((r) => Number(r.getAttribute('width')))
     expect(base[0]).toBeCloseTo((58 / 1730) * 100, 6)
@@ -785,6 +786,13 @@ describe('Zooming into a group', { timeout: 30_000 }, () => {
     const width = (row: Element) => [...row.querySelectorAll('rect')].reduce((n, r) => n + Number(r.getAttribute('width')), 0)
     expect(width(rows[10])).toBeCloseTo(100, 6)
     expect(width(rows[0])).toBeCloseTo((194 / 846) * 100, 6)
+    // The counts are visible text, and listed for screen readers since the bars are hidden from them.
+    expect(rows[0].textContent).toContain('0 of 194 free')
+    expect(rows[10].textContent).toContain('0 of 846 free')
+    const list = [...phone.querySelectorAll('ul.sr-only li')].map((li) => li.textContent)
+    expect(list).toHaveLength(11)
+    expect(list[0]).toBe('crossplane: 194 images, 0 free')
+    expect(list[10]).toBe('450 more prefixes: 846 images, 0 free')
   })
 
   it('CM-22.3 moves focus between a phone bar and All groups', async () => {
