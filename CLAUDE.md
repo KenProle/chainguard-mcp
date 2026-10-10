@@ -33,6 +33,8 @@ On Windows, rebuilding the exe while a Claude Code session is running it leaves 
 
 `service.go` defines `Service` (bundling `Catalog`, `Registry`, `SecDB`, `SBOMDir`), the tool input/output types, input validation and one method per operation. Both front ends are thin wrappers over those methods: `tools.go` registers the MCP tools and the `migrate_dockerfile` prompt, and `web.go` exposes the same methods as `GET /api/...` JSON endpoints. Put new logic in a `Service` method, not in a handler, so MCP and the UI stay identical.
 
+API routes are registered only from the `apiRoutes` table in `web.go`, which also builds the endpoint index served at `GET /api/`. A new endpoint needs a table entry (path, parameters, description, an example the fake backend can answer) and a row in the README's JSON API table; `TestAPIIndex` fails on a route registered outside the table or missing from the README.
+
 MCP tool handlers take typed input structs: the SDK generates each tool's JSON schema from the `json` and `jsonschema` tags, so adding a parameter means adding a field. The same output structs are the API's JSON responses, and `web/src/api.ts` mirrors them by hand, so change both together.
 
 Validation failures are `*InputError`; `web.go`'s `writeError` maps `InputError` → 400 `invalid_input`, `ErrNotPublic` → 403 `not_public`, `ErrNotFound` → 404 `not_found`, anything else → 502. The UI switches on these `code` values (e.g. the paid-image message).
@@ -76,7 +78,7 @@ Features are specified before they're built, with [OpenSpec](https://github.com/
 - Requirements and scenarios carry stable IDs in their headers (`### Requirement: VC-3 …`, `#### Scenario: VC-3.1 …`), one prefix per capability. OpenSpec matches requirements by header text, so never renumber or reuse an ID. Tests start their names with the scenario ID they cover.
 - On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
 - `docs/visualization-ideas.md` is the backlog of web UI chart ideas not yet proposed as changes; update an idea's status when it's picked up.
-- Capability prefixes in use: `VC` (`image-variant-comparison`), `LB` (`image-license-breakdown`) and `SF` (`image-security-fixes`).
+- Capability prefixes in use: `VC` (`image-variant-comparison`), `LB` (`image-license-breakdown`), `SF` (`image-security-fixes`) and `WA` (`web-api`).
 
 ## CI and releases
 

@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -112,7 +115,8 @@ func TestAPIErrors(t *testing.T) {
 		{"/api/images/python/packages?arch=x86%2F64", 400, "invalid_input"},
 		{"/api/images?limit=abc", 400, "invalid_input"},
 		{"/api/alternatives", 400, "invalid_input"},
-		{"/api/nope", 404, "not_found"},
+		{"/api/nope", 404, "not_found"},          // WA-3.1
+		{"/api/images/python", 404, "not_found"}, // WA-3.2
 	}
 	for _, tt := range tests {
 		var e apiError
@@ -220,4 +224,151 @@ func TestEmbeddedUIFS(t *testing.T) {
 	if _, err := embeddedUI().Open(".gitkeep"); err != nil {
 		t.Fatalf("embedded UI is missing .gitkeep: %v", err)
 	}
+}
+
+func TestAPIIndex(t *testing.T) {
+	srv := newWebServer(t, fakeUI)
+	var index apiIndex
+	if resp := getJSON(t, srv, "/api/", &index); resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	byPath := map[string]apiRoute{}
+	for _, e := range index.Endpoints {
+		if _, dup := byPath[e.Path]; dup {
+			t.Errorf("%s listed twice", e.Path)
+		}
+		byPath[e.Path] = e
+	}
+	param := func(path, name string) (apiParam, bool) {
+		for _, p := range byPath[path].Parameters {
+			if p.Name == name {
+				return p, true
+			}
+		}
+		return apiParam{}, false
+	}
+
+	t.Run("WA-1.1 index lists images parameters", func(t *testing.T) {
+		e := byPath["/api/images"]
+		var names []string
+		for _, p := range e.Parameters {
+			names = append(names, p.Name)
+			if p.In != "query" || p.Required || p.Description == "" {
+				t.Errorf("/api/images %s: %+v", p.Name, p)
+			}
+		}
+		if e.Method != "GET" || strings.Join(names, ",") != "query,free_only,limit,offset" {
+			t.Errorf("/api/images: %+v", e)
+		}
+	})
+
+	t.Run("WA-1.2 index marks path and required parameters", func(t *testing.T) {
+		const vulns = "/api/images/{name}/vulnerabilities"
+		want := map[string]apiParam{
+			"name": {In: "path", Required: true},
+			"tag":  {In: "query"},
+			"id":   {In: "query"},
+		}
+		if len(byPath[vulns].Parameters) != len(want) {
+			t.Errorf("%s parameters: %+v", vulns, byPath[vulns].Parameters)
+		}
+		for name, w := range want {
+			if p, ok := param(vulns, name); !ok || p.In != w.In || p.Required != w.Required {
+				t.Errorf("%s %s: %+v", vulns, name, p)
+			}
+		}
+		if p, ok := param("/api/alternatives", "image"); !ok || p.In != "query" || !p.Required {
+			t.Errorf("/api/alternatives image: %+v", p)
+		}
+	})
+
+	t.Run("WA-1.3 index examples are relative", func(t *testing.T) {
+		for _, e := range index.Endpoints {
+			if !strings.HasPrefix(e.Example, "/api/") || strings.Contains(e.Example, "://") {
+				t.Errorf("%s example %q", e.Path, e.Example)
+			}
+		}
+		// Raw output should be readable with curl, so & isn't escaped.
+		if _, body := get(t, srv, "/api/"); !strings.Contains(body, "python&free_only") {
+			t.Errorf("example URLs are escaped in the raw index: %.300s", body)
+		}
+	})
+
+	t.Run("WA-2.1 index lists exactly the expected endpoints", func(t *testing.T) {
+		want := []string{
+			"/api/images",
+			"/api/images/{name}/tags",
+			"/api/images/{name}/details",
+			"/api/images/{name}/pin",
+			"/api/images/{name}/packages",
+			"/api/images/{name}/vulnerabilities",
+			"/api/images/{name}/sbom",
+			"/api/alternatives",
+		}
+		var got []string
+		for _, e := range index.Endpoints {
+			got = append(got, e.Path)
+		}
+		if strings.Join(got, "\n") != strings.Join(want, "\n") {
+			t.Errorf("index paths:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+		}
+	})
+
+	t.Run("WA-2.2 every example reaches its endpoint", func(t *testing.T) {
+		for _, e := range index.Endpoints {
+			resp, body := get(t, srv, e.Example)
+			if resp.StatusCode != 200 || strings.Contains(body, "unknown API endpoint") {
+				t.Errorf("%s: %d %.200s", e.Example, resp.StatusCode, body)
+			}
+		}
+	})
+
+	// ServeMux can't list its patterns, so scan the source for routes
+	// registered outside apiRoutes.
+	t.Run("WA-2.3 every /api route literal is in the index", func(t *testing.T) {
+		allowed := map[string]bool{"GET /api/{$}": true, "/api/": true}
+		files, err := filepath.Glob("*.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pattern := regexp.MustCompile(`\.Handle(?:Func)?\(\s*"([^"]*)"`)
+		for _, f := range files {
+			if strings.HasSuffix(f, "_test.go") {
+				continue
+			}
+			src, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range pattern.FindAllStringSubmatch(string(src), -1) {
+				if strings.Contains(m[1], "/api") && !allowed[m[1]] {
+					t.Errorf("%s registers %q outside apiRoutes; add it to the table instead", f, m[1])
+				}
+			}
+		}
+	})
+
+	t.Run("WA-3.3 index only answers GET", func(t *testing.T) {
+		resp, err := http.Post(srv.URL+"/api/", "application/json", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode == 200 || strings.Contains(string(body), "endpoints") {
+			t.Errorf("POST /api/: %d %s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("WA-4.1 README lists every index endpoint", func(t *testing.T) {
+		readme, err := os.ReadFile("README.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range index.Endpoints {
+			if !strings.Contains(string(readme), "| `"+e.Path+"`") {
+				t.Errorf("README.md has no table row for `%s`", e.Path)
+			}
+		}
+	})
 }

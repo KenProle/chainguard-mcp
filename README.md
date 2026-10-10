@@ -131,7 +131,7 @@ Without the UI build, everything else still works and `/` shows how to build it.
 
 ```bash
 ./chainguard-mcp                     # stdio (for Claude Desktop / Claude Code)
-./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API at /api/, health check at /healthz
+./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API under /api/ (GET /api/ lists the endpoints), health check at /healthz
 ./chainguard-mcp -version
 ```
 
@@ -140,6 +140,27 @@ Add it to Claude Code:
 ```bash
 claude mcp add -s user chainguard -- /path/to/chainguard-mcp
 ```
+
+### JSON API
+
+With `-http`, the API that the web UI uses is served under `/api/`. Every endpoint answers `GET` with JSON (the SBOM as an `application/spdx+json` download), and `GET /api/` lists them with their parameters:
+
+```bash
+curl http://127.0.0.1:8080/api/
+```
+
+| Endpoint | Parameters | Example |
+| --- | --- | --- |
+| `/api/images` | `query`, `free_only=true`, `limit` (default 100, max 1000), `offset` | `/api/images?query=python&free_only=true` |
+| `/api/images/{name}/tags` | | `/api/images/python/tags` |
+| `/api/images/{name}/details` | `tag` (default `latest`) | `/api/images/python/details?tag=latest` |
+| `/api/images/{name}/pin` | `tag` | `/api/images/python/pin?tag=latest-dev` |
+| `/api/images/{name}/packages` | `tag`, `arch` (`amd64` or `arm64`), `query` | `/api/images/python/packages?query=ssl` |
+| `/api/images/{name}/vulnerabilities` | `tag`, `id` (a CVE or GHSA ID) | `/api/images/python/vulnerabilities?id=CVE-2024-12797` |
+| `/api/images/{name}/sbom` | `tag`, `arch` | `/api/images/python/sbom?tag=latest` |
+| `/api/alternatives` | `image` (required) | `/api/alternatives?image=node:20-alpine` |
+
+Errors are JSON `{"error": "...", "code": "..."}` with status 400 `invalid_input`, 403 `not_public` (subscription-only image), 404 `not_found` (also for unknown `/api/` paths) or 502 `upstream_error`. The API has no authentication; bind it to `127.0.0.1` unless you mean to share it.
 
 ### Saving SBOMs
 
