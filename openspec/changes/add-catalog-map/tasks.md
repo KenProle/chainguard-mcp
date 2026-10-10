@@ -40,7 +40,7 @@ Groups 1 to 3 built the first, family-level treemap. This group redraws it by va
 
 - [x] 6.1 Run every check: `gofmt -l .` (with CRs stripped on Windows, as CI sees the files), `go vet ./...`, `go test ./...`, and in `web/` `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, plus `openspec validate --all --strict`. Verify: all pass, and `git diff --stat` shows no change to `tools.go`.
 - [x] 6.2 Exercise the feature in the running app (build the UI, run `go run . -http 127.0.0.1:8080`) (CM-1 to CM-18). Verify in the browser with a fresh server: the map appears grouped by variant with labeled headers before any color, colors arrive in four steps, and the final counts match `list_images` with `free_only`; the tooltip appears immediately and follows the pointer; switching to Name prefix redraws with `crossplane` and Other; clicking a unit opens the image; searching `nginx` regroups both views; the List view and "Free only" behave as before. For `CM-13.1`: at 375 px and 1280 px in dark and light mode, the colors and headers are legible, nothing overflows, and the console shows no Content Security Policy violations. If the browser pane can't take screenshots, ask the user to confirm the layout visually.
-- [ ] 6.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
+- [x] 6.3 Push and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all CI jobs succeed.
 
 ## Workflow follow-up
 
