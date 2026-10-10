@@ -68,3 +68,6 @@ export function formatBytes(n: number): string {
   }
   return `${v.toFixed(1)} ${units[i]}`
 }
+
+/** The progress bar's track and fill, readable in light and dark mode. */
+export const progressBarColor = { track: 'fill-zinc-200 dark:fill-zinc-700', fill: 'fill-indigo-500 dark:fill-indigo-400' }

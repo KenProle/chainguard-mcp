@@ -13,7 +13,8 @@ context: |
     output may suggest an image is vulnerability-free.
   - Web UI: strict Content Security Policy (no inline scripts or styles, so no libraries that
     inject <style> tags); usable at 375 px wide; light and dark mode; keyboard accessible;
-    charts always have a text equivalent.
+    charts always have a text equivalent. A wait that can take more than about 3 seconds shows
+    determinate progress or the expected time, never only "Loading".
   - Dependencies: no new Go or npm dependency without a justification in design.md.
   - Development happens on Windows; commands and paths in tasks must work there.
 

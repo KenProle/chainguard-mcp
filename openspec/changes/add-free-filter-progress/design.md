@@ -39,6 +39,7 @@ Each batch's `queryFn` measures its own duration (`performance.now()` around `ap
 ### 3. The check in `CatalogList`
 - A `useInfiniteQuery` keyed `['freeCheck', query]`, enabled only while `freeOnly` is on, with `limit: FREE_CHECK_BATCH`, `getNextPageParam` as in `CatalogMap`, and the same "fetch the next batch when the last one finished" effect (FF-2). Unticking disables it, so no further batch is requested (FF-6.1). A new search is a new key, and the old key's remaining batches are never requested (FF-6.2).
 - The existing list query keeps its key and gets `enabled: !freeOnly || checkDone`, where `checkDone` means the check has data and no next page. It runs once, after the check, and is then answered from the server's cache (FF-2.1). With "Free only" off, nothing changes (FF-1.2).
+- The total for the label comes from the first batch's `total`. Before that returns, it comes from `GET /api/families` (query key `['families', query]`, shared with the Map view), which never waits on free-tier checks (CM-3.3); this is what lets FF-3.2 say "0 of 3,171" before any batch has returned. *(Added during implementation.)*
 - Errors: when a batch fails, show `ErrorState` with a retry that calls `fetchNextPage()` if some batches have returned, otherwise `refetch()`, so a retry resumes rather than restarting (FF-7.1). The bar stays on screen above the error.
 
 ### 4. Delaying the bar by one second (FF-5)

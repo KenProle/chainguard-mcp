@@ -1,9 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { api } from '../api'
 import { CatalogMap } from '../components/CatalogMap'
+import { ProgressBar } from '../components/ProgressBar'
 import { ErrorState, FreeBadge, Loading, Pagination } from '../components/ui'
+import { FREE_CHECK_BATCH, PROGRESS_DELAY_MS, averageMsPerImage, freeCheckLabel } from '../freeCheck'
 import { familySorts, type FamilySort } from '../catalogMap'
 import type { GroupBy } from '../api'
 import { inputClass, segmentButton, segmentGroup } from '../styles'
@@ -116,24 +118,82 @@ export function CatalogPage() {
   )
 }
 
-/** One page of the image list, with free-tier status for each image. */
+/**
+ * One page of the image list, with free-tier status for each image. With
+ * "Free only" on, the statuses are first checked in batches, one at a time, so
+ * a progress bar can show how far the check is; the server then answers the
+ * filtered list from its cache.
+ */
 function CatalogList({ query, freeOnly, page, onPage }: { query: string; freeOnly: boolean; page: number; onPage: (page: number) => void }) {
+  const check = useInfiniteQuery({
+    queryKey: ['freeCheck', query],
+    enabled: freeOnly,
+    queryFn: async ({ pageParam, signal }) => {
+      const started = performance.now()
+      const list = await api.listImages({ query, limit: FREE_CHECK_BATCH, offset: pageParam }, signal)
+      return { ...list, ms: performance.now() - started }
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) => (last.offset + last.count < last.total ? last.offset + last.count : undefined),
+  })
+  const { hasNextPage, isFetching: checkFetching, isFetchNextPageError, fetchNextPage } = check
+  // The page count is a dependency because a fast answer can skip the render
+  // where isFetching is true, leaving the other values unchanged. fetchNextPage
+  // ignores `enabled`, so unticking "Free only" must stop it here.
+  const loadedBatches = check.data?.pages.length ?? 0
+  useEffect(() => {
+    if (freeOnly && hasNextPage && !checkFetching && !isFetchNextPageError) void fetchNextPage({ cancelRefetch: false })
+  }, [freeOnly, hasNextPage, checkFetching, isFetchNextPageError, fetchNextPage, loadedBatches])
+  const checkDone = check.data !== undefined && !hasNextPage
+  const checking = freeOnly && !checkDone
+
+  // The first batch can't say how many images match, so until it returns the
+  // family list (catalog only, no status checks) supplies the total.
+  const families = useQuery({
+    queryKey: ['families', query],
+    queryFn: ({ signal }) => api.families(query, signal),
+    enabled: checking,
+  })
+
+  // The bar appears only if the check is still running after a second.
+  const [barFor, setBarFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!checking) return
+    const timer = setTimeout(() => setBarFor(query), PROGRESS_DELAY_MS)
+    return () => {
+      clearTimeout(timer)
+      setBarFor(null)
+    }
+  }, [checking, query])
+
   const { data, error, isPending, isFetching, refetch } = useQuery({
     queryKey: ['images', query, freeOnly, page],
     queryFn: ({ signal }) =>
       api.listImages({ query, freeOnly, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, signal),
     placeholderData: keepPreviousData,
+    enabled: !freeOnly || checkDone,
   })
+
+  const batches = check.data?.pages ?? []
+  const checked = batches.reduce((n, b) => n + b.count, 0)
+  const total = batches[0]?.total ?? families.data?.total
+  const showBar = total !== undefined && (barFor === query || check.error !== null)
 
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
 
   return (
     <>
-      {isPending ? (
-        <Loading
-          label="Loading images…"
-          hint={freeOnly && !query ? 'Checking every image for free-tier access. The first time can take about 30 seconds.' : undefined}
-        />
+      {checking ? (
+        <div className="space-y-3">
+          {showBar && <ProgressBar value={checked} max={total} label={freeCheckLabel(checked, total, averageMsPerImage(batches))} />}
+          {check.error ? (
+            <ErrorState error={check.error} onRetry={() => (loadedBatches > 0 ? void fetchNextPage() : void check.refetch())} />
+          ) : (
+            !showBar && <Loading label="Loading images…" />
+          )}
+        </div>
+      ) : isPending ? (
+        <Loading label="Loading images…" />
       ) : error ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
