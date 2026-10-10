@@ -109,3 +109,21 @@ export function layoutGroups(
     }
   })
 }
+
+/**
+ * Lays out one zoomed group: its blocks become the top level, each laid out
+ * as a group of one block, so they fill area with the group gap between them
+ * and a header on each block with room. A group of a single block gets no
+ * header, since the breadcrumb already names it.
+ */
+export function layoutBlocks(
+  blocks: number[],
+  area: Rect,
+  { gap, header, minHeaderWidth = 40 }: { gap: number; header: number; minHeaderWidth?: number },
+): GroupLayout[] {
+  return layoutGroups(
+    blocks.map((n) => [n]),
+    area,
+    { gap, header, minHeaderWidth: blocks.length > 1 ? minHeaderWidth : Infinity },
+  )
+}

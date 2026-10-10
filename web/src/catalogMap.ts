@@ -135,7 +135,47 @@ export function headerText(label: string, images: number, width: number): string
   return `${label.slice(0, chars)}…`
 }
 
-/** The tooltip for a group's header: its full name and image count. */
-export function headerTooltip(label: string, images: number): string {
-  return `${label}: ${count(images, 'image', 'images')}`
+/**
+ * The tooltip for a group's or block's header: its full name and image count,
+ * and for a group header in the whole map, that a click zooms in.
+ */
+export function headerTooltip(label: string, images: number, zoomable = false): string {
+  return `${label}: ${count(images, 'image', 'images')}${zoomable ? ' · click to zoom in' : ''}`
+}
+
+/** The accessible name of a group's zoom button, with its free count on phones. */
+export function zoomLabel(label: string, images: number, free?: number): string {
+  return `Zoom into ${label}, ${count(images, 'image', 'images')}${free === undefined ? '' : `, ${free.toLocaleString('en-US')} free`}`
+}
+
+/** The treemap's accessible name while zoomed into a group. free is null while statuses are loading. */
+export function zoomedSummary(label: string, images: number, blocks: number, free: number | null): string {
+  const status = free === null ? '. Free-tier status is still loading.' : `: ${free.toLocaleString('en-US')} free.`
+  return `Treemap of the ${label} group: ${count(images, 'image', 'images')} in ${count(blocks, 'name-prefix block', 'name-prefix blocks')}${status} The family table below lists its families.`
+}
+
+/**
+ * Narrows families to the images in a group, leaving out families with none
+ * of them, in the same order. Groups and families both come from the server;
+ * this only filters one by the other's membership.
+ */
+export function familiesInGroup(families: ImageFamily[], images: string[]): ImageFamily[] {
+  const inGroup = new Set(images)
+  return families.map((f) => ({ name: f.name, images: f.images.filter((i) => inGroup.has(i)) })).filter((f) => f.images.length > 0)
+}
+
+/**
+ * The phone bars of a zoomed group: its largest name-prefix blocks (the API
+ * orders them by size), then one bar for the rest when there are more.
+ */
+export function blockBars(group: ImageGroup, max = 10): { label: string; images: string[] }[] {
+  const bars: { label: string; images: string[] }[] = []
+  let start = 0
+  for (const b of group.blocks.slice(0, max)) {
+    bars.push({ label: b.prefix, images: group.images.slice(start, start + b.count) })
+    start += b.count
+  }
+  const rest = group.blocks.length - max
+  if (rest > 0) bars.push({ label: `${count(rest, 'more prefix', 'more prefixes')}`, images: group.images.slice(start) })
+  return bars
 }
