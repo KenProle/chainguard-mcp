@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -220,4 +222,108 @@ func TestEmbeddedUIFS(t *testing.T) {
 	if _, err := embeddedUI().Open(".gitkeep"); err != nil {
 		t.Fatalf("embedded UI is missing .gitkeep: %v", err)
 	}
+}
+
+func TestAPIFamilies(t *testing.T) {
+	svc, fake := newFakeBackend(t)
+	srv := httptest.NewServer(newWebHandler(svc, fakeUI))
+	t.Cleanup(srv.Close)
+
+	t.Run("CM-3.1 whole catalog", func(t *testing.T) {
+		var out ImageFamiliesOutput
+		if resp := getJSON(t, srv, "/api/families", &out); resp.StatusCode != 200 {
+			t.Fatalf("status %d", resp.StatusCode)
+		}
+		var names []string
+		for _, f := range out.Families {
+			names = append(names, f.Name)
+		}
+		want := []string{"node", "python", "go", "jdk", "jre", "loki", "static", "wolfi-base"}
+		if out.Total != 11 || !slices.Equal(names, want) {
+			t.Errorf("got %d images in %v, want 11 in %v", out.Total, names, want)
+		}
+		if !slices.Equal(out.Families[0].Images, []string{"node", "node-fips", "node-lts"}) {
+			t.Errorf("node family: %v", out.Families[0].Images)
+		}
+		if loki := out.Families[5]; !slices.Equal(loki.Images, []string{"loki-fips"}) {
+			t.Errorf("loki family: %+v", loki)
+		}
+	})
+	t.Run("CM-3.3 no free-tier checks", func(t *testing.T) {
+		before := fake.tokenRequests.Load()
+		getJSON(t, srv, "/api/families", nil)
+		if n := fake.tokenRequests.Load() - before; n != 0 {
+			t.Errorf("made %d token requests", n)
+		}
+	})
+	t.Run("query", func(t *testing.T) {
+		var out ImageFamiliesOutput
+		getJSON(t, srv, "/api/families?query=fips", &out)
+		var names []string
+		for _, f := range out.Families {
+			names = append(names, f.Name)
+		}
+		if out.Total != 3 || !slices.Equal(names, []string{"loki", "node", "python"}) {
+			t.Errorf("got %d images in %v", out.Total, names)
+		}
+	})
+}
+
+func TestAPIFamiliesCatalogUnavailable(t *testing.T) {
+	t.Run("CM-3.4 catalog unavailable", func(t *testing.T) {
+		svc := newFakeService(t)
+		svc.Catalog.SitemapURL += ".missing"
+		srv := httptest.NewServer(newWebHandler(svc, fakeUI))
+		t.Cleanup(srv.Close)
+		var e apiError
+		if resp := getJSON(t, srv, "/api/families", &e); resp.StatusCode != http.StatusBadGateway {
+			t.Errorf("status %d %+v, want 502", resp.StatusCode, e)
+		}
+	})
+}
+
+func TestAPIGroups(t *testing.T) {
+	svc, fake := newFakeBackend(t)
+	srv := httptest.NewServer(newWebHandler(svc, fakeUI))
+	t.Cleanup(srv.Close)
+	labels := func(out ImageGroupsOutput) []string {
+		var l []string
+		for _, g := range out.Groups {
+			l = append(l, fmt.Sprintf("%s:%d", g.Label, len(g.Images)))
+		}
+		return l
+	}
+
+	t.Run("CM-16.1 default grouping", func(t *testing.T) {
+		var out ImageGroupsOutput
+		if resp := getJSON(t, srv, "/api/groups", &out); resp.StatusCode != 200 {
+			t.Fatalf("status %d", resp.StatusCode)
+		}
+		// 11 images: names need 2 images, so lts (node-lts) folds into Other.
+		want := []string{"Base images:7", "FIPS:3", "Other variants:1"}
+		if out.GroupBy != "variant" || out.Total != 11 || !slices.Equal(labels(out), want) {
+			t.Errorf("got %s %d %v, want %v", out.GroupBy, out.Total, labels(out), want)
+		}
+	})
+	t.Run("CM-16.2 other group", func(t *testing.T) {
+		var out ImageGroupsOutput
+		getJSON(t, srv, "/api/groups?group_by=prefix", &out)
+		want := []string{"Other:6", "node:3", "python:2"}
+		if !slices.Equal(labels(out), want) || out.Groups[0].Folded != 6 {
+			t.Errorf("got %v (folded %d), want %v", labels(out), out.Groups[0].Folded, want)
+		}
+	})
+	t.Run("CM-16.3 invalid grouping", func(t *testing.T) {
+		var e apiError
+		if resp := getJSON(t, srv, "/api/groups?group_by=size", &e); resp.StatusCode != 400 || e.Code != "invalid_input" {
+			t.Errorf("got %d %+v", resp.StatusCode, e)
+		}
+	})
+	t.Run("CM-16.4 no free-tier checks", func(t *testing.T) {
+		before := fake.tokenRequests.Load()
+		getJSON(t, srv, "/api/groups?query=node", nil)
+		if n := fake.tokenRequests.Load() - before; n != 0 {
+			t.Errorf("made %d token requests", n)
+		}
+	})
 }

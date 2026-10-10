@@ -68,6 +68,24 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   )
 }
 
+/** Previous / Next buttons around "Page N of M". */
+export function Pagination({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
+  const button = 'rounded-lg border border-zinc-300 px-3 py-1.5 disabled:opacity-40 dark:border-zinc-700'
+  return (
+    <nav aria-label="Pagination" className="flex items-center justify-between text-sm">
+      <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className={button}>
+        Previous
+      </button>
+      <span>
+        Page {page} of {pages}
+      </span>
+      <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} className={button}>
+        Next
+      </button>
+    </nav>
+  )
+}
+
 export function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const copy = async () => {

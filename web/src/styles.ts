@@ -1,6 +1,7 @@
 // Shared Tailwind class strings and formatting helpers. Kept out of the
 // component files so React fast refresh keeps working during development.
 
+import type { FreeStatus } from './catalogMap'
 import type { LicenseCategory } from './licenses'
 
 /** Bar colors for the license breakdown's categories, readable in light and dark mode. */
@@ -22,6 +23,31 @@ export const fixSegmentColor: Record<'fixed' | 'notAffected' | 'pending', { fill
   notAffected: { fill: 'fill-zinc-300 dark:fill-zinc-600', swatch: 'bg-zinc-300 dark:bg-zinc-600' },
   pending: { fill: 'fill-rose-500 dark:fill-rose-400', swatch: 'bg-rose-500 dark:bg-rose-400' },
 }
+
+/**
+ * Colors for the catalog map's free-tier statuses: fill for treemap units and
+ * bar segments, swatch for the legend. Free is the only saturated color, so
+ * the few free images stand out against a muted blue-gray. Groups get no
+ * colors of their own.
+ */
+export const freeStatusColor: Record<FreeStatus, { fill: string; swatch: string }> = {
+  free: { fill: 'fill-emerald-500 dark:fill-emerald-400', swatch: 'bg-emerald-500 dark:bg-emerald-400' },
+  subscription: { fill: 'fill-slate-300 dark:fill-slate-700', swatch: 'bg-slate-300 dark:bg-slate-700' },
+  unknown: { fill: 'fill-zinc-200 dark:fill-zinc-800', swatch: 'bg-zinc-200 dark:bg-zinc-800' },
+}
+
+/** The catalog map's group header bands and their text. */
+export const groupHeaderColor = { band: 'fill-slate-700 dark:fill-slate-300', text: 'fill-white dark:fill-slate-900' }
+
+/** A row of toggle buttons, such as the catalog's List / Map switch. */
+export const segmentGroup = 'inline-flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800'
+
+export const segmentButton = (active: boolean) =>
+  `rounded-md px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-indigo-600 ${
+    active
+      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100'
+      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+  }`
 
 export const inputClass =
   'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-900'

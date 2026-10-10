@@ -1,6 +1,7 @@
 // Typed client for the Go server's JSON API (web.go). The types mirror the Go
-// output structs in service.go, details.go, sbom.go, vulns.go and
-// alternatives.go, which the MCP tools also return.
+// output structs in service.go, details.go, sbom.go, vulns.go, alternatives.go
+// and groups.go. The MCP tools return the same structs, except ImageFamilies
+// and ImageGroups, which only the web UI uses.
 
 export type ImageSummary = {
   name: string
@@ -13,6 +14,42 @@ export type ImageList = {
   count: number
   offset: number
   images: ImageSummary[]
+}
+
+/** An image and its variants, e.g. nginx with nginx-fips. Images are in name order; the first is the base image when it exists. */
+export type ImageFamily = {
+  name: string
+  images: string[]
+}
+
+export type ImageFamilies = {
+  total: number
+  families: ImageFamily[]
+}
+
+export type GroupBy = 'variant' | 'prefix'
+
+/** A run of a group's images sharing a name prefix. */
+export type ImageBlock = {
+  prefix: string
+  count: number
+}
+
+/**
+ * Images sharing a variant kind (e.g. FIPS) or name prefix; folded is set on
+ * the Other group. images are ordered block by block, as blocks describes.
+ */
+export type ImageGroup = {
+  label: string
+  folded?: number
+  images: string[]
+  blocks: ImageBlock[]
+}
+
+export type ImageGroups = {
+  group_by: GroupBy
+  total: number
+  groups: ImageGroup[]
 }
 
 export type ImageTags = {
@@ -164,6 +201,9 @@ const image = (name: string) => `/images/${encodeURIComponent(name)}`
 export const api = {
   listImages: (p: { query?: string; freeOnly?: boolean; limit?: number; offset?: number }, signal?: AbortSignal) =>
     get<ImageList>('/images', { query: p.query, free_only: p.freeOnly, limit: p.limit, offset: p.offset }, signal),
+  families: (query: string, signal?: AbortSignal) => get<ImageFamilies>('/families', { query }, signal),
+  groups: (query: string, groupBy: GroupBy, signal?: AbortSignal) =>
+    get<ImageGroups>('/groups', { query, group_by: groupBy }, signal),
   tags: (name: string, signal?: AbortSignal) => get<ImageTags>(`${image(name)}/tags`, {}, signal),
   details: (name: string, tag: string, signal?: AbortSignal) =>
     get<ImageDetails>(`${image(name)}/details`, { tag }, signal),

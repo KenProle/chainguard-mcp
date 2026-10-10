@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -21,6 +22,8 @@ type fakeChainguard struct {
 	manifests map[string]fakeBlob          // digest → manifest
 	blobs     map[string][]byte            // digest → blob
 	secdb     string
+
+	tokenRequests atomic.Int64 // requests to /token, for asserting none were made
 }
 
 type fakeBlob struct {
@@ -141,6 +144,7 @@ func (f *fakeChainguard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, f.secdb)
 
 	case path == "/token":
+		f.tokenRequests.Add(1)
 		image := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query().Get("scope"), "repository:chainguard/"), ":pull")
 		if !f.public[image] {
 			http.Error(w, `{"errors":[{"code":"DENIED"}]}`, http.StatusForbidden)
@@ -195,6 +199,14 @@ func (f *fakeChainguard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // returns a Service wired to it.
 func newFakeService(t *testing.T) *Service {
 	t.Helper()
+	svc, _ := newFakeBackend(t)
+	return svc
+}
+
+// newFakeBackend is newFakeService that also returns the fake, so tests can
+// inspect the requests it received.
+func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
+	t.Helper()
 	f := &fakeChainguard{
 		t: t,
 		images: []string{
@@ -233,5 +245,5 @@ func newFakeService(t *testing.T) *Service {
 	svc.Catalog.SitemapURL = srv.URL + "/sitemap.xml"
 	svc.Registry.BaseURL = srv.URL
 	svc.SecDB.URL = srv.URL + "/security.json"
-	return svc
+	return svc, f
 }

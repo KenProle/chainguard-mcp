@@ -110,13 +110,7 @@ func (s *Service) ListImages(ctx context.Context, in ListImagesInput) (ListImage
 	if err != nil {
 		return ListImagesOutput{}, err
 	}
-	q := strings.ToLower(strings.TrimSpace(in.Query))
-	var matches []string
-	for _, name := range all {
-		if q == "" || strings.Contains(name, q) {
-			matches = append(matches, name)
-		}
-	}
+	matches := matchingImages(all, in.Query)
 
 	var free map[string]bool
 	if in.FreeOnly {
@@ -150,6 +144,93 @@ func (s *Service) ListImages(ctx context.Context, in ListImagesInput) (ListImage
 		images = append(images, sum)
 	}
 	return ListImagesOutput{Total: len(matches), Count: len(images), Offset: offset, Images: images}, nil
+}
+
+// matchingImages returns the names containing query (case-insensitive), or
+// all names for an empty query. list_images and the families API share it so
+// they return the same images for a query.
+func matchingImages(names []string, query string) []string {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return names
+	}
+	var matches []string
+	for _, name := range names {
+		if strings.Contains(name, q) {
+			matches = append(matches, name)
+		}
+	}
+	return matches
+}
+
+type ImageGroupsInput struct {
+	Query   string `json:"query,omitempty" jsonschema:"case-insensitive substring to filter image names, as in list_images"`
+	GroupBy string `json:"group_by,omitempty" jsonschema:"'variant' (default) or 'prefix'"`
+}
+
+type ImageGroupsOutput struct {
+	GroupBy string       `json:"group_by"`
+	Total   int          `json:"total" jsonschema:"number of images matching the query"`
+	Groups  []ImageGroup `json:"groups"`
+}
+
+// ImageGroups groups the images matching the query by variant kind or name
+// prefix, for the catalog map. Like ImageFamilies, it makes no registry
+// requests.
+func (s *Service) ImageGroups(ctx context.Context, in ImageGroupsInput) (ImageGroupsOutput, error) {
+	by := in.GroupBy
+	if by == "" {
+		by = GroupByVariant
+	}
+	if by != GroupByVariant && by != GroupByPrefix {
+		return ImageGroupsOutput{}, inputErrorf("invalid group_by %q: use %q or %q", in.GroupBy, GroupByVariant, GroupByPrefix)
+	}
+	all, err := s.Catalog.Images(ctx)
+	if err != nil {
+		return ImageGroupsOutput{}, err
+	}
+	matches := matchingImages(all, in.Query)
+	return ImageGroupsOutput{GroupBy: by, Total: len(matches), Groups: groupImages(matches, by)}, nil
+}
+
+type ImageFamiliesInput struct {
+	Query string `json:"query,omitempty" jsonschema:"case-insensitive substring to filter image names, as in list_images"`
+}
+
+type ImageFamiliesOutput struct {
+	Total    int           `json:"total" jsonschema:"number of images matching the query"`
+	Families []ImageFamily `json:"families"`
+}
+
+// ImageFamilies groups the catalog into families of an image and its
+// variants, then keeps the images matching the query. Families are formed
+// before filtering, so a query never changes an image's family. It makes no
+// registry requests; callers get free-tier status from ListImages.
+func (s *Service) ImageFamilies(ctx context.Context, in ImageFamiliesInput) (ImageFamiliesOutput, error) {
+	all, err := s.Catalog.Images(ctx)
+	if err != nil {
+		return ImageFamiliesOutput{}, err
+	}
+	matches := matchingImages(all, in.Query)
+	keep := make(map[string]bool, len(matches))
+	for _, name := range matches {
+		keep[name] = true
+	}
+	families := []ImageFamily{}
+	for _, f := range groupFamilies(all) {
+		var images []string
+		for _, img := range f.Images {
+			if keep[img] {
+				images = append(images, img)
+			}
+		}
+		if len(images) > 0 {
+			families = append(families, ImageFamily{Name: f.Name, Images: images})
+		}
+	}
+	// Filtering can shrink families, so restore the count-then-name order.
+	sortFamilies(families)
+	return ImageFamiliesOutput{Total: len(matches), Families: families}, nil
 }
 
 type ImageInput struct {

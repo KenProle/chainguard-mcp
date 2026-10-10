@@ -2,16 +2,24 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { api } from '../api'
-import { ErrorState, FreeBadge, Loading } from '../components/ui'
-import { inputClass } from '../styles'
+import { CatalogMap } from '../components/CatalogMap'
+import { ErrorState, FreeBadge, Loading, Pagination } from '../components/ui'
+import { familySorts, type FamilySort } from '../catalogMap'
+import type { GroupBy } from '../api'
+import { inputClass, segmentButton, segmentGroup } from '../styles'
 
 const PAGE_SIZE = 50
+
 
 export function CatalogPage() {
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
   const freeOnly = params.get('free') === '1'
   const page = Math.max(1, Number(params.get('page')) || 1)
+  const view = params.get('view') === 'map' ? 'map' : 'list'
+  const sortParam = params.get('sort')
+  const sort: FamilySort = familySorts.find((s) => s === sortParam) ?? 'images'
+  const groupBy: GroupBy = params.get('group') === 'prefix' ? 'prefix' : 'variant'
 
   // The search box updates the URL after a short pause, so the URL (and the
   // query) always reflects the current search and can be shared. If the URL
@@ -49,15 +57,6 @@ export function CatalogPage() {
     setParams(next, { replace: true })
   }
 
-  const { data, error, isPending, isFetching, refetch } = useQuery({
-    queryKey: ['images', query, freeOnly, page],
-    queryFn: ({ signal }) =>
-      api.listImages({ query, freeOnly, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, signal),
-    placeholderData: keepPreviousData,
-  })
-
-  const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
-
   return (
     <div className="space-y-5">
       <div>
@@ -65,6 +64,15 @@ export function CatalogPage() {
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Search Chainguard's container images. Free images can be inspected in detail.
         </p>
+      </div>
+
+      <div role="group" aria-label="View" className={segmentGroup}>
+        <button type="button" aria-pressed={view === 'list'} onClick={() => update({ view: '', page: '' })} className={segmentButton(view === 'list')}>
+          List
+        </button>
+        <button type="button" aria-pressed={view === 'map'} onClick={() => update({ view: 'map', page: '' })} className={segmentButton(view === 'map')}>
+          Map
+        </button>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -78,17 +86,49 @@ export function CatalogPage() {
             className={inputClass}
           />
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={freeOnly}
-            onChange={(e) => update({ free: e.target.checked ? '1' : '', page: '' })}
-            className="size-4 rounded border-zinc-300 accent-indigo-600"
-          />
-          Free only
-        </label>
+        {view === 'list' && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={freeOnly}
+              onChange={(e) => update({ free: e.target.checked ? '1' : '', page: '' })}
+              className="size-4 rounded border-zinc-300 accent-indigo-600"
+            />
+            Free only
+          </label>
+        )}
       </div>
 
+      {view === 'map' ? (
+        <CatalogMap
+          query={query}
+          groupBy={groupBy}
+          onGroupBy={(g) => update({ group: g === 'variant' ? '' : g })}
+          sort={sort}
+          page={page}
+          onSort={(s) => update({ sort: s === 'images' ? '' : s, page: '' })}
+          onPage={(p) => update({ page: String(p) })}
+        />
+      ) : (
+        <CatalogList query={query} freeOnly={freeOnly} page={page} onPage={(p) => update({ page: String(p) })} />
+      )}
+    </div>
+  )
+}
+
+/** One page of the image list, with free-tier status for each image. */
+function CatalogList({ query, freeOnly, page, onPage }: { query: string; freeOnly: boolean; page: number; onPage: (page: number) => void }) {
+  const { data, error, isPending, isFetching, refetch } = useQuery({
+    queryKey: ['images', query, freeOnly, page],
+    queryFn: ({ signal }) =>
+      api.listImages({ query, freeOnly, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, signal),
+    placeholderData: keepPreviousData,
+  })
+
+  const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
+
+  return (
+    <>
       {isPending ? (
         <Loading
           label="Loading images…"
@@ -120,31 +160,9 @@ export function CatalogPage() {
               ))}
             </ul>
           )}
-          {pages > 1 && (
-            <nav aria-label="Pagination" className="flex items-center justify-between text-sm">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => update({ page: String(page - 1) })}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 disabled:opacity-40 dark:border-zinc-700"
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= pages}
-                onClick={() => update({ page: String(page + 1) })}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 disabled:opacity-40 dark:border-zinc-700"
-              >
-                Next
-              </button>
-            </nav>
-          )}
+          {pages > 1 && <Pagination page={page} pages={pages} onPage={onPage} />}
         </>
       )}
-    </div>
+    </>
   )
 }

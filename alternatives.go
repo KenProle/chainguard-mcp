@@ -227,3 +227,63 @@ func isVariant(img, base string) bool {
 	}
 	return true
 }
+
+// ImageFamily is an image and its variants, e.g. nginx with nginx-fips,
+// nginx-iamguarded and nginx-iamguarded-fips.
+type ImageFamily struct {
+	Name   string   `json:"name" jsonschema:"the images' name without variant suffixes; not always an image itself"`
+	Images []string `json:"images" jsonschema:"the family's images in name order; the first is its base image when that exists"`
+}
+
+// familyName removes trailing variant suffixes from image, never its first
+// name part, so every image in a family other than the family name itself
+// is a variant of it (isVariant).
+func familyName(image string) string {
+	name, _ := splitVariant(image)
+	return name
+}
+
+// splitVariant splits image into its family name and the trailing variant
+// suffixes, e.g. "nginx-iamguarded-fips" → "nginx", "iamguarded-fips". The
+// suffixes are empty for a base image.
+func splitVariant(image string) (name, suffixes string) {
+	parts := strings.Split(image, "-")
+	n := len(parts)
+	for n > 1 && variantSuffixes[parts[n-1]] {
+		n--
+	}
+	return strings.Join(parts[:n], "-"), strings.Join(parts[n:], "-")
+}
+
+// groupFamilies groups images into families, ordered by image count
+// (descending), then name. Images within a family are in name order, so a
+// family's base image, a prefix of the others, comes first when it exists.
+func groupFamilies(images []string) []ImageFamily {
+	index := make(map[string]int)
+	var families []ImageFamily
+	for _, img := range images {
+		name := familyName(img)
+		i, ok := index[name]
+		if !ok {
+			i = len(families)
+			index[name] = i
+			families = append(families, ImageFamily{Name: name})
+		}
+		families[i].Images = append(families[i].Images, img)
+	}
+	for i := range families {
+		slices.Sort(families[i].Images)
+	}
+	sortFamilies(families)
+	return families
+}
+
+// sortFamilies orders families by image count (descending), then name.
+func sortFamilies(families []ImageFamily) {
+	slices.SortFunc(families, func(a, b ImageFamily) int {
+		if c := len(b.Images) - len(a.Images); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+}

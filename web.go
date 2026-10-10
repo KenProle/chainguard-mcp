@@ -32,6 +32,13 @@ func newWebHandler(svc *Service, ui fs.FS) http.Handler {
 		}
 		respond(w)(svc.ListImages(r.Context(), in))
 	})
+	mux.HandleFunc("GET /api/families", func(w http.ResponseWriter, r *http.Request) {
+		respond(w)(svc.ImageFamilies(r.Context(), ImageFamiliesInput{Query: r.URL.Query().Get("query")}))
+	})
+	mux.HandleFunc("GET /api/groups", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		respond(w)(svc.ImageGroups(r.Context(), ImageGroupsInput{Query: q.Get("query"), GroupBy: q.Get("group_by")}))
+	})
 	mux.HandleFunc("GET /api/images/{name}/tags", func(w http.ResponseWriter, r *http.Request) {
 		respond(w)(svc.ImageTags(r.Context(), r.PathValue("name")))
 	})
