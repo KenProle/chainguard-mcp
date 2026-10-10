@@ -26,7 +26,7 @@ Test names start with the scenario ID they cover (e.g. `FF-4.1 …`). Run web co
 
 - [x] 5.1 Run every check: `gofmt -l .`, `go vet ./...` and `go test ./...` (which should show no Go changes were needed), and in `web/` `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`, plus `openspec validate --all --strict`. Verify: all pass.
 - [x] 5.2 Exercise the feature in the running app: build the UI and start a **fresh** Go server (`go run . -http 127.0.0.1:8080`) so the free-tier cache is empty. Verify in the browser: ticking "Free only" shows "Loading images…" briefly, then the bar filling in about 13 steps with a falling time estimate, then the free images (about 59); unticking and ticking again shows no bar (cached); at 375 px wide in dark mode the bar and label fit without horizontal scrolling and the console shows no Content Security Policy violations (FF-8.1). If the browser pane can't take screenshots, ask the user to confirm the layout visually.
-- [ ] 5.3 Ask the user before committing and pushing, then push to `main` and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all five required CI jobs succeed.
+- [x] 5.3 Ask the user before committing and pushing, then push to `main` and confirm CI passes on the implementing commit, as `config.yaml`'s archive guidance requires. Verify: all five required CI jobs succeed.
 
 ## Workflow follow-up
 
