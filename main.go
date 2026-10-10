@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -25,10 +26,19 @@ func main() {
 	httpAddr := flag.String("http", "", "if set, serve Streamable HTTP on this address (e.g. 127.0.0.1:8080) instead of stdio")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	sbomDir := flag.String("sbom-dir", "", "folder where save_sbom writes files (default: the current folder in stdio mode; disabled in HTTP mode unless set)")
+	recordFile := flag.String("record-history", "", "take a live catalog snapshot, append it to this history file and exit")
+	backfillFile := flag.String("backfill-history", "", "build this empty history file from the Internet Archive's sitemap captures and exit")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version)
+		return
+	}
+	if *recordFile != "" || *backfillFile != "" {
+		if err := runHistory(NewService(), NewArchive(&http.Client{Timeout: 60 * time.Second}), *recordFile, *backfillFile); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 		return
 	}
 

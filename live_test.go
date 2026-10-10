@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestLive exercises every tool against the real Chainguard endpoints.
@@ -124,6 +127,25 @@ func TestLive(t *testing.T) {
 			if out.Recommended == nil || out.Recommended.Image != want {
 				t.Errorf("%s: want %s, got %+v", in, want, out.Recommended)
 			}
+		}
+	})
+
+	t.Run("archive_captures", func(t *testing.T) {
+		// CH-8.1 as a stable property: the Archive keeps at least the 17 months
+		// of sitemap captures that existed on 2026-10-10, from 2024-04.
+		a := NewArchive(&http.Client{Timeout: 60 * time.Second})
+		captures, err := a.Captures(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		months := map[string]bool{}
+		for _, ts := range captures {
+			if ts >= "202404" {
+				months[ts[:6]] = true
+			}
+		}
+		if len(months) < 17 {
+			t.Errorf("captures cover %d months since 2024-04, want at least 17", len(months))
 		}
 	})
 }

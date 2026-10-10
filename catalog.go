@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -68,12 +69,19 @@ func (c *Catalog) fetchImages(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("fetching sitemap: unexpected status %s", resp.Status)
 	}
 
+	return parseSitemap(resp.Body)
+}
+
+// parseSitemap returns the sorted, de-duplicated image names listed in an
+// images.chainguard.dev sitemap. The live catalog and the history backfill
+// share it so both agree on what counts as an image.
+func parseSitemap(r io.Reader) ([]string, error) {
 	var sitemap struct {
 		URLs []struct {
 			Loc string `xml:"loc"`
 		} `xml:"url"`
 	}
-	if err := xml.NewDecoder(resp.Body).Decode(&sitemap); err != nil {
+	if err := xml.NewDecoder(r).Decode(&sitemap); err != nil {
 		return nil, fmt.Errorf("decoding sitemap: %w", err)
 	}
 

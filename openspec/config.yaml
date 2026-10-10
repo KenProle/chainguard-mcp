@@ -9,6 +9,8 @@ context: |
     MCP tools and the web API call. Neither front end may grow its own copy of the logic.
   - Data comes only from Chainguard's public, anonymous endpoints, so detail features work for
     free-tier images only and must show a clear state for subscription-only images.
+    The only exception is this project's own catalog history file (published on its `data`
+    branch) and the Internet Archive copies of Chainguard's sitemap used to backfill it.
   - Never overclaim security: the Wolfi data records fixes, not open vulnerabilities, so no
     output may suggest an image is vulnerability-free.
   - Web UI: strict Content Security Policy (no inline scripts or styles, so no libraries that

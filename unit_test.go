@@ -569,3 +569,178 @@ func TestImageBlocks(t *testing.T) {
 		}
 	})
 }
+
+// --- catalog history (CH-1 to CH-6) ---
+
+func histNames(prefix string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = fmt.Sprintf("%s%04d", prefix, i)
+	}
+	return out
+}
+
+func mustReplay(t *testing.T, lines []HistoryLine) historyState {
+	t.Helper()
+	st, err := replayHistory(lines)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
+func TestCH2_1ReplayRebuildsEachSnapshot(t *testing.T) {
+	a := diffSnapshot(historyState{}, "2026-10-01", sourceArchive, []string{"a", "b", "c"}, nil)
+	b := diffSnapshot(mustReplay(t, []HistoryLine{a}), "2026-10-02", sourceArchive, []string{"b", "c", "d", "e"}, nil)
+	c := diffSnapshot(mustReplay(t, []HistoryLine{a, b}), "2026-10-03", sourceArchive, []string{"c", "e", "f"}, nil)
+	lines := []HistoryLine{a, b, c}
+	want := [][]string{{"a", "b", "c"}, {"b", "c", "d", "e"}, {"c", "e", "f"}}
+	for i := range lines {
+		st := mustReplay(t, lines[:i+1])
+		if got := sortedKeys(st.images); !slices.Equal(got, want[i]) {
+			t.Errorf("snapshot %d = %v, want %v", i, got, want[i])
+		}
+		if len(st.images) != lines[i].Total {
+			t.Errorf("snapshot %d: %d images, total %d", i, len(st.images), lines[i].Total)
+		}
+	}
+	bad := slices.Clone(lines)
+	bad[2].Total = 9
+	if _, err := replayHistory(bad); err == nil || !strings.Contains(err.Error(), "line 3") {
+		t.Errorf("mismatched total: err = %v", err)
+	}
+}
+
+func TestParseHistoryNamesMalformedLine(t *testing.T) {
+	good := `{"date":"2026-10-01","source":"archive","total":0}`
+	_, err := parseHistory([]byte(good + "\n" + good + "\n{not json\n"))
+	if err == nil || !strings.Contains(err.Error(), "line 3") {
+		t.Errorf("err = %v, want one naming line 3", err)
+	}
+}
+
+func TestCH1_1CH1_2CH2_2FirstLiveLine(t *testing.T) {
+	archive := histNames("img", 3166)
+	first := diffSnapshot(historyState{}, "2026-10-08", sourceArchive, archive, nil)
+	if first.Free != nil || len(first.BecameFree) != 0 || len(first.BecameSubscription) != 0 || len(first.Unchecked) != 0 {
+		t.Errorf("CH-1.2: archive line = %+v", first)
+	}
+	if len(first.Images) != 3166 {
+		t.Errorf("first line lists %d images", len(first.Images))
+	}
+	extra := []string{"openstack-barbican-oshelm", "openstack-keystone-oshelm-fips", "openstack-manila-oshelm", "verdaccio", "whereabouts-fips"}
+	names := append(slices.Clone(archive), extra...)
+	status := map[string]bool{}
+	for _, n := range names {
+		status[n] = false
+	}
+	free := archive[:59]
+	for _, n := range free {
+		status[n] = true
+	}
+	live := diffSnapshot(mustReplay(t, []HistoryLine{first}), "2026-10-10", sourceLive, names, status)
+	if live.Date != "2026-10-10" || live.Source != "live" || live.Total != 3171 || live.Free == nil || *live.Free != 59 {
+		t.Errorf("live line = %s %s %d %v", live.Date, live.Source, live.Total, live.Free)
+	}
+	if !slices.Equal(live.Added, extra) || len(live.Removed) != 0 {
+		t.Errorf("added %v removed %v", live.Added, live.Removed)
+	}
+	if !slices.Equal(live.FreeImages, free) || len(live.BecameFree) != 0 {
+		t.Errorf("CH-2.2: %d free_images, became_free %v", len(live.FreeImages), live.BecameFree)
+	}
+	if live.Images != nil {
+		t.Error("only the first line lists images")
+	}
+}
+
+// liveHistory returns an archive line followed by a first live line.
+func liveHistory(t *testing.T, names []string, free ...string) []HistoryLine {
+	t.Helper()
+	first := diffSnapshot(historyState{}, "2026-10-01", sourceArchive, names, nil)
+	status := map[string]bool{}
+	for _, n := range names {
+		status[n] = slices.Contains(free, n)
+	}
+	live := diffSnapshot(mustReplay(t, []HistoryLine{first}), "2026-10-02", sourceLive, names, status)
+	return []HistoryLine{first, live}
+}
+
+func TestCH3_1NewFreeImage(t *testing.T) {
+	h := liveHistory(t, []string{"a", "b"}, "a")
+	l := diffSnapshot(mustReplay(t, h), "2026-10-03", sourceLive, []string{"a", "b", "z"}, map[string]bool{"a": true, "b": false, "z": true})
+	if !slices.Equal(l.Added, []string{"z"}) || !slices.Equal(l.BecameFree, []string{"z"}) {
+		t.Errorf("added %v became_free %v", l.Added, l.BecameFree)
+	}
+	if *l.Free != 2 {
+		t.Errorf("free = %d", *l.Free)
+	}
+}
+
+func TestCH3_2MovesToSubscription(t *testing.T) {
+	h := liveHistory(t, []string{"a", "b"}, "a", "b")
+	l := diffSnapshot(mustReplay(t, h), "2026-10-03", sourceLive, []string{"a", "b"}, map[string]bool{"a": true, "b": false})
+	if !slices.Equal(l.BecameSubscription, []string{"b"}) || len(l.Added)+len(l.Removed) != 0 {
+		t.Errorf("%+v", l)
+	}
+	l2 := diffSnapshot(mustReplay(t, append(h, l)), "2026-10-04", sourceLive, []string{"a", "b"}, map[string]bool{"a": true, "b": true})
+	if !slices.Equal(l2.BecameFree, []string{"b"}) {
+		t.Errorf("became_free = %v", l2.BecameFree)
+	}
+}
+
+func TestCH3_3RetiredImage(t *testing.T) {
+	h := liveHistory(t, []string{"a", "jaeger-query"}, "a", "jaeger-query")
+	l := diffSnapshot(mustReplay(t, h), "2026-10-03", sourceLive, []string{"a"}, map[string]bool{"a": true})
+	if !slices.Equal(l.Removed, []string{"jaeger-query"}) || len(l.BecameSubscription) != 0 {
+		t.Errorf("removed %v became_subscription %v", l.Removed, l.BecameSubscription)
+	}
+	if st := mustReplay(t, append(h, l)); st.free["jaeger-query"] {
+		t.Error("a removed image is still counted free")
+	}
+}
+
+func TestCH4_1FailedCheckKeepsStatus(t *testing.T) {
+	h := liveHistory(t, []string{"python", "zzz"}, "python")
+	// python's check fails (absent from status), and so does a new image's.
+	l := diffSnapshot(mustReplay(t, h), "2026-10-03", sourceLive, []string{"python", "new", "zzz"}, map[string]bool{"zzz": false})
+	if len(l.BecameSubscription) != 0 || len(l.BecameFree) != 0 {
+		t.Errorf("status changes listed: %+v", l)
+	}
+	if !slices.Equal(l.Unchecked, []string{"new", "python"}) {
+		t.Errorf("unchecked = %v", l.Unchecked)
+	}
+	if *l.Free != 1 {
+		t.Errorf("free = %d, want python still counted", *l.Free)
+	}
+}
+
+func TestDiffSnapshotListsAreSortedAndNeverNil(t *testing.T) {
+	h := liveHistory(t, []string{"a", "b", "c"}, "a")
+	l := diffSnapshot(mustReplay(t, h), "2026-10-03", sourceLive, []string{"a", "z", "y"}, map[string]bool{"a": true, "z": true, "y": true})
+	if !slices.Equal(l.Added, []string{"y", "z"}) || !slices.Equal(l.Removed, []string{"b", "c"}) || !slices.Equal(l.BecameFree, []string{"y", "z"}) {
+		t.Errorf("%+v", l)
+	}
+	b, _ := json.Marshal(diffSnapshot(historyState{}, "2026-10-01", sourceArchive, []string{"a"}, nil))
+	if !strings.Contains(string(b), `"removed":[]`) || !strings.Contains(string(b), `"free":null`) {
+		t.Errorf("json = %s", b)
+	}
+}
+
+func TestCH6CheckPlausible(t *testing.T) {
+	if err := checkPlausible(3171, HistoryLine{Total: 1500, Removed: histNames("r", 1671)}); err == nil ||
+		!strings.Contains(err.Error(), "1,500") || !strings.Contains(err.Error(), "3,171") {
+		t.Errorf("CH-6.1: err = %v", err)
+	}
+	if err := checkPlausible(3171, HistoryLine{Total: 3156, Removed: histNames("r", 15)}); err != nil {
+		t.Errorf("CH-6.2: %v", err)
+	}
+	if err := checkPlausible(3171, HistoryLine{Total: 0}); err == nil {
+		t.Error("empty sitemap accepted")
+	}
+	if err := checkPlausible(1000, HistoryLine{Total: 950, Removed: histNames("r", 50)}); err != nil {
+		t.Errorf("exactly 5%% removed: %v", err)
+	}
+	if err := checkPlausible(1000, HistoryLine{Total: 949, Removed: histNames("r", 51)}); err == nil {
+		t.Error("51 of 1000 removed accepted")
+	}
+}

@@ -115,6 +115,19 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 
 The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed vulnerabilities, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype).
 
+## Catalog history
+
+Chainguard's endpoints only show the catalog as it is today, so a scheduled GitHub Action ([`history.yml`](.github/workflows/history.yml)) records it daily. Each day at about 06:17 UTC it appends one line to `catalog-history.jsonl` on the [`data` branch](https://github.com/KenProle/chainguard-mcp/tree/data) (not `main`, whose rules require pull requests): the date, how many images there are and how many are free, and which images were added, retired, or moved between free and subscription since the last line. The first 17 monthly lines (April 2024 to October 2026) were rebuilt from the Internet Archive's copies of the sitemap and have image names only. Free-tier status starts with the first live snapshot, so nothing is known about it before then. The file format is described in the `data` branch's README.
+
+The binary does this itself, with two flags that run and exit without starting the server:
+
+```bash
+go run . -record-history catalog-history.jsonl     # take today's snapshot (once per UTC day; about 30 seconds)
+go run . -backfill-history catalog-history.jsonl   # one-time: build an empty file from the Internet Archive
+```
+
+A snapshot is refused, and the job fails, if the sitemap is empty or would remove more than 5% of the previous snapshot's images. Nothing in the server or UI reads the history yet.
+
 ## Install
 
 Download a binary for your platform from [Releases](https://github.com/KenProle/chainguard-mcp/releases), or build from source:
@@ -267,6 +280,7 @@ git push origin v0.2.0
 | `vulns.go` | Wolfi security database and APK version comparison. |
 | `alternatives.go` | Upstream image → Chainguard image mapping, and grouping images into families of variants. |
 | `groups.go` | Grouping images by variant kind or name prefix for the catalog map. |
+| `history.go` | Catalog history: the daily snapshot (`-record-history`) and the Internet Archive backfill (`-backfill-history`). |
 | `web/` | React + TypeScript web UI. |
 
 ## License
