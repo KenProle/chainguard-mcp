@@ -7,7 +7,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | 1 | Minimal vs. `-dev` comparison | Image page | Done: the Compare tab (`image-variant-comparison`, prefix `VC`) |
 | 2 | License composition | Packages tab | Done: the license breakdown (`image-license-breakdown`, prefix `LB`) |
 | 3 | Security fixes per package | Security tab | Done: the fixes chart (`image-security-fixes`, prefix `SF`) |
-| 4 | Catalog map | Catalog page | Planned: OpenSpec change `add-catalog-map` (`catalog-map`, prefix `CM`) |
+| 4 | Catalog map | Catalog page | Done: the Map view (`catalog-map`, prefix `CM`) |
 | 5 | Size vs. the upstream image | Alternatives page | Idea; riskiest |
 
 ## 1. Minimal vs. `-dev` comparison

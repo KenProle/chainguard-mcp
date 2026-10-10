@@ -1,12 +1,12 @@
-# Spec Delta
+# catalog-map Specification
 
 ## Purpose
 
 Shows the whole Chainguard catalog at a glance: images grouped by variant type or name prefix and drawn as a labeled treemap colored by free-tier status, with a table of image families (an image and its variants) as its text equivalent and keyboard route.
 
-CM-1 to CM-4 define the families and the API that returns them, CM-5 to CM-9 the Map view and its treemap, and CM-10 to CM-13 the text equivalent, phone layout, accessibility and security policy, and CM-14 to CM-17 the treemap's groups, their API and headers. Live figures were checked on 2026-10-09 (3,166 images, 59 free).
+CM-1 to CM-4 define the families and the API that returns them; CM-5 to CM-9 the Map view and its treemap; CM-10 to CM-13 the text equivalent, phone layout, accessibility and security policy; and CM-14 to CM-18 the treemap's groups, their API, headers and name-prefix blocks. Live figures were checked on 2026-10-09 (3,166 images, 59 free).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: CM-1 Families of an image and its variants
 Every catalog image SHALL belong to exactly one family. The family's name SHALL be the image name with trailing variant suffixes removed (the suffixes `find_alternative` treats as variants, such as `fips`, `iamguarded`, `crac`, `openssl`, `lts`, `msft`, `geomys`, `slim`, `glibc` and `musl`), never removing the first name part. Images whose remaining name differs SHALL be in different families.
