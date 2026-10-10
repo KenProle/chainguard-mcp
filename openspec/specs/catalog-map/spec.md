@@ -195,11 +195,11 @@ The Map view SHALL show a family table with each family's name, image count, fre
 - **THEN** the table has 1,210 families of one image each on 25 pages, and the `nginx` row lists only `nginx-fips`
 
 ### Requirement: CM-11 Phone layout
-Below 640 px wide the Map view SHALL replace the treemap with one stacked bar per group, in the same order, each split into free, subscription and not-known image counts on a shared scale, with the same legend, status line and family table. Each group's bar SHALL be a button that zooms into the group (CM-19). While zoomed, the bars SHALL be the group's 10 largest name-prefix blocks, then one bar for the rest if there are more.
+Below 640 px wide the Map view SHALL replace the treemap with one stacked bar per group, in the same order, each split into free, subscription and not-known image counts on a shared scale, with the same legend, status line and family table. Each group's bar SHALL be a button that zooms into the group (CM-19). While zoomed, the bars SHALL be the group's 10 largest name-prefix blocks, then one bar for the rest if there are more. Each bar SHALL show its counts as text.
 
 #### Scenario: CM-11.1 375 px wide
 - **WHEN** the Map view is shown 375 px wide, grouped by variant, with every status known
-- **THEN** no treemap is visible, and five bars show Base images (58 free of 1,730), FIPS (0 of 1,210), IAM-guarded (0 of 117), IAM-guarded FIPS (0 of 95) and Other variants (1 of 14)
+- **THEN** no treemap is visible, and five bars show Base images ("58 of 1,730 free"), FIPS ("0 of 1,210 free"), IAM-guarded (0 of 117), IAM-guarded FIPS (0 of 95) and Other variants (1 of 14)
 - **AND** the family table is usable without horizontal page scrolling
 
 #### Scenario: CM-11.2 Tapping a bar
@@ -210,6 +210,7 @@ Below 640 px wide the Map view SHALL replace the treemap with one stacked bar pe
 - **WHEN** the map is zoomed into FIPS at 375 px wide, grouped by variant (as on 2026-10-09)
 - **THEN** eleven bars show `crossplane` 194, `prometheus` 25, `kubernetes` 24, `kubeflow` 22, `knative` 21, `aws` 19, `gitlab` 18, `cert` 14, `kube` 14, `calico` 13, and "450 more prefixes" 846
 - **AND** these bars are not buttons
+- **AND** each bar shows its counts as text, such as "0 of 194 free", and a screen reader can read each bar's name and counts, such as "crossplane: 194 images, 0 free"
 
 ### Requirement: CM-12 Keyboard and screen reader access
 The treemap's units SHALL be hidden from assistive technology and SHALL NOT add tab stops; the treemap SHALL have a text summary. Each group of the whole map SHALL be one tab stop, a button named for the group and its image count, even when it has no header. The view and grouping switches, breadcrumb, sort controls, pagination and every family and image link in the table SHALL be reachable and operable by keyboard.
