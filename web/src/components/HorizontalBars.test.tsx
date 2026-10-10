@@ -164,4 +164,20 @@ describe('HorizontalBars', () => {
     await userEvent.click(strong)
     expect(onSelect).toHaveBeenCalledWith('Strong copyleft')
   })
+
+  it('CM-11.2 renders plain buttons when not pressable', async () => {
+    const onSelect = vi.fn()
+    render(
+      <HorizontalBars
+        bars={[{ label: 'FIPS', value: 1210, valueLabel: '0 free', accessibleLabel: 'Zoom into FIPS, 1,210 images, 0 free' }]}
+        onSelect={onSelect}
+        pressable={false}
+      />,
+    )
+    const fips = screen.getByRole('button', { name: 'Zoom into FIPS, 1,210 images, 0 free' })
+    expect(fips).not.toHaveAttribute('aria-pressed')
+    expect(fips).toHaveAttribute('data-bar', 'FIPS')
+    await userEvent.click(fips)
+    expect(onSelect).toHaveBeenCalledWith('FIPS')
+  })
 })

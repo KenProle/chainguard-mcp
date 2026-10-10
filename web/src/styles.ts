@@ -39,6 +39,12 @@ export const freeStatusColor: Record<FreeStatus, { fill: string; swatch: string 
 /** The catalog map's group header bands and their text. */
 export const groupHeaderColor = { band: 'fill-slate-700 dark:fill-slate-300', text: 'fill-white dark:fill-slate-900' }
 
+/**
+ * The catalog map's focus ring around a group: hidden until its zoom button
+ * (a parent with the group class) has keyboard focus.
+ */
+export const focusOutline = 'fill-none stroke-indigo-600 opacity-0 group-focus-visible:opacity-100 dark:stroke-indigo-400'
+
 /** A row of toggle buttons, such as the catalog's List / Map switch. */
 export const segmentGroup = 'inline-flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800'
 

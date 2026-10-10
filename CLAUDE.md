@@ -56,7 +56,7 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 - `webui.go` embeds `web/dist` with `//go:embed all:web/dist`. `web/dist/.gitkeep` is committed so `go build`/`go test` work without Node; Vite empties `dist/` on build, so a plugin in `web/vite.config.ts` recreates `.gitkeep`. Without a built UI, `/` returns 503 with build instructions.
 - `web.go` serves unknown non-file paths as `index.html` for client-side routing, sets a strict CSP (`default-src 'self'`, no inline script or style), and streams SBOM downloads instead of writing to disk.
 - Stack: React 19, React Router 8, TanStack Query, Tailwind 4, Vitest + Testing Library, oxlint (not ESLint). TypeScript is strict.
-- URL state: the catalog's search, filter and page, and the image page's tag and tab, live in the query string. React Router's functional `setSearchParams` sees stale params inside delayed callbacks, so `CatalogPage` builds updates from a ref holding the latest params.
+- URL state: the catalog's search, filter, page, view, grouping and zoomed map group (`zoom`, the group's label), and the image page's tag and tab, live in the query string. Zooming the map pushes a history entry so Back zooms out; every other update replaces it. React Router's functional `setSearchParams` sees stale params inside delayed callbacks, so `CatalogPage` builds updates from a ref holding the latest params.
 - Keep shared constants and helpers in `web/src/styles.ts`, not in component files, or Vite fast refresh breaks.
 
 ## Tests

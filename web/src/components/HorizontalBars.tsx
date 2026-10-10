@@ -24,16 +24,21 @@ const defaultColor = 'fill-indigo-500 dark:fill-indigo-400'
  * Without onSelect the chart is decorative and hidden from assistive
  * technology: callers must show the same numbers as text. With onSelect each
  * row is a toggle button named by its accessibleLabel, and the selected row is
- * marked with aria-pressed and a ring.
+ * marked with aria-pressed and a ring. With pressable false the rows are plain
+ * buttons, with no pressed state. Each button carries data-bar with its label,
+ * so callers can focus it.
  */
 export function HorizontalBars({
   bars,
   selected,
   onSelect,
+  pressable = true,
 }: {
   bars: Bar[]
   selected?: string
   onSelect?: (label: string) => void
+  /** With onSelect, false makes each row a plain button instead of a toggle. */
+  pressable?: boolean
 }) {
   const max = Math.max(0, ...bars.map((b) => b.value))
   const width = (value: number) => (max > 0 ? (value / max) * 100 : 0)
@@ -82,11 +87,12 @@ export function HorizontalBars({
         <button
           key={b.label}
           type="button"
-          aria-pressed={selected === b.label}
+          aria-pressed={pressable ? selected === b.label : undefined}
+          data-bar={b.label}
           aria-label={b.accessibleLabel ?? `${b.label}, ${b.valueLabel}`}
           onClick={() => onSelect(b.label)}
           className={`${grid} w-full rounded-md px-1 py-0.5 text-left hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:hover:bg-zinc-800 ${
-            selected === b.label ? 'ring-2 ring-indigo-500 dark:ring-indigo-400' : ''
+            pressable && selected === b.label ? 'ring-2 ring-indigo-500 dark:ring-indigo-400' : ''
           }`}
         >
           {row(b)}

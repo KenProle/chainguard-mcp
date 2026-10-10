@@ -22,6 +22,7 @@ export function CatalogPage() {
   const sortParam = params.get('sort')
   const sort: FamilySort = familySorts.find((s) => s === sortParam) ?? 'images'
   const groupBy: GroupBy = params.get('group') === 'prefix' ? 'prefix' : 'variant'
+  const zoom = params.get('zoom') ?? ''
 
   // The search box updates the URL after a short pause, so the URL (and the
   // query) always reflects the current search and can be shared. If the URL
@@ -49,14 +50,15 @@ export function CatalogPage() {
     latestParams.current = params
   }, [params])
 
-  function update(changes: Record<string, string>) {
+  /** Applies changes to the URL, replacing the history entry unless push is set. */
+  function update(changes: Record<string, string>, { push = false } = {}) {
     const next = new URLSearchParams(latestParams.current)
     for (const [k, v] of Object.entries(changes)) {
       if (v) next.set(k, v)
       else next.delete(k)
     }
     latestParams.current = next
-    setParams(next, { replace: true })
+    setParams(next, { replace: !push })
   }
 
   return (
@@ -105,7 +107,10 @@ export function CatalogPage() {
         <CatalogMap
           query={query}
           groupBy={groupBy}
-          onGroupBy={(g) => update({ group: g === 'variant' ? '' : g })}
+          onGroupBy={(g) => update({ group: g === 'variant' ? '' : g, zoom: '' })}
+          zoom={zoom}
+          // Zooming is navigation, so Back undoes it; dropping a stale zoom isn't.
+          onZoom={(label, { replace = false } = {}) => update({ zoom: label, page: '' }, { push: !replace })}
           sort={sort}
           page={page}
           onSort={(s) => update({ sort: s === 'images' ? '' : s, page: '' })}

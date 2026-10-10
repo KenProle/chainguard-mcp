@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  blockBars,
+  familiesInGroup,
   familyRows,
   groupLabel,
   headerText,
@@ -12,6 +14,8 @@ import {
   textWidth,
   tooltipText,
   treemapSummary,
+  zoomedSummary,
+  zoomLabel,
 } from './catalogMap'
 import { catalogFamilies, catalogGroups, catalogImages, catalogPage, freeImages } from './test/fixtures/catalog'
 
@@ -160,5 +164,72 @@ describe('group text', () => {
     expect(headerText('kubernetes', 51, 80)).toBe('kubernet…')
     expect(headerText('kubernetes', 51, 10)).toBe('k…')
     expect(headerTooltip('kubernetes', 51)).toBe('kubernetes: 51 images')
+  })
+})
+
+describe('zooming into a group', () => {
+  const variant = catalogGroups('variant').groups
+  const group = (label: string) => variant.find((g) => g.label === label)!
+
+  it('CM-10.5 narrows the families to Other variants', () => {
+    const rows = familyRows(familiesInGroup(families, group('Other variants').images), allStatuses)
+    expect(rows).toHaveLength(8)
+    expect(rows[0].name).toBe('go')
+    expect(rows[0].imageCount).toBe(4)
+    expect(rows[0].images.map((i) => i.name)).toEqual(['go-geomys-fips', 'go-msft-fips', 'go-openssl', 'go-openssl-fips'])
+    const gcc = rows.find((r) => r.name === 'gcc')!
+    expect(gcc.images).toEqual([{ name: 'gcc-glibc', status: 'free', checked: true }])
+    expect(gcc.freeCount).toBe(1)
+  })
+
+  it('CM-10.6 narrows the families to FIPS', () => {
+    const fips = familiesInGroup(families, group('FIPS').images)
+    expect(fips).toHaveLength(1210)
+    expect(fips.every((f) => f.images.length === 1)).toBe(true)
+    expect(Math.ceil(fips.length / 50)).toBe(25)
+    expect(fips.find((f) => f.name === 'nginx')?.images).toEqual(['nginx-fips'])
+  })
+
+  it('CM-7.4 counts the statuses of a zoomed group', () => {
+    expect(statusCounts([group('Base images')], allStatuses)).toEqual({ free: 58, subscription: 1672, unknown: 0 })
+  })
+
+  it('CM-11.3 gives the 10 largest blocks a bar each, then one for the rest', () => {
+    const bars = blockBars(group('FIPS'))
+    expect(bars.map((b) => `${b.label} ${b.images.length}`)).toEqual([
+      'crossplane 194',
+      'prometheus 25',
+      'kubernetes 24',
+      'kubeflow 22',
+      'knative 21',
+      'aws 19',
+      'gitlab 18',
+      'cert 14',
+      'kube 14',
+      'calico 13',
+      '450 more prefixes 846',
+    ])
+    expect(bars[0].images.every((i) => i.startsWith('crossplane'))).toBe(true)
+    expect(blockBars(group('Other variants')).map((b) => b.label)).toEqual(['go', 'glibc', 'jdk', 'jre', 'cockroach', 'gcc', 'k3s', 'zipkin'])
+  })
+
+  it('CM-12.1 summarizes a zoomed group', () => {
+    expect(zoomedSummary('FIPS', 1210, 460, 0)).toBe(
+      'Treemap of the FIPS group: 1,210 images in 460 name-prefix blocks: 0 free. The family table below lists its families.',
+    )
+    expect(zoomedSummary('crossplane', 414, 1, null)).toBe(
+      'Treemap of the crossplane group: 414 images in 1 name-prefix block. Free-tier status is still loading. The family table below lists its families.',
+    )
+  })
+
+  it('CM-12.2 names the zoom buttons', () => {
+    expect(zoomLabel(groupLabel(group('Base images'), 'variant'), 1730)).toBe('Zoom into Base images, 1,730 images')
+    expect(zoomLabel(groupLabel(group('Other variants'), 'variant'), 14)).toBe('Zoom into Other variants (7 kinds), 14 images')
+    expect(zoomLabel('FIPS', 1210, 0)).toBe('Zoom into FIPS, 1,210 images, 0 free')
+  })
+
+  it('CM-17.3 says that a click on a group header zooms in', () => {
+    expect(headerTooltip('kubernetes', 51, true)).toBe('kubernetes: 51 images · click to zoom in')
+    expect(headerTooltip('flux', 30)).toBe('flux: 30 images')
   })
 })

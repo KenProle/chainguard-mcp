@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layoutGroups, type Rect, squarify } from './treemap'
+import { layoutBlocks, layoutGroups, type Rect, squarify } from './treemap'
 import catalogFamilies from './test/fixtures/catalogFamilies.json'
 import { catalogGroups } from './test/fixtures/catalog'
 
@@ -170,4 +170,37 @@ describe('layoutGroups', () => {
     const d = Math.min(opts.blockGap / 2, r.w / 4, r.h / 4)
     return { x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * d }
   }
+})
+
+describe('layoutBlocks', () => {
+  const opts = { gap: 3, header: 22 }
+  const fips = catalogGroups('variant').groups.find((g) => g.label === 'FIPS')!
+  const counts = fips.blocks.map((b) => b.count)
+  const layout = layoutBlocks(counts, area, opts)
+
+  it('CM-19.1 fills the drawing area with the FIPS blocks', () => {
+    expect(layout).toHaveLength(460)
+    expectTiling(
+      layout.map((b) => b.rect),
+      area,
+    )
+    expect(fips.blocks[0]).toEqual({ prefix: 'crossplane', count: 194 })
+    expect(areaOf(layout[0].rect) / areaOf(area)).toBeCloseTo(194 / 1210, 12)
+    expect(layout[0].header).toBeDefined()
+    expect(layout.reduce((n, b) => n + b.units.length, 0)).toBe(1210)
+    layout.forEach((b) => {
+      const space = { x: b.rect.x + 1.5, y: b.header ? b.header.y + b.header.h : b.rect.y + 1.5, w: b.rect.w - 3, h: 0 }
+      space.h = b.rect.y + b.rect.h - 1.5 - space.y
+      if (b.rect.w < 6 || b.rect.h < 6) return // capped inset; covered by layoutGroups' tests
+      for (const u of b.units) expect(areaOf(u)).toBeCloseTo(areaOf(space) / b.units.length, 6)
+      expectTiling(b.units, space)
+    })
+  })
+
+  it('CM-19.2 gives a single block no header', () => {
+    const [one] = layoutBlocks([414], area, opts)
+    expect(one.header).toBeUndefined()
+    expect(one.units).toHaveLength(414)
+    expectTiling(one.units, { x: 1.5, y: 1.5, w: 997, h: 597 })
+  })
 })
