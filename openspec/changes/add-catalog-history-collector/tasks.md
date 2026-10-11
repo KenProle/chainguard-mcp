@@ -32,7 +32,7 @@ Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the 
 ## 6. Integration verification
 
 - [x] 6.1 Run every check: `gofmt -l .` (only files changed by this change matter; Windows line endings make unchanged files appear), `go vet ./...`, `go test ./...`, `npm --prefix web run lint`, `npm --prefix web run typecheck`, `npm --prefix web test`, `npm --prefix web run build` and `openspec validate --all --strict`. Verify: all pass, and `git diff --stat` shows no change under `web/`.
-- [ ] 6.2 Ask the user before committing and pushing the code to `main`. Then confirm CI passes on the implementing commit, trigger the History workflow by hand (`gh workflow run history.yml`), and check: it succeeds, `data` gets exactly one new commit touching only `catalog-history.jsonl` (CH-10.1), whose new line is the first live snapshot with today's date, about 3,171 images, about 59 `free_images` and an empty `became_free` (CH-1.1, CH-2.2). Trigger it a second time: it succeeds without a new commit (CH-5.1). Verify: as described.
+- [x] 6.2 Ask the user before committing and pushing the code to `main`. Then confirm CI passes on the implementing commit, trigger the History workflow by hand (`gh workflow run history.yml`), and check: it succeeds, `data` gets exactly one new commit touching only `catalog-history.jsonl` (CH-10.1), whose new line is the first live snapshot with today's date, about 3,171 images, about 59 `free_images` and an empty `became_free` (CH-1.1, CH-2.2). Trigger it a second time: it succeeds without a new commit (CH-5.1). Verify: as described.
 - [ ] 6.3 The next day, confirm the scheduled run added one more line on its own (CH-9.1). Verify: `data` has a commit from the scheduled run dated that day.
 
 ## Workflow follow-up
