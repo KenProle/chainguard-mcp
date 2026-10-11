@@ -48,7 +48,7 @@ AdvisoryPackage  { name, version, status, advisories[], fixed_version?, componen
 
 ### 3. Grouping key
 
-Reuse `vulnKeys` from the comparison fix (`fix-upstream-cve-counting`). Don't write a second key function: both features must count the same way (OA-2, UC-4). It returns the distinct CVE IDs a record names (its own ID, `upstream`, `aliases`), else its distinct GHSA IDs, else its own ID, and `OSVVuln` already reads `upstream` and `aliases` after that fix.
+Reuse `vulnKeys` from the comparison fix (`fix-upstream-cve-counting`). Don't write a second key function: both features must count the same way (OA-2, UC-16). It returns the distinct CVE IDs a record names (its own ID, `upstream`, `aliases`), else its distinct GHSA IDs, else its own ID, and `OSVVuln` already reads `upstream` and `aliases` after that fix.
 
 A record can therefore have several keys. The report builder adds the record's package entry to each key's vulnerability, so an advisory naming two CVEs appears in both rows (OA-2.4). Its advisory ID is listed under each.
 

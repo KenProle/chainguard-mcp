@@ -4,7 +4,7 @@
 
 Compares an upstream container image a user runs today with its Chainguard replacement, by size, installed OS packages, known vulnerabilities and support status, so the value of switching is visible and stated fairly.
 
-UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility; UC-15 images whose packages can't be checked. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`.
+UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility; UC-15 images whose packages can't be checked; UC-16 how a vulnerability is identified across advisories. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`.
 
 ## Requirements
 
@@ -42,7 +42,7 @@ Both sides SHALL be compared on installed OS packages only (Debian, Ubuntu or Al
 - **THEN** the upstream side shows 393 OS packages and notes 193 npm packages not compared, and the Chainguard side shows 28 OS packages
 
 ### Requirement: UC-4 Counting known vulnerabilities
-Known vulnerabilities SHALL be looked up on OSV.dev for each OS package and version, in the ecosystem the SBOM gives for it (for example `Debian:12`, `Alpine:v3.20`, `Wolfi`, `Chainguard`), upstream by source package. Each vulnerability SHALL be counted once per image, however many packages it affects. Advisories for the Linux kernel (Debian's `linux` source package, shipped in images only as kernel headers) SHALL be excluded, since they don't apply inside a container.
+Known vulnerabilities SHALL be looked up on OSV.dev for each OS package and version, in the ecosystem the SBOM gives for it (such as `Debian:12`, `Alpine:v3.20` or `Wolfi`), upstream by source package. Each vulnerability, identified as in UC-16, SHALL be counted once per image, however many packages or advisories list it. Advisories for the Linux kernel (Debian's `linux` source package, shipped in images only as kernel headers) SHALL be excluded, since they don't apply inside a container.
 
 #### Scenario: UC-4.1 node:20 total
 - **WHEN** `node:20` is compared (as on 2026-10-11)
@@ -52,8 +52,13 @@ Known vulnerabilities SHALL be looked up on OSV.dev for each OS package and vers
 - **WHEN** one vulnerability affects both `libssl3` and `openssl`, built from the same source
 - **THEN** it counts as one vulnerability
 
+#### Scenario: UC-4.3 Several advisories for one CVE
+- **WHEN** Chainguard's `python` is compared (as on 2026-10-11), whose packages have 20 Chainguard advisories (one per package per CVE, sometimes two) naming 7 distinct CVEs, such as CVE-2026-89092
+- **THEN** it shows 7 known vulnerabilities
+- **AND** a Debian `DSA-…` advisory that names CVEs which also have their own `DEBIAN-CVE-…` advisories adds nothing to the count
+
 ### Requirement: UC-5 Fix status
-Each known vulnerability SHALL be classified, from the advisory for the installed package's own ecosystem and release, as **fix available** (a fixed version exists that is newer than the installed one), **won't fix** (the distribution marks it as one it won't fix, such as Debian's "unimportant"), or **no fix yet** (otherwise, including Chainguard advisories pending an upstream fix). A vulnerability that is fixable for any affected package counts as fix available.
+Each known vulnerability SHALL be classified, from the advisory for the installed package's own ecosystem and release, as **fix available** (a fixed version newer than the installed one exists), **won't fix** (the distribution marks it as one it won't fix, such as Debian's "unimportant"), or **no fix yet** (otherwise, including Chainguard advisories pending an upstream fix). A vulnerability that is fixable for any affected package, or in any advisory for it, counts as fix available.
 
 #### Scenario: UC-5.1 node:20 split
 - **WHEN** `node:20` is compared (as on 2026-10-11)
@@ -61,7 +66,7 @@ Each known vulnerability SHALL be classified, from the advisory for the installe
 
 #### Scenario: UC-5.2 Chainguard split
 - **WHEN** Chainguard's `node` is compared (as on 2026-10-11)
-- **THEN** it shows 22 known vulnerabilities, all no fix yet, and 0 fix available
+- **THEN** it shows 6 known vulnerabilities (from 22 advisories), all no fix yet, and 0 fix available
 
 #### Scenario: UC-5.3 Fix in another release only
 - **WHEN** a Debian advisory has a fixed version for Debian 13 but none for Debian 12, and the image is Debian 12
@@ -152,3 +157,18 @@ When an upstream image's SBOM lists no packages from a supported distribution, o
 #### Scenario: UC-15.2 An unsupported distribution
 - **WHEN** an upstream image's SBOM lists RPM packages from Fedora 40
 - **THEN** the upstream side says its packages come from a distribution with no vulnerability data here, names it, and shows no counts; no package is silently left out
+
+### Requirement: UC-16 Identifying a vulnerability
+An advisory SHALL stand for the CVE IDs it names (in its `upstream` or `aliases` fields, or its own ID); if it names no CVE, for the GHSA IDs it names; otherwise for its own ID. An advisory that names several CVEs SHALL count as each of them.
+
+#### Scenario: UC-16.1 A DSA naming several CVEs
+- **WHEN** a Debian `DSA-…` advisory names several CVEs (as DSA-6113-1 names 8 OpenSSL CVEs for `openssl` 3.0.17-1~deb12u2), each of which also has its own `DEBIAN-CVE-…` advisory
+- **THEN** each of those CVEs counts once, and the DSA adds nothing to the count
+
+#### Scenario: UC-16.2 Advisories naming only a GHSA ID
+- **WHEN** two Chainguard advisories for different packages name no CVE but the same GHSA ID
+- **THEN** they count as one vulnerability, identified by that GHSA ID
+
+#### Scenario: UC-16.3 Advisory naming neither
+- **WHEN** an advisory names no CVE and no GHSA ID
+- **THEN** it counts as one vulnerability, identified by its own ID

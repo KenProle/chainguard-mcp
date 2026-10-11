@@ -25,7 +25,7 @@ For an image and tag, open advisories SHALL be looked up on OSV.dev for each ins
 - **THEN** that package is not looked up and is listed as not covered
 
 ### Requirement: OA-2 Counted once per vulnerability
-Each vulnerability SHALL be counted once per image, however many advisories and packages it has, using the same rule as the upstream comparison (UC-4). An advisory stands for the CVE IDs it names (in `upstream` or `aliases`, or its own ID), else for the GHSA IDs it names, else for its own ID; an advisory that names several CVEs counts under each of them.
+Each vulnerability SHALL be counted once per image, however many advisories and packages it has, using the same rule as the upstream comparison (UC-16). An advisory stands for the CVE IDs it names (in `upstream` or `aliases`, or its own ID), else for the GHSA IDs it names, else for its own ID; an advisory that names several CVEs counts under each of them.
 
 #### Scenario: OA-2.1 python latest
 - **WHEN** open advisories are requested for `python` `latest`
