@@ -10,7 +10,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | 4 | Catalog map | Catalog page | Done: the Map view (`catalog-map`, prefix `CM`) |
 | 5 | Size and known vulnerabilities vs. the upstream image | Alternatives page | Done: the upstream comparison on the Alternatives page (`upstream-comparison`, prefix `UC`) |
 | 6 | Catalog history | Catalog page, image page, MCP | Collector done (`catalog-history`, prefix `CH`, daily since 2026-10-10); next: `add-catalog-history-view` |
-| 7 | Open vulnerabilities on Chainguard images | Security tab, MCP | Idea; the user thinks it's worth doing |
+| 7 | Open vulnerabilities on Chainguard images | Security tab, MCP | Done: the Open advisories section and `check_vulnerabilities` (`image-open-advisories`, prefix `OA`) |
 
 ## 1. Minimal vs. `-dev` comparison
 
