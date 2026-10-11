@@ -18,9 +18,17 @@ type Service struct {
 	Catalog  *Catalog
 	Registry *Registry
 	SecDB    *SecDB
+	// Upstream is Docker Hub, OSV and EOL are the upstream comparison's other
+	// data sources (compare.go).
+	Upstream *Registry
+	OSV      *OSV
+	EOL      *EndOfLife
 	// SBOMDir is where save_sbom writes files. The tool is only offered
 	// when it's set.
 	SBOMDir string
+
+	cache comparisonCache
+	jobs  compareJobs
 }
 
 func NewService() *Service {
@@ -29,6 +37,9 @@ func NewService() *Service {
 		Catalog:  NewCatalog(client),
 		Registry: NewRegistry(client),
 		SecDB:    NewSecDB(client),
+		Upstream: NewDockerHubRegistry(client),
+		OSV:      NewOSV(client),
+		EOL:      NewEndOfLife(client),
 	}
 }
 

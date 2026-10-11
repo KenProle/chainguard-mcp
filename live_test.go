@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -127,6 +129,100 @@ func TestLive(t *testing.T) {
 			if out.Recommended == nil || out.Recommended.Image != want {
 				t.Errorf("%s: want %s, got %+v", in, want, out.Recommended)
 			}
+		}
+	})
+
+	t.Run("upstream", func(t *testing.T) {
+		// UC-13.1: the vulnerabilities found for Docker Hub's node:20 include at
+		// least 95% of those grype finds in its OS packages, kernel excluded.
+		grype, err := exec.LookPath("grype")
+		if err != nil {
+			t.Skip("grype is not on PATH")
+		}
+		ctx := context.Background()
+
+		// The comparison itself, whose figures task 8.2 records.
+		start := time.Now()
+		cmp, err := svc.CompareUpstream(ctx, CompareUpstreamInput{Image: "node:20"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("compared in %s", time.Since(start).Round(time.Second))
+		t.Logf("upstream:   %d OS packages, %v language packages, %d bytes, built %s, %+v",
+			cmp.Upstream.OSPackages, cmp.Upstream.LanguagePackages, cmp.Upstream.SizeBytes, cmp.Upstream.Created, *cmp.Upstream.Vulnerabilities)
+		t.Logf("chainguard: %d OS packages, %d bytes, built %s, %+v",
+			cmp.Chainguard.OSPackages, cmp.Chainguard.SizeBytes, cmp.Chainguard.Created, *cmp.Chainguard.Vulnerabilities)
+		t.Logf("end of life: %+v", cmp.EndOfLife)
+
+		// The same pipeline, keeping the IDs.
+		m, digest, _, top, err := svc.Upstream.resolvePlatform(ctx, "library/node", "20", "amd64")
+		if err != nil || m == nil {
+			t.Fatal(err)
+		}
+		doc, err := svc.Upstream.sbomForPlatform(ctx, "library/node", "20", "amd64", top, digest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkgs, err := parseUpstreamPackages(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results, err := svc.OSV.QueryAll(ctx, pkgs.Lookups, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := map[string]bool{}
+		for id := range classifyAll(results) {
+			found[strings.TrimPrefix(id, "DEBIAN-")] = true
+		}
+		if len(found) != cmp.Upstream.Vulnerabilities.Total {
+			t.Errorf("%d distinct IDs, but the comparison counts %d", len(found), cmp.Upstream.Vulnerabilities.Total)
+		}
+
+		scanCtx, cancel := context.WithTimeout(ctx, 8*time.Minute)
+		defer cancel()
+		out, err := exec.CommandContext(scanCtx, grype, "registry:docker.io/library/node:20", "--platform", "linux/amd64", "-o", "json", "-q").Output()
+		if err != nil {
+			t.Fatalf("grype: %v", err)
+		}
+		var scan struct {
+			Matches []struct {
+				Vulnerability struct{ ID string }
+				Artifact      struct {
+					Name      string
+					Type      string
+					Upstreams []struct{ Name string }
+				}
+			}
+		}
+		if err := json.Unmarshal(out, &scan); err != nil {
+			t.Fatal(err)
+		}
+		grypeIDs := map[string]bool{}
+		for _, match := range scan.Matches {
+			a := match.Artifact
+			source := a.Name
+			if len(a.Upstreams) > 0 {
+				source = a.Upstreams[0].Name
+			}
+			if (a.Type == "deb" || a.Type == "apk") && source != kernelSource && strings.HasPrefix(match.Vulnerability.ID, "CVE-") {
+				grypeIDs[match.Vulnerability.ID] = true
+			}
+		}
+		var missing []string
+		for id := range grypeIDs {
+			if !found[id] {
+				missing = append(missing, id)
+			}
+		}
+		slices.Sort(missing)
+		t.Logf("grype: %d CVEs in OS packages (kernel excluded); comparison: %d; missing from the comparison: %d %v",
+			len(grypeIDs), len(found), len(missing), missing[:min(len(missing), 10)])
+		if len(grypeIDs) == 0 {
+			t.Fatal("grype found no CVEs; is its database present?")
+		}
+		if covered := float64(len(grypeIDs)-len(missing)) / float64(len(grypeIDs)); covered < 0.95 {
+			t.Errorf("the comparison covers %.1f%% of grype's CVEs, want at least 95%%", covered*100)
 		}
 	})
 

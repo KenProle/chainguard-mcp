@@ -52,16 +52,29 @@ func (r *Registry) Packages(ctx context.Context, image, tag, arch string) ([]Pac
 // in-toto attestation) to each platform image. It returns the raw SPDX JSON
 // document and the platform image digest it describes.
 func (r *Registry) SBOMDocument(ctx context.Context, image, tag, arch string) (json.RawMessage, string, error) {
-	_, digest, _, err := r.PlatformManifest(ctx, image, tag, arch)
+	_, digest, _, top, err := r.resolvePlatform(ctx, image, tag, arch)
 	if err != nil {
 		return nil, "", err
+	}
+	doc, err := r.sbomForPlatform(ctx, image, tag, arch, top, digest)
+	if err != nil {
+		return nil, "", err
+	}
+	return doc, digest, nil
+}
+
+// sbomForPlatform reads the SBOM of the platform image with the given digest,
+// given the tag's top-level manifest.
+func (r *Registry) sbomForPlatform(ctx context.Context, image, tag, arch string, top *Manifest, digest string) (json.RawMessage, error) {
+	if r.AttestationIndex {
+		return r.dockerSBOM(ctx, image, top, digest)
 	}
 
 	// Cosign stores attestations under the tag "sha256-<hex>.att".
 	attTag := strings.Replace(digest, ":", "-", 1) + ".att"
 	att, _, err := r.Manifest(ctx, image, attTag, acceptManifestOnly)
 	if err != nil {
-		return nil, "", fmt.Errorf("fetching attestations: %w", err)
+		return nil, fmt.Errorf("fetching attestations: %w", err)
 	}
 	var sbomLayer *Descriptor
 	for i, l := range att.Layers {
@@ -71,32 +84,68 @@ func (r *Registry) SBOMDocument(ctx context.Context, image, tag, arch string) (j
 		}
 	}
 	if sbomLayer == nil {
-		return nil, "", fmt.Errorf("%s:%s (%s) has no SPDX SBOM attestation", image, tag, arch)
+		return nil, fmt.Errorf("%s:%s (%s) has no SPDX SBOM attestation", image, tag, arch)
 	}
 
 	raw, err := r.Blob(ctx, image, sbomLayer.Digest, maxSBOMBytes)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	doc, err := unwrapSBOMAttestation(raw)
-	if err != nil {
-		return nil, "", err
-	}
-	return doc, digest, nil
+	return unwrapSBOMAttestation(raw)
 }
 
-// unwrapSBOMAttestation decodes a DSSE envelope wrapping an in-toto statement
-// and returns its predicate, which must be an SPDX document.
+// ErrNoSBOM is returned when an image publishes no SPDX SBOM attestation, as
+// opposed to failing to read one.
+var ErrNoSBOM = errors.New("no SBOM attestation published")
+
+const (
+	dockerRefDigest     = "vnd.docker.reference.digest"
+	dockerPredicateType = "in-toto.io/predicate-type"
+)
+
+// dockerSBOM reads the SPDX SBOM from Docker's attestation layout: the image
+// index lists an attestation manifest per platform image (named by its
+// vnd.docker.reference.digest annotation) whose layers are in-toto statements.
+func (r *Registry) dockerSBOM(ctx context.Context, image string, top *Manifest, digest string) (json.RawMessage, error) {
+	for _, d := range top.Manifests {
+		if d.Annotations[dockerRefDigest] != digest {
+			continue
+		}
+		att, _, err := r.Manifest(ctx, image, d.Digest, acceptManifestOnly)
+		if err != nil {
+			return nil, fmt.Errorf("fetching attestations: %w", err)
+		}
+		for _, l := range att.Layers {
+			if l.Annotations[dockerPredicateType] != predicateSPDX {
+				continue
+			}
+			raw, err := r.Blob(ctx, image, l.Digest, maxSBOMBytes)
+			if err != nil {
+				return nil, err
+			}
+			return unwrapSBOMAttestation(raw)
+		}
+	}
+	return nil, ErrNoSBOM
+}
+
+// unwrapSBOMAttestation decodes an in-toto statement, bare or wrapped in a DSSE
+// envelope, and returns its predicate, which must be an SPDX document.
 func unwrapSBOMAttestation(raw []byte) (json.RawMessage, error) {
 	var envelope struct {
-		Payload string `json:"payload"`
+		Payload       string `json:"payload"`
+		PredicateType string `json:"predicateType"`
 	}
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return nil, fmt.Errorf("decoding attestation envelope: %w", err)
 	}
-	payload, err := base64.StdEncoding.DecodeString(envelope.Payload)
-	if err != nil {
-		return nil, fmt.Errorf("decoding attestation payload: %w", err)
+	payload := raw
+	if envelope.PredicateType == "" {
+		// Docker stores the bare in-toto statement; cosign wraps it in DSSE.
+		var err error
+		if payload, err = base64.StdEncoding.DecodeString(envelope.Payload); err != nil {
+			return nil, fmt.Errorf("decoding attestation payload: %w", err)
+		}
 	}
 	var statement struct {
 		PredicateType string          `json:"predicateType"`

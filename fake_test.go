@@ -7,21 +7,32 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // fakeChainguard is an in-process stand-in for the sitemap, the cgr.dev
 // registry and the Wolfi security database.
-type fakeChainguard struct {
+// fakeStore holds the manifests, blobs and tags a fake registry serves.
+type fakeStore struct {
 	t         *testing.T
-	images    []string                     // catalog, in sitemap order
-	public    map[string]bool              // images that get anonymous tokens
 	tags      map[string]map[string]string // image → tag → manifest digest
 	manifests map[string]fakeBlob          // digest → manifest
 	blobs     map[string][]byte            // digest → blob
-	secdb     string
+}
+
+func newFakeStore(t *testing.T) fakeStore {
+	return fakeStore{t: t, tags: map[string]map[string]string{}, manifests: map[string]fakeBlob{}, blobs: map[string][]byte{}}
+}
+
+type fakeChainguard struct {
+	fakeStore
+	images []string        // catalog, in sitemap order
+	public map[string]bool // images that get anonymous tokens
+	secdb  string
 
 	tokenRequests atomic.Int64 // requests to /token, for asserting none were made
 }
@@ -42,21 +53,21 @@ func mustJSON(t *testing.T, v any) []byte {
 	return b
 }
 
-func (f *fakeChainguard) addBlob(v any) Descriptor {
+func (f *fakeStore) addBlob(v any) Descriptor {
 	b := mustJSON(f.t, v)
 	d := digestOf(b)
 	f.blobs[d] = b
 	return Descriptor{MediaType: "application/octet-stream", Digest: d, Size: int64(len(b))}
 }
 
-func (f *fakeChainguard) addManifest(mediaType string, v any) Descriptor {
+func (f *fakeStore) addManifest(mediaType string, v any) Descriptor {
 	b := mustJSON(f.t, v)
 	d := digestOf(b)
 	f.manifests[d] = fakeBlob{mediaType, b}
 	return Descriptor{MediaType: mediaType, Digest: d, Size: int64(len(b))}
 }
 
-func (f *fakeChainguard) tag(image, tag, digest string) {
+func (f *fakeStore) tag(image, tag, digest string) {
 	if f.tags[image] == nil {
 		f.tags[image] = make(map[string]string)
 	}
@@ -76,9 +87,7 @@ func (f *fakeChainguard) addImage(image, tag, user string, pkgs []fakePkg) strin
 		m := f.addManifest(mediaOCIManifest, Manifest{MediaType: mediaOCIManifest, Config: cfg, Layers: []Descriptor{layer}})
 		m.Platform = &OCIPlatform{OS: "linux", Architecture: arch}
 		platforms = append(platforms, m)
-		if arch == "amd64" {
-			f.addSBOM(image, m.Digest, pkgs)
-		}
+		f.addSBOM(image, m.Digest, pkgs)
 	}
 	idx := f.addManifest(mediaOCIIndex, Manifest{
 		MediaType:   mediaOCIIndex,
@@ -208,7 +217,7 @@ func newFakeService(t *testing.T) *Service {
 func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 	t.Helper()
 	f := &fakeChainguard{
-		t: t,
+		fakeStore: newFakeStore(t),
 		images: []string{
 			"go", "jdk", "jre", "loki-fips", "node", "node-fips", "node-lts",
 			"python", "python-fips", "static", "wolfi-base",
@@ -216,9 +225,6 @@ func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 		public: map[string]bool{
 			"go": true, "jre": true, "node": true, "python": true, "static": true, "wolfi-base": true,
 		},
-		tags:      make(map[string]map[string]string),
-		manifests: make(map[string]fakeBlob),
-		blobs:     make(map[string][]byte),
 		secdb: `{"packages":[
 			{"pkg":{"name":"openssl","secfixes":{"0":["CVE-2023-0466"],"3.0.7-r0":["CVE-2022-3602"],"9.9.9-r0":["CVE-2099-0001"]}}},
 			{"pkg":{"name":"python-3.13","secfixes":{"3.13.1-r0":["CVE-2024-0001","GHSA-aaaa-bbbb-cccc"]}}}
@@ -245,5 +251,352 @@ func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 	svc.Catalog.SitemapURL = srv.URL + "/sitemap.xml"
 	svc.Registry.BaseURL = srv.URL
 	svc.SecDB.URL = srv.URL + "/security.json"
+	// The upstream comparison's sources get unreachable addresses, so a test
+	// that forgets to fake them fails instead of reaching the real services.
+	const unreachable = "http://127.0.0.1:1"
+	svc.Upstream.BaseURL, svc.Upstream.TokenURL = unreachable, unreachable+"/token"
+	svc.OSV.URL, svc.EOL.URL = unreachable, unreachable
 	return svc, f
+}
+
+// fakeDockerHub is an in-process stand-in for Docker Hub's token service and
+// registry. Repositories are full paths such as "library/node".
+type fakeDockerHub struct {
+	fakeStore
+	limited       atomic.Bool  // answer 429 to registry requests
+	tokenRequests atomic.Int64 // requests to /token
+	requests      atomic.Int64 // manifest and blob requests
+	blobRequests  atomic.Int64 // blob requests, one of which is the SBOM
+	lastService   atomic.Value // service parameter of the last token request
+}
+
+// dockerImage describes an image added to a fakeDockerHub.
+type dockerImage struct {
+	created string          // image config creation time
+	sbom    json.RawMessage // SPDX document; nil publishes no attestations
+}
+
+// addImage publishes a two-platform image index. Like BuildKit's, it carries
+// an attestation manifest per platform image when d.sbom is set.
+func (f *fakeDockerHub) addImage(repo, tag string, d dockerImage) string {
+	var entries []Descriptor
+	for _, arch := range []string{"amd64", "arm64"} {
+		cfg := f.addBlob(map[string]any{"os": "linux", "architecture": arch, "created": d.created})
+		layer := Descriptor{MediaType: "application/vnd.oci.image.layer.v1.tar+gzip", Digest: "sha256:" + strings.Repeat("b", 64), Size: 4000}
+		m := f.addManifest(mediaOCIManifest, Manifest{MediaType: mediaOCIManifest, Config: cfg, Layers: []Descriptor{layer}})
+		m.Platform = &OCIPlatform{OS: "linux", Architecture: arch}
+		entries = append(entries, m)
+		if d.sbom == nil {
+			continue
+		}
+		// The statement is bare, not wrapped in DSSE as cosign's are.
+		layerBlob := f.addBlob(map[string]any{"_type": "https://in-toto.io/Statement/v0.1", "predicateType": predicateSPDX, "predicate": d.sbom})
+		layerBlob.Annotations = map[string]string{dockerPredicateType: predicateSPDX}
+		att := f.addManifest(mediaOCIManifest, Manifest{MediaType: mediaOCIManifest, Layers: []Descriptor{layerBlob}})
+		att.Platform = &OCIPlatform{OS: "unknown", Architecture: "unknown"}
+		att.Annotations = map[string]string{"vnd.docker.reference.type": "attestation-manifest", dockerRefDigest: m.Digest}
+		entries = append(entries, att)
+	}
+	idx := f.addManifest(mediaOCIIndex, Manifest{MediaType: mediaOCIIndex, Manifests: entries})
+	f.tag(repo, tag, idx.Digest)
+	return idx.Digest
+}
+
+func (f *fakeDockerHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/token" {
+		f.tokenRequests.Add(1)
+		f.lastService.Store(r.URL.Query().Get("service"))
+		repo := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query().Get("scope"), "repository:"), ":pull")
+		fmt.Fprintf(w, `{"token":"dh-%s","expires_in":300}`, repo)
+		return
+	}
+	rest, ok := strings.CutPrefix(r.URL.Path, "/v2/")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	f.requests.Add(1)
+	if f.limited.Load() {
+		w.Header().Set("Retry-After", "3600")
+		http.Error(w, `{"errors":[{"code":"TOOMANYREQUESTS"}]}`, http.StatusTooManyRequests)
+		return
+	}
+	var repo, kind, ref string
+	for _, k := range []string{"/manifests/", "/blobs/"} {
+		if before, after, found := strings.Cut(rest, k); found {
+			repo, kind, ref = before, strings.Trim(k, "/"), after
+		}
+	}
+	if r.Header.Get("Authorization") != "Bearer dh-"+repo {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	switch kind {
+	case "manifests":
+		if d, ok := f.tags[repo][ref]; ok {
+			ref = d
+		}
+		m, ok := f.manifests[ref]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", m.mediaType)
+		w.Header().Set("Docker-Content-Digest", ref)
+		w.Write(m.body)
+	case "blobs":
+		f.blobRequests.Add(1)
+		b, ok := f.blobs[ref]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write(b)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+// newFakeDockerHub starts a fake Docker Hub and returns a Registry for it.
+func newFakeDockerHub(t *testing.T) (*Registry, *fakeDockerHub) {
+	t.Helper()
+	f := &fakeDockerHub{fakeStore: newFakeStore(t)}
+	srv := httptest.NewServer(f)
+	t.Cleanup(srv.Close)
+	reg := NewDockerHubRegistry(srv.Client())
+	reg.BaseURL = srv.URL
+	reg.TokenURL = srv.URL + "/token"
+	return reg, f
+}
+
+// fakeDebPkg is an installed Debian package in a fake SBOM. An empty source
+// means the package is its own source and has no GENERATED_FROM link.
+type fakeDebPkg struct{ name, version, source, sourceVersion string }
+
+// debianSPDX builds an SPDX document shaped like BuildKit's for a Debian 12
+// image: binary and source packages as separate entries linked by
+// GENERATED_FROM, plus the given npm package names.
+func debianSPDX(t *testing.T, pkgs []fakeDebPkg, npm ...string) json.RawMessage {
+	t.Helper()
+	const suffix = "?os_distro=bookworm&os_name=debian&os_version=12"
+	var packages, relationships []map[string]any
+	sources := map[string]string{} // name@version → SPDXID
+	entry := func(id, name, version, purl string) map[string]any {
+		return map[string]any{"SPDXID": id, "name": name, "versionInfo": version,
+			"externalRefs": []map[string]string{{"referenceType": "purl", "referenceLocator": purl}}}
+	}
+	for i, p := range pkgs {
+		id := fmt.Sprintf("SPDXRef-Package-bin-%d", i)
+		packages = append(packages, entry(id, p.name, p.version, "pkg:deb/debian/"+p.name+"@"+p.version+suffix))
+		if p.source == "" {
+			continue
+		}
+		key := p.source + "@" + p.sourceVersion
+		srcID, ok := sources[key]
+		if !ok {
+			srcID = fmt.Sprintf("SPDXRef-Package-src-%d", len(sources))
+			sources[key] = srcID
+			packages = append(packages, entry(srcID, p.source, p.sourceVersion, "pkg:deb/debian/"+p.source+"@"+p.sourceVersion+suffix))
+		}
+		relationships = append(relationships, map[string]any{"spdxElementId": id, "relationshipType": "GENERATED_FROM", "relatedSpdxElement": srcID})
+	}
+	for i, n := range npm {
+		packages = append(packages, entry(fmt.Sprintf("SPDXRef-Package-npm-%d", i), n, "1.0.0", "pkg:npm/"+n+"@1.0.0"))
+	}
+	return mustJSON(t, map[string]any{"spdxVersion": "SPDX-2.3", "packages": packages, "relationships": relationships})
+}
+
+// fakeOSV is an in-process stand-in for OSV.dev's /v1/query. Each package
+// has a list of vulnerability records, returned pageSize at a time when set.
+type fakeOSV struct {
+	vulns    map[OSVPackage][]json.RawMessage
+	pageSize int
+	delay    time.Duration   // per-request delay, to observe concurrency
+	failName map[string]bool // package names answered with a 500
+
+	requests    atomic.Int64
+	inFlight    atomic.Int64
+	maxInFlight atomic.Int64
+}
+
+func (f *fakeOSV) add(pkg OSVPackage, records ...any) {
+	if f.vulns == nil {
+		f.vulns = make(map[OSVPackage][]json.RawMessage)
+	}
+	for _, r := range records {
+		b, err := json.Marshal(r)
+		if err != nil {
+			panic(err)
+		}
+		f.vulns[pkg] = append(f.vulns[pkg], b)
+	}
+}
+
+func (f *fakeOSV) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost || r.URL.Path != "/v1/query" {
+		http.NotFound(w, r)
+		return
+	}
+	f.requests.Add(1)
+	n := f.inFlight.Add(1)
+	defer f.inFlight.Add(-1)
+	for {
+		m := f.maxInFlight.Load()
+		if n <= m || f.maxInFlight.CompareAndSwap(m, n) {
+			break
+		}
+	}
+	time.Sleep(f.delay)
+
+	var req osvQueryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if f.failName[req.Package.Name] {
+		http.Error(w, "boom", http.StatusInternalServerError)
+		return
+	}
+	all := f.vulns[OSVPackage{Ecosystem: req.Package.Ecosystem, Name: req.Package.Name, Version: req.Version}]
+	start := 0
+	if req.PageToken != "" {
+		start, _ = strconv.Atoi(req.PageToken)
+	}
+	end := len(all)
+	next := ""
+	if f.pageSize > 0 && start+f.pageSize < end {
+		end = start + f.pageSize
+		next = strconv.Itoa(end)
+	}
+	resp := map[string]any{"vulns": all[start:end]}
+	if len(all) == 0 {
+		resp = map[string]any{}
+	}
+	if next != "" {
+		resp["next_page_token"] = next
+	}
+	b, _ := json.Marshal(resp)
+	w.Write(b)
+}
+
+// newFakeOSV starts a fake OSV.dev and returns a client for it.
+func newFakeOSV(t *testing.T) (*OSV, *fakeOSV) {
+	t.Helper()
+	f := &fakeOSV{}
+	srv := httptest.NewServer(f)
+	t.Cleanup(srv.Close)
+	o := NewOSV(srv.Client())
+	o.URL = srv.URL
+	return o, f
+}
+
+// fakeEndOfLife is an in-process stand-in for endoflife.date's API.
+type fakeEndOfLife struct {
+	products map[string]string // product slug → JSON body
+	requests atomic.Int64
+	fail     atomic.Bool
+}
+
+func (f *fakeEndOfLife) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.requests.Add(1)
+	slug := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/"), ".json")
+	body, ok := f.products[slug]
+	switch {
+	case f.fail.Load():
+		http.Error(w, "boom", http.StatusInternalServerError)
+	case !ok:
+		http.NotFound(w, r)
+	default:
+		fmt.Fprint(w, body)
+	}
+}
+
+// newFakeEndOfLife starts a fake endoflife.date with Node.js's release cycles
+// (as of 2026-10-11) and returns a client for it, with its clock set to that day.
+func newFakeEndOfLife(t *testing.T) (*EndOfLife, *fakeEndOfLife) {
+	t.Helper()
+	f := &fakeEndOfLife{products: map[string]string{
+		"nodejs": `[{"cycle":"24","eol":"2028-04-30"},{"cycle":"22","eol":"2027-04-30"},{"cycle":"20","eol":"2026-04-30"},{"cycle":"18","eol":"2025-04-30"},{"cycle":"17","eol":true}]`,
+		"python": `[{"cycle":"3.14","eol":"2030-10-31"},{"cycle":"3.12","eol":"2028-10-31"}]`,
+	}}
+	srv := httptest.NewServer(f)
+	t.Cleanup(srv.Close)
+	e := NewEndOfLife(srv.Client())
+	e.URL = srv.URL
+	e.Now = func() time.Time { return time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC) }
+	return e, f
+}
+
+// fakeUpstream bundles the fakes behind the upstream comparison.
+type fakeUpstream struct {
+	Chainguard *fakeChainguard
+	Hub        *fakeDockerHub
+	OSV        *fakeOSV
+	EOL        *fakeEndOfLife
+}
+
+// debianVuln is an OSV record for a Debian 12 source package, fixed in
+// 12.0-1 when fixed is set, otherwise with the given Debian urgency.
+func debianVuln(id, source string, fixed bool, urgency string) map[string]any {
+	events := []map[string]string{{"introduced": "0"}}
+	if fixed {
+		events = append(events, map[string]string{"fixed": "99:9.9-1~deb12u1"})
+	}
+	return map[string]any{"id": id, "affected": []map[string]any{{
+		"package":            map[string]string{"name": source, "ecosystem": "Debian:12"},
+		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": events}},
+		"ecosystem_specific": map[string]string{"urgency": urgency},
+	}}}
+}
+
+// Versions of the fake node:20 image's packages.
+const (
+	fakeOpenSSLVersion = "3.0.19-1~deb12u2"
+	fakeGlibcVersion   = "2.36-9+deb12u13"
+)
+
+// newFakeUpstreamService wires a Service to the fake Chainguard backend plus
+// fakes for Docker Hub, OSV.dev and endoflife.date. Docker Hub has:
+//   - library/node:20 (built 2026-04-22): libssl3 and libc6 with their sources
+//     openssl and glibc, linux-libc-dev from the kernel source, 2 npm packages;
+//   - library/python:3.12-slim, which publishes no SBOM.
+//
+// Chainguard's node image has glibc-2.44, busybox and c-ares. The node:20
+// vulnerabilities: openssl A (fix available) and B (won't fix), glibc C (no
+// fix yet) and A again; the kernel has D, which must never be counted.
+// Chainguard's glibc-2.44 has one advisory pending an upstream fix.
+func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
+	t.Helper()
+	svc, cg := newFakeBackend(t)
+	cg.addImage("node", "latest", "65532", []fakePkg{
+		{"busybox", "1.38.0-r3", "busybox"},
+		{"c-ares", "1.34.8-r3", "c-ares"},
+		{"glibc-2.44", "2.44-r8", "glibc-2.44"},
+	})
+
+	reg, hub := newFakeDockerHub(t)
+	hub.addImage("library/node", "20", dockerImage{created: "2026-04-22T03:00:00Z", sbom: debianSPDX(t, []fakeDebPkg{
+		{"libssl3", fakeOpenSSLVersion, "openssl", fakeOpenSSLVersion},
+		{"libc6", fakeGlibcVersion, "glibc", fakeGlibcVersion},
+		{"linux-libc-dev", "6.1.164-1", "linux", "6.1.164-1"},
+	}, "@isaacs/cliui", "semver")})
+	hub.addImage("library/python", "3.12-slim", dockerImage{created: "2026-09-01T00:00:00Z"})
+
+	osv, osvFake := newFakeOSV(t)
+	osvFake.add(OSVPackage{"Debian:12", "openssl", fakeOpenSSLVersion},
+		debianVuln("DEBIAN-CVE-A", "openssl", true, "not yet assigned"),
+		debianVuln("DEBIAN-CVE-B", "openssl", false, "unimportant"))
+	osvFake.add(OSVPackage{"Debian:12", "glibc", fakeGlibcVersion},
+		debianVuln("DEBIAN-CVE-C", "glibc", false, "not yet assigned"),
+		debianVuln("DEBIAN-CVE-A", "glibc", false, "not yet assigned"))
+	osvFake.add(OSVPackage{"Debian:12", "linux", "6.1.164-1"}, debianVuln("DEBIAN-CVE-D", "linux", true, "not yet assigned"))
+	osvFake.add(OSVPackage{"Wolfi", "glibc-2.44", "2.44-r8"}, map[string]any{"id": "CGA-0000-0000-0001", "affected": []map[string]any{{
+		"package":            map[string]string{"name": "glibc-2.44", "ecosystem": "Wolfi"},
+		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": []map[string]string{{"introduced": "0"}}}},
+		"ecosystem_specific": map[string]any{"components": []map[string]string{{"latest_event_status": "pending_upstream_fix"}}},
+	}}})
+
+	eol, eolFake := newFakeEndOfLife(t)
+	svc.Upstream, svc.OSV, svc.EOL = reg, osv, eol
+	return svc, &fakeUpstream{Chainguard: cg, Hub: hub, OSV: osvFake, EOL: eolFake}
 }

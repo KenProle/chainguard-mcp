@@ -1,0 +1,321 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+)
+
+const (
+	defaultOSVURL = "https://api.osv.dev"
+	// osvMaxInFlight bounds concurrent requests to OSV.dev (UC-10).
+	osvMaxInFlight = 10
+)
+
+// OSV is a client for the OSV.dev vulnerability database. It queries one
+// package at a time with POST /v1/query, which returns full records (the
+// batch endpoint returns only IDs), and caches each package's result.
+type OSV struct {
+	HTTP *http.Client
+	URL  string
+	// TTL is how long a package's result is cached.
+	TTL time.Duration
+
+	sem chan struct{}
+
+	mu    sync.Mutex
+	cache map[OSVPackage]osvCacheEntry
+}
+
+type osvCacheEntry struct {
+	vulns   []OSVVuln
+	fetched time.Time
+}
+
+func NewOSV(client *http.Client) *OSV {
+	return &OSV{HTTP: client, URL: defaultOSVURL, TTL: 24 * time.Hour, sem: make(chan struct{}, osvMaxInFlight)}
+}
+
+// OSVVuln is the part of an OSV record used to classify a vulnerability.
+type OSVVuln struct {
+	ID       string        `json:"id"`
+	Affected []OSVAffected `json:"affected"`
+}
+
+type OSVAffected struct {
+	Package struct {
+		Name      string `json:"name"`
+		Ecosystem string `json:"ecosystem"`
+	} `json:"package"`
+	Ranges []struct {
+		Events []struct {
+			Fixed string `json:"fixed"`
+		} `json:"events"`
+	} `json:"ranges"`
+	EcosystemSpecific struct {
+		// Urgency is Debian's triage, e.g. "unimportant" or "end-of-life".
+		Urgency    string `json:"urgency"`
+		Components []struct {
+			// LatestEventStatus is Chainguard's, e.g. "pending_upstream_fix".
+			LatestEventStatus string `json:"latest_event_status"`
+		} `json:"components"`
+	} `json:"ecosystem_specific"`
+}
+
+type osvQueryRequest struct {
+	Package struct {
+		Name      string `json:"name"`
+		Ecosystem string `json:"ecosystem"`
+	} `json:"package"`
+	Version   string `json:"version"`
+	PageToken string `json:"page_token,omitempty"`
+}
+
+type osvQueryResponse struct {
+	Vulns         []OSVVuln `json:"vulns"`
+	NextPageToken string    `json:"next_page_token"`
+}
+
+// Query returns the vulnerabilities OSV.dev lists for a package version,
+// following pagination. Results are cached by ecosystem, name and version.
+func (o *OSV) Query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, error) {
+	o.mu.Lock()
+	if e, ok := o.cache[pkg]; ok && time.Since(e.fetched) < o.TTL {
+		o.mu.Unlock()
+		return e.vulns, nil
+	}
+	o.mu.Unlock()
+
+	var vulns []OSVVuln
+	token := ""
+	for {
+		page, err := o.queryPage(ctx, pkg, token)
+		if err != nil {
+			return nil, err
+		}
+		vulns = append(vulns, page.Vulns...)
+		if page.NextPageToken == "" {
+			break
+		}
+		token = page.NextPageToken
+	}
+
+	o.mu.Lock()
+	if o.cache == nil {
+		o.cache = make(map[OSVPackage]osvCacheEntry)
+	}
+	if len(o.cache)%1000 == 999 {
+		for k, e := range o.cache {
+			if time.Since(e.fetched) >= o.TTL {
+				delete(o.cache, k)
+			}
+		}
+	}
+	o.cache[pkg] = osvCacheEntry{vulns: vulns, fetched: time.Now()}
+	o.mu.Unlock()
+	return vulns, nil
+}
+
+// queryPage makes one request, retrying once on a server error.
+func (o *OSV) queryPage(ctx context.Context, pkg OSVPackage, token string) (*osvQueryResponse, error) {
+	var req osvQueryRequest
+	req.Package.Name, req.Package.Ecosystem = pkg.Name, pkg.Ecosystem
+	req.Version, req.PageToken = pkg.Version, token
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	var lastErr error
+	for attempt := range 2 {
+		if attempt > 0 {
+			select {
+			case <-time.After(300 * time.Millisecond):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		page, retry, err := o.post(ctx, body)
+		if err == nil {
+			return page, nil
+		}
+		lastErr = fmt.Errorf("%s %s@%s: %w", pkg.Ecosystem, pkg.Name, pkg.Version, err)
+		if !retry {
+			break
+		}
+	}
+	return nil, lastErr
+}
+
+func (o *OSV) post(ctx context.Context, body []byte) (*osvQueryResponse, bool, error) {
+	select {
+	case o.sem <- struct{}{}:
+		defer func() { <-o.sem }()
+	case <-ctx.Done():
+		return nil, false, ctx.Err()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(o.URL, "/")+"/v1/query", bytes.NewReader(body))
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := o.HTTP.Do(req)
+	if err != nil {
+		return nil, ctx.Err() == nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+		return nil, resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests, fmt.Errorf("unexpected status %s", resp.Status)
+	}
+	var page osvQueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, false, fmt.Errorf("decoding response: %w", err)
+	}
+	return &page, false, nil
+}
+
+// QueryAll looks up every package and returns the vulnerabilities by
+// package. progress, if set, is called after each package with the number
+// done and the total. The first failure cancels the rest, since a partial
+// result must not be shown as complete (UC-11).
+func (o *OSV) QueryAll(ctx context.Context, pkgs []OSVPackage, progress func(done, total int)) (map[OSVPackage][]OSVVuln, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var (
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+		out      = make(map[OSVPackage][]OSVVuln, len(pkgs))
+		done     int
+		firstErr error
+		ch       = make(chan OSVPackage)
+	)
+	for range osvMaxInFlight {
+		wg.Go(func() {
+			for pkg := range ch {
+				vulns, err := o.Query(ctx, pkg)
+				mu.Lock()
+				if err != nil {
+					if firstErr == nil {
+						firstErr = err
+						cancel()
+					}
+				} else {
+					out[pkg] = vulns
+					done++
+					if progress != nil {
+						progress(done, len(pkgs))
+					}
+				}
+				mu.Unlock()
+			}
+		})
+	}
+feed:
+	for _, pkg := range pkgs {
+		select {
+		case ch <- pkg:
+		case <-ctx.Done():
+			break feed
+		}
+	}
+	close(ch)
+	wg.Wait()
+	if firstErr != nil {
+		return nil, &SourceError{Source: "OSV.dev", Err: firstErr}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FixStatus says whether a known vulnerability can be fixed by updating.
+type FixStatus string
+
+const (
+	// FixAvailable: the distribution has released a fixed version newer than
+	// the one installed.
+	FixAvailable FixStatus = "fix_available"
+	// NoFixYet: no fixed version exists, including Chainguard advisories
+	// pending an upstream fix.
+	NoFixYet FixStatus = "no_fix_yet"
+	// WontFix: the distribution has marked it as one it won't fix, such as
+	// Debian's "unimportant" and "end-of-life" urgencies.
+	WontFix FixStatus = "wont_fix"
+)
+
+// classify reads a vulnerability's fix status from the advisory for the
+// package's own name and ecosystem, so a fix released only for another
+// release (Debian 13's) doesn't count for this one (UC-5.3). OSV's query
+// already returns only records that affect the installed version.
+func classify(v OSVVuln, pkg OSVPackage) FixStatus {
+	for _, a := range v.Affected {
+		if a.Package.Name != pkg.Name || a.Package.Ecosystem != pkg.Ecosystem {
+			continue
+		}
+		for _, r := range a.Ranges {
+			for _, e := range r.Events {
+				if e.Fixed != "" {
+					return FixAvailable
+				}
+			}
+		}
+		switch a.EcosystemSpecific.Urgency {
+		case "unimportant", "end-of-life":
+			return WontFix
+		}
+		return NoFixYet
+	}
+	return NoFixYet
+}
+
+// VulnCounts counts distinct known vulnerabilities by fix status.
+type VulnCounts struct {
+	Total        int `json:"total"`
+	FixAvailable int `json:"fix_available" jsonschema:"a fixed version exists that is newer than the one installed"`
+	NoFixYet     int `json:"no_fix_yet" jsonschema:"no fixed version exists yet, including advisories pending an upstream fix"`
+	WontFix      int `json:"wont_fix" jsonschema:"the distribution has marked these as ones it won't fix"`
+}
+
+// fixRank orders statuses when one vulnerability has different statuses for
+// different packages: a fix for any package wins (UC-5).
+var fixRank = map[FixStatus]int{FixAvailable: 3, NoFixYet: 2, WontFix: 1}
+
+// classifyAll gives each vulnerability ID across all packages one status, however
+// many packages it affects (UC-4.2), with the best fix status winning.
+func classifyAll(results map[OSVPackage][]OSVVuln) map[string]FixStatus {
+	status := make(map[string]FixStatus)
+	for pkg, vulns := range results {
+		for _, v := range vulns {
+			s := classify(v, pkg)
+			if prev, ok := status[v.ID]; !ok || fixRank[s] > fixRank[prev] {
+				status[v.ID] = s
+			}
+		}
+	}
+	return status
+}
+
+// summarize counts the distinct vulnerabilities by fix status.
+func summarize(results map[OSVPackage][]OSVVuln) VulnCounts {
+	status := classifyAll(results)
+	c := VulnCounts{Total: len(status)}
+	for _, s := range status {
+		switch s {
+		case FixAvailable:
+			c.FixAvailable++
+		case WontFix:
+			c.WontFix++
+		default:
+			c.NoFixYet++
+		}
+	}
+	return c
+}

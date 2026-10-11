@@ -412,6 +412,7 @@ func TestAPIIndex(t *testing.T) {
 			"/api/images/{name}/vulnerabilities",
 			"/api/images/{name}/sbom",
 			"/api/alternatives",
+			"/api/compare-upstream",
 		}
 		var got []string
 		for _, e := range index.Endpoints {

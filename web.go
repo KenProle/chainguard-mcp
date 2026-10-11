@@ -206,6 +206,19 @@ var apiRoutes = []apiRoute{
 			respond(w)(svc.FindAlternative(r.Context(), r.URL.Query().Get("image")))
 		},
 	},
+	{
+		Method: "GET", Path: "/api/compare-upstream",
+		Description: "Compare an upstream Docker Hub image with its Chainguard replacement by size, OS packages and known vulnerabilities. A background job: returns {\"status\":\"running\",\"checked\":N,\"total\":M} while it runs (poll about once a second), then {\"status\":\"done\", …the comparison}.",
+		Parameters: []apiParam{
+			{"image", "query", true, "upstream image on Docker Hub exactly as you run it, e.g. 'node:20' or 'bitnami/redis:7.2'"},
+			archParam,
+		},
+		Example: "/api/compare-upstream?image=node:20",
+		handle: func(svc *Service, w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			respond(w)(svc.CompareUpstreamJob(CompareUpstreamInput{Image: q.Get("image"), Arch: q.Get("arch")}))
+		},
+	},
 }
 
 func optionalInt(s string) (int, error) {
@@ -230,15 +243,27 @@ func respond(w http.ResponseWriter) func(any, error) {
 type apiError struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
+	// Source names the data source that failed, for code "source_failed".
+	Source string `json:"source,omitempty"`
 }
 
 // writeError maps Service errors to HTTP statuses and stable error codes
 // the UI can switch on.
 func writeError(w http.ResponseWriter, err error) {
 	var inputErr *InputError
+	var srcErr *SourceError
 	switch {
 	case errors.As(err, &inputErr):
 		writeJSON(w, http.StatusBadRequest, apiError{Error: err.Error(), Code: "invalid_input"})
+	case errors.Is(err, ErrUnsupportedRegistry):
+		writeJSON(w, http.StatusBadRequest, apiError{Error: err.Error(), Code: "unsupported_registry"})
+	case errors.Is(err, ErrNoAlternative):
+		writeJSON(w, http.StatusNotFound, apiError{Error: err.Error(), Code: "no_alternative"})
+	case errors.Is(err, ErrRateLimited):
+		writeJSON(w, http.StatusTooManyRequests, apiError{Error: err.Error(), Code: "rate_limited"})
+	case errors.As(err, &srcErr):
+		log.Printf("api error: %v", err)
+		writeJSON(w, http.StatusBadGateway, apiError{Error: err.Error(), Code: "source_failed", Source: srcErr.Source})
 	case errors.Is(err, ErrNotPublic):
 		writeJSON(w, http.StatusForbidden, apiError{Error: err.Error(), Code: "not_public"})
 	case errors.Is(err, ErrNotFound):

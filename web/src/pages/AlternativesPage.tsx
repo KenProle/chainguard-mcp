@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { api } from '../api'
+import { UpstreamComparison } from '../components/UpstreamComparison'
 import { Card, CopyableCode, ErrorState, FreeBadge, Loading } from '../components/ui'
 import { buttonClass, inputClass } from '../styles'
 
@@ -10,6 +11,7 @@ const examples = ['node:20-alpine', 'python:3.12-slim', 'eclipse-temurin:21-jre'
 export function AlternativesPage() {
   const [params, setParams] = useSearchParams()
   const image = params.get('image') ?? ''
+  const arch = params.get('arch') === 'arm64' ? 'arm64' : 'amd64'
   const [draft, setDraft] = useState(image)
 
   const { data, error, isFetching, refetch } = useQuery({
@@ -20,7 +22,10 @@ export function AlternativesPage() {
 
   function search(ref: string) {
     setDraft(ref)
-    setParams(ref ? { image: ref } : {})
+    setParams(ref ? { image: ref, ...(arch === 'arm64' ? { arch } : {}) } : {})
+  }
+  function chooseArch(next: string) {
+    setParams({ image, ...(next === 'arm64' ? { arch: next } : {}) }, { replace: true })
   }
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -110,6 +115,10 @@ export function AlternativesPage() {
                 ))}
               </ul>
             </Card>
+          )}
+
+          {data.recommended && (
+            <UpstreamComparison image={data.input} chainguardImage={data.recommended.image} arch={arch} onArch={chooseArch} />
           )}
         </div>
       ) : null}

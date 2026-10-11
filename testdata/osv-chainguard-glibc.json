@@ -1,0 +1,78 @@
+{
+ "id": "CGA-2727-9j94-3x3p",
+ "modified": "2026-10-06T22:08:40Z",
+ "published": "2026-09-19T02:18:03Z",
+ "upstream": [
+  "CVE-2026-89092",
+  "GHSA-gwqp-9qgw-c5pv"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "glibc-2.44",
+    "ecosystem": "Chainguard",
+    "purl": "pkg:apk/chainguard/glibc-2.44?arch=x86_64"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      }
+     ]
+    }
+   ],
+   "ecosystem_specific": {
+    "components": [
+     {
+      "component_purl": "pkg:apk/glibc-2.44@2.44-r6",
+      "latest_event_status": "pending_upstream_fix",
+      "latest_event_timestamp": "2026-09-22T03:16:43Z",
+      "component_name": "glibc-2.44",
+      "component_version": "2.44-r6",
+      "component_type": "apk",
+      "component_location": "/.PKGINFO"
+     }
+    ]
+   },
+   "database_specific": {
+    "source": "https://advisories.cgr.dev/chainguard/v3/osv/CGA-2727-9j94-3x3p.json"
+   }
+  },
+  {
+   "package": {
+    "name": "glibc-2.44",
+    "ecosystem": "Wolfi",
+    "purl": "pkg:apk/wolfi/glibc-2.44?arch=x86_64"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      }
+     ]
+    }
+   ],
+   "ecosystem_specific": {
+    "components": [
+     {
+      "component_location": "/.PKGINFO",
+      "component_purl": "pkg:apk/glibc-2.44@2.44-r6",
+      "latest_event_status": "pending_upstream_fix",
+      "latest_event_timestamp": "2026-09-22T03:16:43Z",
+      "component_name": "glibc-2.44",
+      "component_version": "2.44-r6",
+      "component_type": "apk"
+     }
+    ]
+   },
+   "database_specific": {
+    "source": "https://advisories.cgr.dev/chainguard/v3/osv/CGA-2727-9j94-3x3p.json"
+   }
+  }
+ ],
+ "schema_version": "1.9.0"
+}

@@ -1,7 +1,8 @@
 // Typed client for the Go server's JSON API (web.go). The types mirror the Go
-// output structs in service.go, details.go, sbom.go, vulns.go, alternatives.go
-// and groups.go. The MCP tools return the same structs, except ImageFamilies
-// and ImageGroups, which only the web UI uses.
+// output structs in service.go, details.go, sbom.go, vulns.go, alternatives.go,
+// groups.go, compare.go, compare_job.go and endoflife.go. The MCP tools return
+// the same structs, except ImageFamilies, ImageGroups and the CompareJob
+// wrapper, which only the web UI uses.
 
 export type ImageSummary = {
   name: string
@@ -148,17 +149,83 @@ export type AlternativesResult = {
   notes: string[]
 }
 
-export type ApiErrorCode = 'invalid_input' | 'not_public' | 'not_found' | 'upstream_error' | 'network'
+/** Known vulnerabilities counted once each, by fix status (compare.go, osv.go). */
+export type VulnCounts = {
+  total: number
+  fix_available: number
+  no_fix_yet: number
+  wont_fix: number
+}
+
+export type LanguageCount = {
+  ecosystem: string
+  count: number
+}
+
+/** One image in an upstream comparison. */
+export type UpstreamSide = {
+  reference: string
+  digest: string
+  platform: string
+  created?: string
+  size_bytes: number
+  sbom_published: boolean
+  os_packages: number
+  language_packages?: LanguageCount[]
+  /** Absent when no SBOM is published. */
+  vulnerabilities?: VulnCounts
+}
+
+export type EndOfLifeNote = {
+  product: string
+  cycle: string
+  /** YYYY-MM-DD */
+  date: string
+}
+
+export type UpstreamComparison = {
+  input: string
+  upstream: UpstreamSide
+  chainguard: UpstreamSide
+  end_of_life?: EndOfLifeNote
+  source: string
+  /** RFC 3339 */
+  checked_at: string
+  notes: string[]
+}
+
+/**
+ * A comparison running as a background job (compare_job.go). total is 0 until
+ * the packages to look up are known. When status is done, the comparison's
+ * fields are set too.
+ */
+export type CompareJob =
+  | { status: 'running'; checked: number; total: number }
+  | ({ status: 'done'; checked: number; total: number } & UpstreamComparison)
+
+export type ApiErrorCode =
+  | 'invalid_input'
+  | 'not_public'
+  | 'not_found'
+  | 'upstream_error'
+  | 'network'
+  | 'unsupported_registry'
+  | 'no_alternative'
+  | 'rate_limited'
+  | 'source_failed'
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode
   readonly status: number
+  /** The data source that failed, for code source_failed. */
+  readonly source?: string
 
-  constructor(message: string, code: ApiErrorCode, status: number) {
+  constructor(message: string, code: ApiErrorCode, status: number, source?: string) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.status = status
+    this.source = source
   }
 }
 
@@ -184,14 +251,16 @@ async function get<T>(path: string, params: Params = {}, signal?: AbortSignal): 
   if (!resp.ok) {
     let message = `Request failed (${resp.status})`
     let code: ApiErrorCode = 'upstream_error'
+    let source: string | undefined
     try {
-      const body = (await resp.json()) as { error?: string; code?: ApiErrorCode }
+      const body = (await resp.json()) as { error?: string; code?: ApiErrorCode; source?: string }
       if (body.error) message = body.error
       if (body.code) code = body.code
+      source = body.source
     } catch {
       // Not a JSON error body; keep the generic message.
     }
-    throw new ApiError(message, code, resp.status)
+    throw new ApiError(message, code, resp.status, source)
   }
   return (await resp.json()) as T
 }
@@ -212,5 +281,7 @@ export const api = {
   vulnerabilities: (name: string, tag: string, id?: string, signal?: AbortSignal) =>
     get<VulnReport>(`${image(name)}/vulnerabilities`, { tag, id }, signal),
   alternatives: (ref: string, signal?: AbortSignal) => get<AlternativesResult>('/alternatives', { image: ref }, signal),
+  compareUpstream: (ref: string, arch: string, signal?: AbortSignal) =>
+    get<CompareJob>('/compare-upstream', { image: ref, arch }, signal),
   sbomUrl: (name: string, tag: string, arch: string) => `/api${image(name)}/sbom${buildQuery({ tag, arch })}`,
 }

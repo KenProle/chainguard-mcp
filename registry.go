@@ -36,6 +36,9 @@ var (
 	ErrNotPublic = errors.New("image is not publicly accessible (likely requires a Chainguard subscription)")
 	// ErrNotFound is returned when a tag, manifest or blob doesn't exist.
 	ErrNotFound = errors.New("not found")
+	// ErrRateLimited is returned when a registry answers 429, e.g. Docker Hub's
+	// anonymous pull limit.
+	ErrRateLimited = errors.New("registry rate limit reached")
 )
 
 // Registry is a minimal anonymous client for the cgr.dev OCI registry.
@@ -43,6 +46,13 @@ type Registry struct {
 	HTTP      *http.Client
 	BaseURL   string
 	Namespace string
+	// TokenURL and TokenService configure the anonymous token endpoint.
+	// They default to BaseURL + "/token" and "cgr.dev".
+	TokenURL     string
+	TokenService string
+	// AttestationIndex says SBOMs are attestation manifests inside the image
+	// index (Docker's layout) rather than cosign .att tags (Chainguard's).
+	AttestationIndex bool
 	// PublicTTL is how long a free/paid result from IsPublic is cached.
 	PublicTTL time.Duration
 
@@ -75,7 +85,12 @@ func (r *Registry) Ref(image string) string {
 	return registryHost + "/" + r.Namespace + "/" + image
 }
 
-func (r *Registry) repo(image string) string { return r.Namespace + "/" + image }
+func (r *Registry) repo(image string) string {
+	if r.Namespace == "" {
+		return image
+	}
+	return r.Namespace + "/" + image
+}
 
 // token returns an anonymous pull token for image, cached until shortly
 // before it expires. The registry refuses tokens for non-public images.
@@ -87,8 +102,15 @@ func (r *Registry) token(ctx context.Context, image string) (string, error) {
 	}
 	r.mu.Unlock()
 
-	q := url.Values{"service": {registryHost}, "scope": {"repository:" + r.repo(image) + ":pull"}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.BaseURL+"/token?"+q.Encode(), nil)
+	tokenURL, service := r.TokenURL, r.TokenService
+	if tokenURL == "" {
+		tokenURL = r.BaseURL + "/token"
+	}
+	if service == "" {
+		service = registryHost
+	}
+	q := url.Values{"service": {service}, "scope": {"repository:" + r.repo(image) + ":pull"}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tokenURL+"?"+q.Encode(), nil)
 	if err != nil {
 		return "", err
 	}
@@ -102,6 +124,8 @@ func (r *Registry) token(ctx context.Context, image string) (string, error) {
 	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
 		r.setPublic(image, false)
 		return "", ErrNotPublic
+	case http.StatusTooManyRequests:
+		return "", ErrRateLimited
 	default:
 		return "", fmt.Errorf("fetching registry token: unexpected status %s", resp.Status)
 	}
@@ -211,6 +235,9 @@ func (r *Registry) get(ctx context.Context, image, path, accept string) (*http.R
 	case http.StatusNotFound:
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s/%s: %w", image, path, ErrNotFound)
+	case http.StatusTooManyRequests:
+		resp.Body.Close()
+		return nil, ErrRateLimited
 	default:
 		resp.Body.Close()
 		return nil, fmt.Errorf("fetching %s: unexpected status %s", path, resp.Status)
@@ -317,12 +344,19 @@ func (r *Registry) Blob(ctx context.Context, image, digest string, maxBytes int6
 // PlatformManifest resolves tag to the image manifest for arch (e.g. "amd64").
 // It returns the manifest, its digest and the tag's top-level digest.
 func (r *Registry) PlatformManifest(ctx context.Context, image, tag, arch string) (*Manifest, string, string, error) {
+	m, digest, topDigest, _, err := r.resolvePlatform(ctx, image, tag, arch)
+	return m, digest, topDigest, err
+}
+
+// resolvePlatform is PlatformManifest that also returns the tag's top-level
+// manifest, which Docker's SBOM lookup needs to find attestation manifests.
+func (r *Registry) resolvePlatform(ctx context.Context, image, tag, arch string) (*Manifest, string, string, *Manifest, error) {
 	top, topDigest, err := r.Manifest(ctx, image, tag, acceptAnyManifest)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", "", nil, err
 	}
 	if !top.IsIndex() {
-		return top, topDigest, topDigest, nil
+		return top, topDigest, topDigest, top, nil
 	}
 	var available []string
 	for _, d := range top.Manifests {
@@ -333,13 +367,33 @@ func (r *Registry) PlatformManifest(ctx context.Context, image, tag, arch string
 		if d.Platform.Architecture == arch {
 			m, digest, err := r.Manifest(ctx, image, d.Digest, acceptManifestOnly)
 			if err != nil {
-				return nil, "", "", err
+				return nil, "", "", nil, err
 			}
 			if digest == "" {
 				digest = d.Digest
 			}
-			return m, digest, topDigest, nil
+			return m, digest, topDigest, top, nil
 		}
 	}
-	return nil, "", "", fmt.Errorf("%s:%s has no %s variant (available: %s): %w", image, tag, arch, strings.Join(available, ", "), ErrNotFound)
+	return nil, "", "", nil, fmt.Errorf("%s:%s has no %s variant (available: %s): %w", image, tag, arch, strings.Join(available, ", "), ErrNotFound)
+}
+
+const (
+	dockerHubRegistryURL = "https://registry-1.docker.io"
+	dockerHubTokenURL    = "https://auth.docker.io/token"
+	dockerHubService     = "registry.docker.io"
+)
+
+// NewDockerHubRegistry returns an anonymous client for Docker Hub. Its
+// "images" are full repository paths such as "library/node" (see
+// parseDockerHubRef), so it has no namespace.
+func NewDockerHubRegistry(client *http.Client) *Registry {
+	return &Registry{
+		HTTP:             client,
+		BaseURL:          dockerHubRegistryURL,
+		TokenURL:         dockerHubTokenURL,
+		TokenService:     dockerHubService,
+		AttestationIndex: true,
+		PublicTTL:        24 * time.Hour,
+	}
 }

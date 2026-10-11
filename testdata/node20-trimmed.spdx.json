@@ -1,0 +1,177 @@
+{
+ "spdxVersion": "SPDX-2.3",
+ "name": "node:20 (trimmed)",
+ "packages": [
+  {
+   "name": "libssl3",
+   "SPDXID": "SPDXRef-Package-692bb389216e301757358621687860d3",
+   "versionInfo": "3.0.19-1~deb12u2",
+   "licenseDeclared": "Apache-2.0 OR GPL-1.0-only OR GPL-1.0-or-later",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/libssl3@3.0.19-1~deb12u2?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "openssl",
+   "SPDXID": "SPDXRef-Package-2e90826aeec018dc37fbd99f8c9c011f",
+   "versionInfo": "3.0.19-1~deb12u2",
+   "licenseDeclared": "Apache-2.0 OR GPL-1.0-only OR GPL-1.0-or-later",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/openssl@3.0.19-1~deb12u2?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "libc6",
+   "SPDXID": "SPDXRef-Package-b1927157a77c1593cbf2b19340c4dea5",
+   "versionInfo": "2.36-9+deb12u13",
+   "licenseDeclared": "GPL-2.0-only OR LGPL-2.1-only",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/libc6@2.36-9%2Bdeb12u13?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "glibc",
+   "SPDXID": "SPDXRef-Package-eb97a4a6e9f0c7d85da83c95e06c5884",
+   "versionInfo": "2.36-9+deb12u13",
+   "licenseDeclared": "GPL-2.0-only OR LGPL-2.1-only",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/glibc@2.36-9%2Bdeb12u13?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "linux-libc-dev",
+   "SPDXID": "SPDXRef-Package-9b23757010828502577f879476d36da1",
+   "versionInfo": "6.1.164-1",
+   "licenseDeclared": "BSD-2-Clause OR GPL-2.0-only OR LGPL-2.1-only",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/linux-libc-dev@6.1.164-1?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "linux",
+   "SPDXID": "SPDXRef-Package-3640edf833177668e59f44e4452f3195",
+   "versionInfo": "6.1.164-1",
+   "licenseDeclared": "BSD-2-Clause OR GPL-2.0-only OR LGPL-2.1-only",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/linux@6.1.164-1?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "adduser",
+   "SPDXID": "SPDXRef-Package-959e5f87c3d602707ea4c992d7e53fcd",
+   "versionInfo": "3.134",
+   "licenseDeclared": "GPL-2.0-only OR GPL-2.0-or-later",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/adduser@3.134?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "@isaacs/cliui",
+   "SPDXID": "SPDXRef-Package-b4af3439e8b63caa7e59aafd8adda952",
+   "versionInfo": "8.0.2",
+   "licenseDeclared": "ISC",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:npm/%40isaacs/cliui@8.0.2"
+    }
+   ]
+  },
+  {
+   "name": "mercurial",
+   "SPDXID": "SPDXRef-Package-cb8d266b6d954bacbf49367be9a759f0",
+   "versionInfo": "6.3.2-1+deb12u1",
+   "licenseDeclared": "GPL-2.0-only OR GPL-2.0-or-later OR LGPL-2.1-only OR LGPL-2.1-or-later",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:deb/debian/mercurial@6.3.2-1%2Bdeb12u1?os_distro=bookworm&os_name=debian&os_version=12"
+    }
+   ]
+  },
+  {
+   "name": "mercurial",
+   "SPDXID": "SPDXRef-Package-51a34757e65e0a24e0d02022ec895e9f",
+   "versionInfo": "6.3.2",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:pypi/mercurial@6.3.2"
+    }
+   ]
+  },
+  {
+   "name": "node",
+   "SPDXID": "SPDXRef-Package-9be1fbe88d3e22176e140fa566048d2c",
+   "versionInfo": "20.20.2",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:generic/node@20.20.2"
+    }
+   ]
+  },
+  {
+   "name": "@isaacs/string-locale-compare",
+   "SPDXID": "SPDXRef-Package-df0fdebbd970d61925697d5cca13c28b",
+   "versionInfo": "1.1.0",
+   "licenseDeclared": "ISC",
+   "externalRefs": [
+    {
+     "referenceCategory": "PACKAGE-MANAGER",
+     "referenceType": "purl",
+     "referenceLocator": "pkg:npm/%40isaacs/string-locale-compare@1.1.0"
+    }
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "spdxElementId": "SPDXRef-Package-b1927157a77c1593cbf2b19340c4dea5",
+   "relatedSpdxElement": "SPDXRef-Package-eb97a4a6e9f0c7d85da83c95e06c5884",
+   "relationshipType": "GENERATED_FROM"
+  },
+  {
+   "spdxElementId": "SPDXRef-Package-692bb389216e301757358621687860d3",
+   "relatedSpdxElement": "SPDXRef-Package-2e90826aeec018dc37fbd99f8c9c011f",
+   "relationshipType": "GENERATED_FROM"
+  },
+  {
+   "spdxElementId": "SPDXRef-Package-9b23757010828502577f879476d36da1",
+   "relatedSpdxElement": "SPDXRef-Package-3640edf833177668e59f44e4452f3195",
+   "relationshipType": "GENERATED_FROM"
+  }
+ ]
+}

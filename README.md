@@ -18,6 +18,7 @@ Run the server in HTTP mode and open http://127.0.0.1:8080/:
 - **Security:** recorded vulnerability fixes per source package, and a CVE/GHSA lookup. A chart gives each source package with records a stacked bar of fixes included, vulnerabilities recorded as never affecting it, and fixes that a newer package version has but the image lacks. Those missing fixes are highlighted, their packages sort first, and their IDs are listed. Packages without records get no bar; the chart counts them, and the table below lists every package. The data comes from the Wolfi security database, which records fixes, not open vulnerabilities, so it isn't a full scan.
 - **Compare:** two tags of the same image side by side, by default the minimal `latest` and the development `latest-dev`. Shows how much larger one is, each tag's package count, download size, shell and `apk`, a size chart, and the packages only in one tag or at different versions. Pick any two tags and amd64 or arm64; the comparison is kept in the URL, so you can share or reload it.
 - **Find alternative:** enter an image you use today, like `node:20-alpine`, to get its Chainguard replacement and migration notes.
+- **Compare with upstream:** below a recommended replacement, the Alternatives page compares the image you entered, exactly as typed (`node:20` is compared as `node:20`, not as a newer tag), with the replacement's `latest` tag on amd64 or arm64: download size, build date, installed OS packages, and known vulnerabilities split into fix available, no fix yet and won't fix, with a note when the upstream release is past its end of life. The summary leads with the vulnerabilities that have a fix in the distribution but not in the image, and the package counts. Counts are *known vulnerabilities per each distribution's own advisories*, so each side is graded by its own maintainers; they are never presented as a guarantee that either image is secure, and a count of zero reads "0 known vulnerabilities". Only Docker Hub images are compared, and only installed OS packages (Debian, Ubuntu or Alpine upstream; Wolfi or Chainguard): language packages such as npm are counted but not compared, and Linux kernel advisories are left out because containers run on the host's kernel. An upstream image that publishes no SBOM (such as `bitnami/redis`) shows only its size and build date. A first comparison takes about 20 seconds, with a progress bar; repeats within 24 hours are fast.
 
 Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), as Docker shows them.
 
@@ -35,10 +36,11 @@ The UI is built into the same binary and calls the same code as the MCP tools, t
 | `save_sbom` | Save the image's full SPDX SBOM as a JSON file, for compliance or scanning tools. See [Saving SBOMs](#saving-sboms). |
 | `check_vulnerabilities` | Look up a CVE/GHSA ID against the image's packages, or summarize recorded fixes per package. |
 | `find_alternative` | Suggest the Chainguard image to replace an upstream one, e.g. `node:20-alpine` → `cgr.dev/chainguard/node`. |
+| `compare_with_upstream` | Compare a Docker Hub image as you run it, e.g. `node:20`, with its Chainguard replacement by size, build date, OS packages and known vulnerabilities (from OSV.dev), plus an end-of-life note. See [Upstream comparison](#upstream-comparison). |
 
 It also provides a `migrate_dockerfile` **prompt** that walks the assistant through converting a Dockerfile to Chainguard images using the tools above.
 
-Every tool except `list_images` and `find_alternative` needs anonymous registry access, so it only works for **free-tier** images. Paid images return a clear error.
+Every tool except `list_images`, `find_alternative` and the upstream side of `compare_with_upstream` needs anonymous Chainguard registry access, so it only works for **free-tier** images. Paid images return a clear error.
 
 ## Example questions
 
@@ -102,6 +104,7 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 - "What should I use instead of gcr.io/distroless/static-debian12?"
 - "We use eclipse-temurin:21-jre and mcr.microsoft.com/dotnet/aspnet:8.0. What are the Chainguard replacements, and are they free?"
 - "Replace ubuntu:24.04 with a Chainguard base image."
+- "We run node:20 today. How would switching to Chainguard change its size, packages and known vulnerabilities?"
 
 ## Data sources
 
@@ -112,8 +115,20 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 | Tags, details, digests | The cgr.dev registry API, with an anonymous token. |
 | Packages | The SPDX SBOM that Chainguard attaches to each image as a signed attestation (`sha256-<digest>.att`). |
 | Vulnerabilities | The [Wolfi security database](https://packages.wolfi.dev/os/security.json), cached for 6 hours. |
+| Upstream images | Docker Hub's registry with an anonymous token: the image's SPDX SBOM attestation, size and build date. Docker Hub allows about 100 anonymous requests an hour per IP; a comparison makes about 5. |
+| Known vulnerabilities (comparison) | [OSV.dev](https://osv.dev), queried per package version, cached for 24 hours. |
+| End of life (comparison) | [endoflife.date](https://endoflife.date), cached for 24 hours. |
 
 The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed vulnerabilities, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype).
+
+## Upstream comparison
+
+`compare_with_upstream` and the Alternatives page's comparison (`GET /api/compare-upstream`, a background job the UI polls) read the upstream image's SBOM from Docker Hub and look up each package on OSV.dev:
+
+- **Binary vs source packages:** a Debian SBOM lists installed binary packages and the source packages they were built from. The OS package count is the binary packages; vulnerabilities are looked up by distinct source package, which is how Debian keys its advisories.
+- **Counting:** each vulnerability counts once per image however many packages it affects, and if it is fixable for any package it counts as *fix available*. Debian's "unimportant" and "end-of-life" urgencies count as *won't fix*; a Chainguard advisory pending an upstream fix counts as *no fix yet*. A fix released only for another Debian release doesn't count.
+- **Accuracy:** on 2026-10-11 the comparison found all 817 CVEs that [grype](https://github.com/anchore/grype) reported for `node:20`'s OS packages. `CHAINGUARD_LIVE=1 go test -run TestLive/upstream` repeats that check when `grype` is on `PATH`.
+- **Not covered:** registries other than Docker Hub, language packages, severity ratings, and images without an SBOM attestation.
 
 ## Catalog history
 
@@ -174,8 +189,9 @@ curl http://127.0.0.1:8080/api/
 | `/api/images/{name}/vulnerabilities` | `tag`, `id` (a CVE or GHSA ID) | `/api/images/python/vulnerabilities?id=CVE-2024-12797` |
 | `/api/images/{name}/sbom` | `tag`, `arch` | `/api/images/python/sbom?tag=latest` |
 | `/api/alternatives` | `image` (required) | `/api/alternatives?image=node:20-alpine` |
+| `/api/compare-upstream` | `image` (required, a Docker Hub image as you run it), `arch` | `/api/compare-upstream?image=node:20` |
 
-Errors are JSON `{"error": "...", "code": "..."}` with status 400 `invalid_input`, 403 `not_public` (subscription-only image), 404 `not_found` (also for unknown `/api/` paths) or 502 `upstream_error`. The API has no authentication; bind it to `127.0.0.1` unless you mean to share it.
+Errors are JSON `{"error": "...", "code": "..."}` with status 400 `invalid_input` or `unsupported_registry` (only Docker Hub images can be compared), 403 `not_public` (subscription-only image), 404 `not_found` (also for unknown `/api/` paths) or `no_alternative`, 429 `rate_limited` (Docker Hub's anonymous limit), or 502 `upstream_error` or `source_failed` (with the failed `source`). The API has no authentication; bind it to `127.0.0.1` unless you mean to share it.
 
 ### Saving SBOMs
 
@@ -280,6 +296,8 @@ git push origin v0.2.0
 | `vulns.go` | Wolfi security database and APK version comparison. |
 | `alternatives.go` | Upstream image → Chainguard image mapping, and grouping images into families of variants. |
 | `groups.go` | Grouping images by variant kind or name prefix for the catalog map. |
+| `compare.go`, `compare_job.go` | The upstream comparison and the background job behind its API. |
+| `osv.go`, `endoflife.go`, `upstream.go`, `upstream_packages.go` | OSV.dev and endoflife.date clients, Docker Hub reference parsing, and the SBOM package lists for Debian, Ubuntu and Alpine images. |
 | `history.go` | Catalog history: the daily snapshot (`-record-history`) and the Internet Archive backfill (`-backfill-history`). |
 | `web/` | React + TypeScript web UI. |
 
