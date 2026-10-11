@@ -12,17 +12,36 @@ Run the server in HTTP mode and open http://127.0.0.1:8080/:
 ./chainguard-mcp -http 127.0.0.1:8080
 ```
 
-- **Catalog:** search all images, filter to free ones, and see which need a subscription. On the List view, ticking **Free only** first checks every image's free-tier status in batches of 250 and shows a progress bar with the time left; the first check takes about 30 seconds, then the results are cached for 24 hours and the bar no longer appears. The **Map** view draws the whole catalog as a treemap with one square per image, green for free and blue-gray for subscription. Group it by **variant** (base images, FIPS, IAM-guarded, IAM-guarded FIPS) or by **name prefix** (`crossplane`, `prometheus`, …); each group has a header with its image count, and groups too small to name are merged into Other. Inside each group, images that share a name prefix sit together in a block (`crossplane` has 220 base images), separated by a little white space. Few images are free: 59 of 3,166 on 2026-10-09, all but one of them base images. The map appears as soon as the catalog loads, and the colors fill in as free-tier status is checked in batches of 1,000 images; the first check takes about 30 seconds, then results are cached for 24 hours. Hover a square to see its name, status and group, or click it to open the image. Click a group's header (or Tab to it and press Enter) to zoom into that group: its name-prefix blocks fill the map, each labeled with its image count, and the legend and family table narrow to the group. A breadcrumb ("All groups › FIPS"), Escape or the browser's Back button zooms out, and the zoom is part of the URL (`?view=map&zoom=FIPS`), so a zoomed map can be shared. A sortable table of image families below the map (an image with its variants, such as `nginx` with `nginx-fips`) lists every image as a link, for keyboard and screen reader users. On phones a bar per group replaces the treemap, above the same table; tap a bar to zoom in, which shows the group's ten largest name-prefix blocks as bars.
-- **Image details:** the pinned reference to use in a Dockerfile, the user it runs as, entrypoint, platforms and download sizes.
-- **Packages & SBOM:** every OS package from the image's signed SBOM, whether it has a shell or package manager, and a download of the full SPDX SBOM. A license breakdown above the table counts packages as Permissive, Weak copyleft, Strong copyleft, Not declared or Unrecognized (an identifier outside its table); click a category to filter the table to it. Compound licenses count once: `AND` takes the most restrictive part, `OR` the least restrictive, and a `WITH` exception counts as its base license. It reflects the licenses declared in the SBOM, is informational only and isn't legal advice.
-- **Security:** recorded vulnerability fixes per source package, and a CVE/GHSA lookup. A chart gives each source package with records a stacked bar of fixes included, vulnerabilities recorded as never affecting it, and fixes that a newer package version has but the image lacks. Those missing fixes are highlighted, their packages sort first, and their IDs are listed. Packages without records get no bar; the chart counts them, and the table below lists every package. The data comes from the Wolfi security database, which records fixes, not open vulnerabilities, so it isn't a full scan.
-- **Compare:** two tags of the same image side by side, by default the minimal `latest` and the development `latest-dev`. Shows how much larger one is, each tag's package count, download size, shell and `apk`, a size chart, and the packages only in one tag or at different versions. Pick any two tags and amd64 or arm64; the comparison is kept in the URL, so you can share or reload it.
-- **Find alternative:** enter an image you use today, like `node:20-alpine`, to get its Chainguard replacement and migration notes.
-- **Compare with upstream:** below a recommended replacement, the Alternatives page compares the image you entered, exactly as typed (`node:20` is compared as `node:20`, not as a newer tag), with the replacement's `latest` tag on amd64 or arm64: download size, build date, installed OS packages, and known vulnerabilities split into fix available, no fix yet and won't fix, with a note when the upstream release is past its end of life. The summary leads with the vulnerabilities that have a fix in the distribution but not in the image, and the package counts. Counts are *known vulnerabilities per each distribution's own advisories*, so each side is graded by its own maintainers; they are never presented as a guarantee that either image is secure, and a count of zero reads "0 known vulnerabilities". Only Docker Hub images are compared, and only installed OS packages (Debian, Ubuntu or Alpine upstream; Wolfi or Chainguard): language packages such as npm are counted but not compared, and Linux kernel advisories are left out because containers run on the host's kernel. An upstream image that publishes no SBOM (such as `bitnami/redis`) shows only its size and build date. A first comparison takes about 20 seconds, with a progress bar; repeats within 24 hours are fast.
+The UI is built into the binary and runs the same code as the MCP tools, through a JSON API under `/api/` (which lists its endpoints). Screenshots are from 2026-10-11.
 
-Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), as Docker shows them.
+### Catalog
 
-The UI is built into the same binary and calls the same code as the MCP tools, through a JSON API under `/api/`. The comparison, the license breakdown and the fixes chart are computed in the browser from that API's responses. The catalog map's groups come from `GET /api/groups` (`group_by=variant` or `prefix`, and an optional `query`) and its families from `GET /api/families`; both use the same variant rules as `find_alternative`. They're the only endpoints without a matching MCP tool, since `find_alternative` already returns any image's variants.
+Search every Chainguard image and filter to the free ones, or switch to the **Map**: one square per image, green for free, grouped by variant or name prefix. Click a group's header to zoom in. Checking every image's free-tier status takes about 30 seconds the first time, with a progress bar.
+
+![The catalog map: 3,171 images, 59 of them free, grouped into base images and FIPS](docs/screenshots/catalog-map.png)
+
+### Image page
+
+- **Overview:** the pinned reference for your Dockerfile, the runtime user, entrypoint, platforms and download sizes.
+- **Packages & SBOM:** every OS package from the image's signed SBOM, a license breakdown, and the full SPDX download.
+- **Security:** recorded vulnerability fixes per source package, and a CVE or GHSA lookup.
+- **Compare:** two tags side by side, by default `latest` and `latest-dev`.
+
+![Comparing python latest with latest-dev: 29 packages and 28.2 MB against 76 packages and 270.6 MB](docs/screenshots/compare-tab.png)
+
+![The license breakdown for python: 16 permissive, 7 strong copyleft and 6 weak copyleft packages](docs/screenshots/license-breakdown.png)
+
+![Fixes per source package for python, led by openssl-4.0 with 147 fixes](docs/screenshots/security-fixes.png)
+
+The security data records fixes, not open vulnerabilities, so it isn't a full scan.
+
+### Find alternative
+
+Enter an image you use today, such as `node:20`, to get its Chainguard replacement and migration notes, then a comparison of the two: size, build date, installed OS packages, and known vulnerabilities per OSV.dev, split by whether a fix exists. Docker Hub images only; a first comparison takes about 20 seconds.
+
+![node:20 compared with Chainguard's node: 295 known vulnerabilities with a fix available against 0, and 393 OS packages against 28](docs/screenshots/upstream-comparison.png)
+
+Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), as Docker shows them. Each feature's exact behavior and edge cases are specified in [`openspec/specs/`](openspec/specs/).
 
 ## Tools
 
