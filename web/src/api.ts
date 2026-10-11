@@ -170,9 +170,12 @@ export type UpstreamSide = {
   created?: string
   size_bytes: number
   sbom_published: boolean
+  /** False when the OS packages couldn't be checked; unchecked_reason says why. */
+  packages_checked: boolean
+  unchecked_reason?: 'no_sbom' | 'no_os_packages' | 'unsupported_distribution'
   os_packages: number
   language_packages?: LanguageCount[]
-  /** Absent when no SBOM is published. */
+  /** Absent when the packages weren't checked: never read that as zero. */
   vulnerabilities?: VulnCounts
 }
 

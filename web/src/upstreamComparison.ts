@@ -30,7 +30,7 @@ export function chainguardName(c: UpstreamComparison): string {
 export function comparisonSummary(c: UpstreamComparison): string {
   const up = c.upstream
   const cg = c.chainguard
-  if (!up.sbom_published || !up.vulnerabilities || !cg.vulnerabilities) return ''
+  if (!up.packages_checked || !up.vulnerabilities || !cg.vulnerabilities) return ''
   const n = (v: number) => v.toLocaleString('en-US')
   return (
     `${c.input} has ${n(up.vulnerabilities.fix_available)} known vulnerabilities with a fix available; ` +
@@ -51,6 +51,23 @@ export function totalsSentence(c: UpstreamComparison): string {
   const when = `OSV.dev, checked ${shortDate(c.checked_at)}`
   const chainguard = `Chainguard's ${chainguardName(c)}: ${countPhrase(cg.total)}`
   return up ? `${c.input}: ${countPhrase(up.total)}. ${chainguard} (${when}).` : `${chainguard} (${when}).`
+}
+
+/**
+ * Why a side's packages weren't checked (UC-2.2, UC-15), or "" when
+ * they were. Says plainly that nothing checked is not the same as nothing found.
+ */
+export function uncheckedMessage(side: UpstreamComparison['upstream']): string {
+  if (side.packages_checked) return ''
+  switch (side.unchecked_reason) {
+    case 'no_sbom':
+      return `No SBOM published for ${side.reference}: its packages and known vulnerabilities can't be listed. Its size and build date are still shown.`
+    case 'no_os_packages':
+      return `${side.reference}'s SBOM lists no distribution packages (it may be statically built), so its known vulnerabilities can't be checked. That is not the same as having none.`
+    case 'unsupported_distribution':
+      return `${side.reference}'s packages come from a distribution with no vulnerability data here, so its known vulnerabilities can't be checked. That is not the same as having none.`
+  }
+  return `${side.reference}'s packages couldn't be checked for known vulnerabilities.`
 }
 
 export function endOfLifeSentence(c: UpstreamComparison): string {

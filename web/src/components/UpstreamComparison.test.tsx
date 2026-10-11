@@ -1,3 +1,4 @@
+import { focusManager } from '@tanstack/react-query'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -16,6 +17,7 @@ const node20: Comparison = {
     created: '2026-04-22T03:00:00Z',
     size_bytes: 398_400_000,
     sbom_published: true,
+    packages_checked: true,
     os_packages: 393,
     language_packages: [{ ecosystem: 'npm', count: 193 }],
     vulnerabilities: { total: 833, fix_available: 295, no_fix_yet: 325, wont_fix: 213 },
@@ -27,6 +29,7 @@ const node20: Comparison = {
     created: '2026-10-09T01:00:00Z',
     size_bytes: 65_900_000,
     sbom_published: true,
+    packages_checked: true,
     os_packages: 28,
     vulnerabilities: { total: 22, fix_available: 0, no_fix_yet: 22, wont_fix: 0 },
   },
@@ -100,7 +103,7 @@ describe('UpstreamComparison', () => {
   it('UC-2.2 explains an upstream image without an SBOM and still shows its size and build date', async () => {
     const noSbom: Comparison = structuredClone(node20)
     noSbom.input = 'bitnami/redis:7.2'
-    noSbom.upstream = { ...noSbom.upstream, reference: 'docker.io/bitnami/redis:7.2', sbom_published: false, os_packages: 0, language_packages: undefined, vulnerabilities: undefined }
+    noSbom.upstream = { ...noSbom.upstream, reference: 'docker.io/bitnami/redis:7.2', sbom_published: false, packages_checked: false, unchecked_reason: 'no_sbom', os_packages: 0, language_packages: undefined, vulnerabilities: undefined }
     mockApi({ '/api/compare-upstream': { body: done(noSbom) } })
     renderSection()
 
@@ -111,6 +114,34 @@ describe('UpstreamComparison', () => {
     // No counts for the upstream side, and no summary comparing them.
     expect(screen.queryByText(/with a fix available;/)).not.toBeInTheDocument()
     expect(screen.queryByText('393')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['UC-15.1', 'no_os_packages', 'busybox:latest', /lists no distribution packages \(it may be statically built\)/],
+    ['UC-15.2', 'unsupported_distribution', 'fedora:40', /come from a distribution with no vulnerability data here/],
+  ] as const)('%s never shows an unchecked upstream image as 0 known vulnerabilities', async (_, reason, input, message) => {
+    const unchecked: Comparison = structuredClone(node20)
+    unchecked.input = input
+    unchecked.upstream = {
+      ...unchecked.upstream,
+      reference: `docker.io/library/${input}`,
+      packages_checked: false,
+      unchecked_reason: reason,
+      os_packages: 0,
+      vulnerabilities: undefined,
+    }
+    mockApi({ '/api/compare-upstream': { body: done(unchecked) } })
+    renderSection()
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.getByText(/That is not the same as having none\./)).toBeInTheDocument()
+    // Dashes, not zeros, on the upstream side; the Chainguard side is unchanged.
+    const table = screen.getByRole('table')
+    const row = (name: string) => within(within(table).getByRole('rowheader', { name })).getByText(name).closest('tr')!
+    expect(within(row('OS packages')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', '28'])
+    expect(within(row('Known vulnerabilities')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', '22'])
+    expect(screen.queryByText(/with a fix available;/)).not.toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(`${input}: 0 known`))).not.toBeInTheDocument()
   })
 
   it('UC-1.1 lets the user choose the architecture', async () => {
@@ -176,6 +207,22 @@ describe('UpstreamComparison', () => {
     const after = fetchMock.mock.calls.length
     await new Promise((r) => setTimeout(r, 100))
     expect(fetchMock.mock.calls.length).toBe(after)
+  })
+
+  it('UC-9.1 keeps polling while the tab is in the background', async () => {
+    const responses: CompareJob[] = [{ status: 'running', checked: 0, total: 0 }, { status: 'running', checked: 210, total: 550 }, done(node20)]
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(responses[Math.min(calls++, responses.length - 1)]), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+    focusManager.setFocused(false)
+    try {
+      renderSection()
+      expect(await screen.findByRole('table')).toBeInTheDocument()
+    } finally {
+      focusManager.setFocused(undefined)
+    }
   })
 
   it('UC-9 stops polling when the page is left', async () => {

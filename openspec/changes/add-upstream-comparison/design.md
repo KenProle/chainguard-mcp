@@ -73,3 +73,9 @@ Add Docker Hub (upstream images' SBOM attestations, sizes and build dates), OSV.
 ## Migration Plan
 
 Additive. Rollback is reverting the change; caches are in memory.
+
+## Changes from review (2026-10-11)
+
+- **Unchecked images (UC-15).** Review found that `busybox:latest` (an SBOM with no distribution packages) compared as "0 known vulnerabilities" against Chainguard's 20, and that RPM packages (Fedora, Amazon Linux, AlmaLinux publish SBOMs) were skipped silently, which would read the same way. Each side now has `packages_checked` and `unchecked_reason` (`no_sbom`, `no_os_packages`, `unsupported_distribution`); `parseUpstreamPackages` records unsupported distributions in `Unsupported` instead of failing or skipping, and any of them leaves the side unchecked, since a partial check would undercount. Unchecked sides carry no counts, and the UI and notes say that nothing checked is not the same as nothing found.
+- **Known limitation of `classify`.** Any `fixed` event in the package's own advisory counts as fix available. An advisory fixed and later reintroduced without a fix would be miscounted for versions in the second range; handling it needs ecosystem-aware version comparison (Debian, Alpine, Ubuntu). It's rare, and the UC-13 cross-check would surface a material drift.
+- **Polling in a background tab.** Review also found the page stopped polling while its tab was hidden (TanStack Query's default), so a user who switched tabs during the ~20-second first comparison would come back to a stalled progress bar, and after 5 minutes the server drops the unpolled job. The query now sets `refetchIntervalInBackground: true`; polling still stops when the comparison is done or the section is left.

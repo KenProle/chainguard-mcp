@@ -4,7 +4,7 @@
 
 Compares an upstream container image a user runs today with its Chainguard replacement, by size, installed OS packages, known vulnerabilities and support status, so the value of switching is visible and stated fairly.
 
-UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`.
+UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility; UC-15 images whose packages can't be checked. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`.
 
 ## ADDED Requirements
 
@@ -141,3 +141,14 @@ The comparison SHALL present every number as text, with any chart only as an add
 #### Scenario: UC-14.1 Phone width in dark mode
 - **WHEN** the comparison is viewed at 375 px wide in dark mode
 - **THEN** nothing overflows horizontally, all counts are readable as text, and the console shows no Content Security Policy violations
+
+### Requirement: UC-15 Unchecked images never read as zero
+When an upstream image's SBOM lists no packages from a supported distribution, or lists packages from a distribution with no vulnerability data here (such as RPM-based Fedora), the comparison SHALL show that its known vulnerabilities could not be checked and why, with no package or vulnerability counts for it, and SHALL NOT present it as having 0 known vulnerabilities. Size and build date SHALL still be shown.
+
+#### Scenario: UC-15.1 A static image
+- **WHEN** `busybox:latest`, whose SBOM lists no distribution packages (as on 2026-10-11), is compared with Chainguard's `busybox`, which has 20 known vulnerabilities
+- **THEN** the upstream side says its SBOM lists no distribution packages so its known vulnerabilities can't be checked, that this is not the same as having none, and shows no counts, while the Chainguard side shows its 20
+
+#### Scenario: UC-15.2 An unsupported distribution
+- **WHEN** an upstream image's SBOM lists RPM packages from Fedora 40
+- **THEN** the upstream side says its packages come from a distribution with no vulnerability data here, names it, and shows no counts; no package is silently left out

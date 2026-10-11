@@ -55,3 +55,8 @@ Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the 
 - Review the change on the stronger model before archiving, as with the last two changes.
 - Archive with `/opsx:archive` once CI passes; this creates the living spec `openspec/specs/upstream-comparison/spec.md`.
 - Update idea 5's status in `docs/visualization-ideas.md`; idea 7 can reuse the OSV client from this change.
+
+## 10. Review fixes
+
+- [x] 10.1 Show unchecked upstream images as unchecked, never as 0 known vulnerabilities (UC-15; design, "Changes from review"). Verify: `TestUC15_1_SBOMWithoutOSPackages`, `TestUC15_2_UnsupportedDistribution` and `TestUC2_ChecksPackagesWhenSupported` pass, the UI tests `UC-15.1` and `UC-15.2` pass, and a live comparison of `busybox:latest` shows the upstream side unchecked with no counts.
+- [x] 10.2 Keep polling while the tab is hidden (UC-9; design, "Changes from review"). Verify: the UI test "UC-9.1 keeps polling while the tab is in the background" passes, and fails if `refetchIntervalInBackground` is turned off.

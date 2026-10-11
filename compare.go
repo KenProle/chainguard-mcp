@@ -38,11 +38,24 @@ type UpstreamSide struct {
 	SizeBytes int64  `json:"size_bytes" jsonschema:"compressed download size in bytes"`
 	// SBOMPublished is false for upstream images that publish no SBOM
 	// attestation; their package and vulnerability figures are then absent.
-	SBOMPublished    bool            `json:"sbom_published"`
+	SBOMPublished bool `json:"sbom_published"`
+	// PackagesChecked is true only when the image's OS packages could be
+	// looked up. Otherwise UncheckedReason says why, and there are no
+	// vulnerability counts: an image with nothing checked must never read as
+	// having 0 known vulnerabilities (UC-15).
+	PackagesChecked  bool            `json:"packages_checked" jsonschema:"whether the image's OS packages could be checked for known vulnerabilities"`
+	UncheckedReason  string          `json:"unchecked_reason,omitempty" jsonschema:"why the packages weren't checked: 'no_sbom', 'no_os_packages' or 'unsupported_distribution'"`
 	OSPackages       int             `json:"os_packages" jsonschema:"installed OS packages; for Debian images, binary packages rather than the source packages the SBOM also lists"`
 	LanguagePackages []LanguageCount `json:"language_packages,omitempty" jsonschema:"language packages in the image; counted but not compared"`
-	Vulnerabilities  *VulnCounts     `json:"vulnerabilities,omitempty" jsonschema:"known vulnerabilities in the OS packages, absent when no SBOM is published"`
+	Vulnerabilities  *VulnCounts     `json:"vulnerabilities,omitempty" jsonschema:"known vulnerabilities in the OS packages, absent when the packages weren't checked"`
 }
+
+// Why an image's packages weren't checked (UC-2).
+const (
+	uncheckedNoSBOM      = "no_sbom"
+	uncheckedNoOSPackage = "no_os_packages"
+	uncheckedUnsupported = "unsupported_distribution"
+)
 
 // UpstreamComparison compares an upstream image with its Chainguard
 // replacement.
@@ -131,7 +144,7 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 	}
 
 	var upLookups, cgLookups []OSVPackage
-	if upPkgs != nil {
+	if up.PackagesChecked {
 		upLookups = upPkgs.Lookups
 	}
 	seen := make(map[OSVPackage]bool)
@@ -150,7 +163,7 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 	if err != nil {
 		return nil, err
 	}
-	if upPkgs != nil {
+	if up.PackagesChecked {
 		c := summarize(subset(results, upLookups))
 		up.Vulnerabilities = &c
 	}
@@ -169,8 +182,13 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 			"Advisories for the Linux kernel are excluded: containers ship only its headers and run on the host's kernel.",
 		},
 	}
-	if !up.SBOMPublished {
+	switch up.UncheckedReason {
+	case uncheckedNoSBOM:
 		cmp.Notes = append(cmp.Notes, "The upstream image publishes no SBOM, so its packages and vulnerabilities can't be listed.")
+	case uncheckedNoOSPackage:
+		cmp.Notes = append(cmp.Notes, "The upstream image's SBOM lists no distribution packages (it may be statically built), so its known vulnerabilities can't be checked. That is not the same as having none.")
+	case uncheckedUnsupported:
+		cmp.Notes = append(cmp.Notes, "The upstream image's packages come from a distribution with no vulnerability data here ("+strings.Join(upPkgs.Unsupported, ", ")+"), so its known vulnerabilities can't be checked. That is not the same as having none.")
 	}
 	return cmp, nil
 }
@@ -274,10 +292,22 @@ func (s *Service) upstreamSide(ctx context.Context, repo, tag, arch string) (Ups
 		}
 		s.cache.putUpstream(digest, pkgs)
 	}
-	if pkgs != nil {
+	switch {
+	case pkgs == nil:
+		side.UncheckedReason = uncheckedNoSBOM
+	default:
 		side.SBOMPublished = true
-		side.OSPackages = pkgs.Installed
 		side.LanguagePackages = languageCounts(pkgs.Language)
+		switch {
+		case len(pkgs.Unsupported) > 0:
+			// A partial check would undercount, so check nothing.
+			side.UncheckedReason = uncheckedUnsupported
+		case pkgs.Installed == 0:
+			side.UncheckedReason = uncheckedNoOSPackage
+		default:
+			side.PackagesChecked = true
+			side.OSPackages = pkgs.Installed
+		}
 	}
 	return side, pkgs, nil
 }
@@ -291,7 +321,7 @@ func (s *Service) chainguardSide(ctx context.Context, image, arch string) (Upstr
 		return UpstreamSide{}, nil, notPublicHint(image, err)
 	}
 	platform := "linux/" + arch
-	side := UpstreamSide{Reference: s.Registry.Ref(image) + ":" + tag, Platform: platform, Created: d.Created, SBOMPublished: true}
+	side := UpstreamSide{Reference: s.Registry.Ref(image) + ":" + tag, Platform: platform, Created: d.Created, SBOMPublished: true, PackagesChecked: true}
 	for _, p := range d.Platforms {
 		if p.Platform == platform {
 			side.Digest, side.SizeBytes = p.Digest, p.SizeBytes

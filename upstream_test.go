@@ -192,8 +192,10 @@ func TestUC3_1_UpstreamEcosystems(t *testing.T) {
 		"SPDXID": "SPDXRef-a", "name": "bash", "versionInfo": "5",
 		"externalRefs": []map[string]string{{"referenceType": "purl", "referenceLocator": "pkg:deb/raspbian/bash@5?os_name=raspbian&os_version=12"}},
 	}}})
-	if _, err := parseUpstreamPackages(unsupported); err == nil {
-		t.Error("an unsupported distribution should be an error, not silently uncounted")
+	// An unsupported distribution is reported, not silently uncounted (UC-15.2).
+	got, err = parseUpstreamPackages(unsupported)
+	if err != nil || got.Installed != 0 || len(got.Lookups) != 0 || !slices.Equal(got.Unsupported, []string{"deb/raspbian 12"}) {
+		t.Errorf("raspbian: %+v %v", got, err)
 	}
 }
 

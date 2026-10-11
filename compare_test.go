@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -168,6 +169,66 @@ func TestUC2_2_NoSBOMEndToEnd(t *testing.T) {
 	}
 	if cmp.EndOfLife != nil {
 		t.Errorf("end of life = %+v, want none for python 3.12", cmp.EndOfLife)
+	}
+}
+
+// uncheckedUpstream compares a node tag whose SBOM is sbom and checks that the
+// upstream side reports reason and no counts, never "0 known vulnerabilities".
+func uncheckedUpstream(t *testing.T, tag string, sbom json.RawMessage, reason, note string) {
+	t.Helper()
+	svc, f := newFakeUpstreamService(t)
+	f.Hub.addImage("library/node", tag, dockerImage{created: "2026-09-01T00:00:00Z", sbom: sbom})
+	cmp, err := svc.CompareUpstream(context.Background(), CompareUpstreamInput{Image: "node:" + tag})
+	if err != nil {
+		t.Fatal(err)
+	}
+	up := cmp.Upstream
+	if !up.SBOMPublished || up.PackagesChecked || up.UncheckedReason != reason || up.Vulnerabilities != nil || up.OSPackages != 0 {
+		t.Errorf("upstream side = %+v, want an unchecked side (%s) without counts", up, reason)
+	}
+	if up.SizeBytes == 0 || up.Created == "" {
+		t.Errorf("size and build date are still shown: %+v", up)
+	}
+	if !cmp.Chainguard.PackagesChecked || cmp.Chainguard.Vulnerabilities == nil {
+		t.Errorf("chainguard side is still checked: %+v", cmp.Chainguard)
+	}
+	explains := func(n string) bool {
+		return strings.Contains(n, note) && strings.Contains(n, "not the same as having none")
+	}
+	if !slices.ContainsFunc(cmp.Notes, explains) {
+		t.Errorf("notes = %q, want one explaining %q", cmp.Notes, note)
+	}
+}
+
+func TestUC15_1_SBOMWithoutOSPackages(t *testing.T) {
+	// Like Docker Hub's busybox: an SBOM, but no distribution packages.
+	uncheckedUpstream(t, "static", debianSPDX(t, nil, "semver"), uncheckedNoOSPackage, "lists no distribution packages")
+}
+
+func TestUC15_2_UnsupportedDistribution(t *testing.T) {
+	// Like Fedora's images: RPM packages, which have no vulnerability data here.
+	sbom := mustJSON(t, map[string]any{"packages": []map[string]any{{
+		"SPDXID": "SPDXRef-bash", "name": "bash", "versionInfo": "5.2.26-3.fc40",
+		"externalRefs": []map[string]string{{"referenceType": "purl", "referenceLocator": "pkg:rpm/fedora/bash@5.2.26-3.fc40?os_name=fedora&os_version=40"}},
+	}}})
+	uncheckedUpstream(t, "fedora", sbom, uncheckedUnsupported, "rpm/fedora 40")
+}
+
+func TestUC2_ChecksPackagesWhenSupported(t *testing.T) {
+	svc, _ := newFakeUpstreamService(t)
+	cmp, err := svc.CompareUpstream(context.Background(), CompareUpstreamInput{Image: "node:20"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Upstream.PackagesChecked || cmp.Upstream.UncheckedReason != "" || cmp.Upstream.Vulnerabilities == nil {
+		t.Errorf("node:20 should be checked: %+v", cmp.Upstream)
+	}
+	py, err := svc.CompareUpstream(context.Background(), CompareUpstreamInput{Image: "python:3.12-slim"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if py.Upstream.PackagesChecked || py.Upstream.UncheckedReason != uncheckedNoSBOM {
+		t.Errorf("python:3.12-slim (no SBOM): %+v", py.Upstream)
 	}
 }
 

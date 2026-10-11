@@ -10,6 +10,7 @@ import {
   languageSummary,
   shortDate,
   totalsSentence,
+  uncheckedMessage,
 } from '../upstreamComparison'
 import { ProgressBar } from './ProgressBar'
 import { Card, ErrorState } from './ui'
@@ -41,6 +42,9 @@ export function UpstreamComparison({
     // Ask again while the job runs; stop once it is done or this section is
     // left (a query with no observers isn't refetched).
     refetchInterval: (query) => (query.state.data?.status === 'running' ? pollMs : false),
+    // Keep polling in a background tab: people switch tabs while a first
+    // comparison runs, and the server drops jobs nobody polls.
+    refetchIntervalInBackground: true,
     retry: false,
     staleTime: 5 * 60_000,
   })
@@ -105,6 +109,9 @@ function Result({ comparison: c }: { comparison: Comparison }) {
   const summary = comparisonSummary(c)
   const eol = endOfLifeSentence(c)
   const noSbom = !up.sbom_published
+  // Nothing checked is not "0 known vulnerabilities": show dashes, not zeros.
+  const unchecked = !up.packages_checked
+  const uncheckedNote = uncheckedMessage(up)
   const dash = <span aria-label="not available">—</span>
 
   const vuln = (side: UpstreamSide, pick: (v: NonNullable<UpstreamSide['vulnerabilities']>) => number): ReactNode =>
@@ -113,7 +120,7 @@ function Result({ comparison: c }: { comparison: Comparison }) {
   const rows: { label: string; indent?: boolean; up: ReactNode; cg: ReactNode }[] = [
     { label: 'Download size', up: formatBytes(up.size_bytes), cg: formatBytes(cg.size_bytes) },
     { label: 'Built', up: shortDate(up.created) || dash, cg: shortDate(cg.created) || dash },
-    { label: 'OS packages', up: noSbom ? dash : up.os_packages.toLocaleString('en-US'), cg: cg.os_packages.toLocaleString('en-US') },
+    { label: 'OS packages', up: unchecked ? dash : up.os_packages.toLocaleString('en-US'), cg: cg.os_packages.toLocaleString('en-US') },
     { label: 'Known vulnerabilities', up: vuln(up, (v) => v.total), cg: vuln(cg, (v) => v.total) },
     { label: 'Fix available', indent: true, up: vuln(up, (v) => v.fix_available), cg: vuln(cg, (v) => v.fix_available) },
     { label: 'No fix yet', indent: true, up: vuln(up, (v) => v.no_fix_yet), cg: vuln(cg, (v) => v.no_fix_yet) },
@@ -134,11 +141,7 @@ function Result({ comparison: c }: { comparison: Comparison }) {
       )}
       <Card>
         {summary && <p className="font-medium">{summary}</p>}
-        {noSbom && (
-          <p className="text-sm">
-            No SBOM published for {up.reference}: its packages and known vulnerabilities can't be listed. Its size and build date are still shown.
-          </p>
-        )}
+        {uncheckedNote && <p className="text-sm">{uncheckedNote}</p>}
 
         <table className="mt-3 w-full table-fixed text-sm">
           <caption className="sr-only">

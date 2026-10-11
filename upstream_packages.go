@@ -28,12 +28,21 @@ type UpstreamPackages struct {
 	// Language counts language packages (npm, pypi, …) by ecosystem; they are
 	// not compared.
 	Language map[string]int
+	// Unsupported names the distributions of OS packages that have no
+	// vulnerability data here, such as "rpm/fedora 40". Any of them means the
+	// image's vulnerabilities can't be fully checked (UC-15.2).
+	Unsupported []string
 }
 
 // kernelSource is Debian's source package for the Linux kernel. Containers
 // ship only its headers (linux-libc-dev) and run on the host's kernel, so its
 // advisories don't apply and are left out (UC-4).
 const kernelSource = "linux"
+
+// osPurlTypes are the purl types of distribution (OS) packages. Only deb and
+// apk from the distributions osvEcosystemFor knows are checked; the others are
+// reported as unsupported rather than skipped (UC-15.2).
+var osPurlTypes = map[string]bool{"deb": true, "apk": true, "rpm": true, "alpm": true, "ebuild": true}
 
 // languagePurlTypes are the purl types counted as language packages.
 var languagePurlTypes = map[string]bool{
@@ -133,7 +142,7 @@ func parseUpstreamPackages(raw json.RawMessage) (*UpstreamPackages, error) {
 			}
 			byID[p.SPDXID] = spdxPurlPackage{
 				id: p.SPDXID, typ: parts.typ, purl: parts,
-				isOS:     parts.typ == "deb" || parts.typ == "apk",
+				isOS:     osPurlTypes[parts.typ],
 				language: languagePurlTypes[parts.typ],
 			}
 			break
@@ -153,6 +162,7 @@ func parseUpstreamPackages(raw json.RawMessage) (*UpstreamPackages, error) {
 
 	out := &UpstreamPackages{Language: map[string]int{}}
 	seen := make(map[OSVPackage]bool)
+	unsupported := make(map[string]bool)
 	for _, p := range doc.Packages {
 		pkg, ok := byID[p.SPDXID]
 		switch {
@@ -166,7 +176,12 @@ func parseUpstreamPackages(raw json.RawMessage) (*UpstreamPackages, error) {
 		}
 		ecosystem := osvEcosystemFor(pkg.purl)
 		if ecosystem == "" {
-			return nil, fmt.Errorf("%s: unsupported distribution %s/%s %s", p.Name, pkg.typ, pkg.purl.namespace, pkg.purl.qualifiers.Get("os_version"))
+			label := strings.TrimSpace(pkg.typ + "/" + pkg.purl.namespace + " " + pkg.purl.qualifiers.Get("os_version"))
+			if !unsupported[label] {
+				unsupported[label] = true
+				out.Unsupported = append(out.Unsupported, label)
+			}
+			continue
 		}
 		out.Installed++
 		src := pkg.purl
@@ -182,6 +197,7 @@ func parseUpstreamPackages(raw json.RawMessage) (*UpstreamPackages, error) {
 			out.Lookups = append(out.Lookups, lookup)
 		}
 	}
+	sort.Strings(out.Unsupported)
 	sort.Slice(out.Lookups, func(i, j int) bool {
 		a, b := out.Lookups[i], out.Lookups[j]
 		if a.Name != b.Name {
