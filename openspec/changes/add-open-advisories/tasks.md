@@ -1,6 +1,6 @@
 # Tasks
 
-Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the scenario ID they cover (e.g. `OA-2.2 …`). Design decisions are numbered as in `design.md`. Unit tests use small Chainguard-shaped OSV records trimmed from the 2026-10-11 data; the spec's exact live figures are checked in task 6.2. Start after the separate `fix-upstream-comparison` session has merged if possible, and reuse its vulnerability key (design decision 3).
+Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the scenario ID they cover (e.g. `OA-2.2 …`). Design decisions are numbered as in `design.md`. Unit tests use small Chainguard-shaped OSV records trimmed from the 2026-10-11 data; the spec's exact live figures are checked in task 6.2. Start after the separate change `fix-upstream-cve-counting` has merged, and reuse its `vulnKeys` (design decision 3).
 
 ## 1. Cross-check and project rules
 
@@ -10,12 +10,12 @@ Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the 
 
 ## 2. OSV client
 
-- [ ] 2.1 Read `upstream`, `aliases`, the `fixed` version, and `components[].component_name`/`component_type` into `OSVVuln` (design decisions 2 and 3). Verify: a unit test decodes a captured Chainguard record (`CGA-2727-9j94-3x3p`) and a Debian record, and the existing UC tests still pass.
+- [ ] 2.1 Read the `fixed` version and `components[].component_name`/`component_type` into `OSVVuln` (`upstream` and `aliases` come with the comparison fix) (design decisions 2 and 3). Verify: a unit test decodes a captured Chainguard record (`CGA-2727-9j94-3x3p`) and a Debian record, and the existing UC tests still pass.
 - [ ] 2.2 Give `OSV` a per-ecosystem cache TTL (1 hour for `Wolfi` and `Chainguard`, 24 hours otherwise), and make `QueryAll` report the oldest fetch time it used (design decision 5; OA-12). Verify with fake-OSV tests using a controllable clock: `OA-12.1` (a repeat within an hour makes no request and keeps the first time), `OA-12.2` (after an hour it queries again), and a Debian package still cached at 23 hours (UC-10).
 
 ## 3. Advisory analysis
 
-- [ ] 3.1 Add the grouping key, `advisoryStatus` and the report builder from `[]Package` plus OSV results: one entry per vulnerability with its packages, statuses, advisory IDs, fixed versions and non-`apk` components with readable kinds; totals; not-covered packages; ordering (design decisions 2–4; OA-1, OA-2, OA-3, OA-4, OA-5, OA-7). Verify with unit tests: `OA-1.3`, `OA-2.1` (python `latest`'s 20 trimmed records → 7), `OA-2.2`, `OA-2.3`, `OA-3.1`, `OA-3.2`, `OA-3.3`, `OA-4.1`, `OA-4.2`, `OA-5.2`, `OA-7.1` and `OA-7.2` (rule level), and an unknown state → confirmed.
+- [ ] 3.1 Add `advisoryStatus` and the report builder, grouping by the comparison fix's `vulnKeys`, from `[]Package` plus OSV results: one entry per vulnerability with its packages, statuses, advisory IDs, fixed versions and non-`apk` components with readable kinds; totals; not-covered packages; ordering (design decisions 2–4; OA-1, OA-2, OA-3, OA-4, OA-5, OA-7). Verify with unit tests: `OA-1.3`, `OA-2.1` (python `latest`'s 20 trimmed records → 7), `OA-2.2`, `OA-2.3`, `OA-2.4`, `OA-3.1`, `OA-3.2`, `OA-3.3`, `OA-4.1`, `OA-4.2`, `OA-5.2`, `OA-7.1` and `OA-7.2` (rule level), and an unknown state → confirmed.
 - [ ] 3.2 Add ID matching for lookups (design decision 3; OA-9). Verify with unit tests: `OA-9.1`, `OA-9.2` (match by advisory ID), a GHSA match, case-insensitive input, and `OA-9.3` (no match → `match` empty, wording without "unaffected").
 
 ## 4. Service, API and MCP

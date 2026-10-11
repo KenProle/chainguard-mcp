@@ -41,7 +41,7 @@ Proposed in exploration and kept here (the user didn't object):
 
 - Severity ratings and sorting by severity.
 - Tags and architectures other than those the Security tab already uses (the selected tag, amd64).
-- Changes to the upstream comparison. The bug that made it count advisory IDs instead of CVEs is being fixed in a separate session. A shared CVE key from that fix should be reused here.
+- Changes to the upstream comparison. The bug that made it count advisory IDs instead of CVEs is fixed in the separate change `fix-upstream-cve-counting`, whose `vulnKeys` rule this change reuses.
 - Packages outside the Wolfi and Chainguard ecosystems (none in free-tier images today); they are listed as not covered.
 - Subscription-only images, which keep the existing subscription message.
 - Bundling a scanner such as grype. It stays a manual cross-check during implementation.

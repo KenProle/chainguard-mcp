@@ -25,7 +25,7 @@ For an image and tag, open advisories SHALL be looked up on OSV.dev for each ins
 - **THEN** that package is not looked up and is listed as not covered
 
 ### Requirement: OA-2 Counted once per vulnerability
-Each vulnerability SHALL be counted once per image, however many advisories and packages it has. Advisories SHALL be grouped by the CVE they track, or by their first other upstream ID (such as a GHSA ID) when they track no CVE, or by their own ID when they track nothing.
+Each vulnerability SHALL be counted once per image, however many advisories and packages it has, using the same rule as the upstream comparison (UC-4). An advisory stands for the CVE IDs it names (in `upstream` or `aliases`, or its own ID), else for the GHSA IDs it names, else for its own ID; an advisory that names several CVEs counts under each of them.
 
 #### Scenario: OA-2.1 python latest
 - **WHEN** open advisories are requested for `python` `latest`
@@ -36,8 +36,12 @@ Each vulnerability SHALL be counted once per image, however many advisories and 
 - **THEN** CVE-2026-89092 is counted once, and both advisory IDs are listed under it
 
 #### Scenario: OA-2.3 Advisory without a CVE
-- **WHEN** an advisory tracks only a GHSA ID
-- **THEN** it is counted under that GHSA ID
+- **WHEN** an advisory names no CVE but names a GHSA ID, and another package's advisory names the same GHSA ID
+- **THEN** both are counted once, under that GHSA ID
+
+#### Scenario: OA-2.4 Advisory naming several CVEs
+- **WHEN** an advisory names two CVEs
+- **THEN** it counts as two vulnerabilities, and it is listed under each of them
 
 ### Requirement: OA-3 Status of an advisory
 Each package's advisory SHALL be given a status from Chainguard's record for that package: **fix available** when it names a fixed version, otherwise **waiting on an upstream fix** (`pending_upstream_fix`), **fix not planned** (`fix_not_planned`), **not yet assessed** (`detection`) or **confirmed** (any other state, such as `true_positive_determination`).

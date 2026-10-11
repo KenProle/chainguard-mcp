@@ -7,7 +7,7 @@ See proposal.md for the motivation. Relevant current state:
 - `Service.CheckVulnerabilities` (service.go) reads an image's amd64 packages from its SBOM (`Registry.Packages`) and runs `analyzeVulns` against the Wolfi security database (vulns.go). Both the MCP tool `check_vulnerabilities` and `GET /api/images/{name}/vulnerabilities` call it. That endpoint feeds the Security tab's lookup, totals, fixes chart and table.
 - The upstream comparison added an OSV.dev client (osv.go): `OSV.Query` per package with pagination, a 24-hour cache keyed by `OSVPackage`, at most 10 requests in flight, and `QueryAll`, which fails the whole set on the first error. `OSVVuln` reads only `id` and `affected` (package, `fixed` events, `ecosystem_specific.urgency` and `components[].latest_event_status`). `osvEcosystemForDistro` maps a package URL's namespace to `Wolfi` or `Chainguard`.
 - Chainguard's OSV records (sampled live on 2026-10-11) list the package under both the `Chainguard` and `Wolfi` ecosystems. Each carries the tracked IDs in `upstream` (for example `["CVE-2026-89092", "GHSA-gwqp-9qgw-c5pv"]`), not in `aliases`. Each component has `component_name`, `component_type` (`apk`, `python`, `rust-crate`, …) and `latest_event_status`. States seen: `fixed` (with a `fixed` range event), `fix_not_planned`, `pending_upstream_fix` and `detection`. No false-positive state appeared among 400 recently modified advisories.
-- `compareUpstream` counts by OSV record ID, which overcounts Chainguard advisories. That is being fixed in a separate session (`fix-upstream-comparison`), which will add a canonical vulnerability key.
+- `compareUpstream` counted by OSV record ID, which overcounted Chainguard advisories. The separate change `fix-upstream-cve-counting` fixes that: `OSVVuln` gains `Upstream` and `Aliases`, and a new `vulnKeys` names the vulnerabilities each record stands for.
 - In tests, `newFakeBackend` points OSV at an unreachable address, and `fakeOSV` (fake_test.go) serves `/v1/query` from records registered per `OSVPackage`.
 
 ## Goals / Non-Goals
@@ -48,7 +48,11 @@ AdvisoryPackage  { name, version, status, advisories[], fixed_version?, componen
 
 ### 3. Grouping key
 
-The key is the first `CVE-` entry in `upstream` or `aliases`, then the first entry of `upstream`, then the record's `id` (OA-2). Read `upstream` and `aliases` into `OSVVuln`. If the separate comparison fix has landed by then, reuse its key function rather than writing a second one. Otherwise write it here, and the comparison fix rebases onto it.
+Reuse `vulnKeys` from the comparison fix (`fix-upstream-cve-counting`). Don't write a second key function: both features must count the same way (OA-2, UC-4). It returns the distinct CVE IDs a record names (its own ID, `upstream`, `aliases`), else its distinct GHSA IDs, else its own ID, and `OSVVuln` already reads `upstream` and `aliases` after that fix.
+
+A record can therefore have several keys. The report builder adds the record's package entry to each key's vulnerability, so an advisory naming two CVEs appears in both rows (OA-2.4). Its advisory ID is listed under each.
+
+Known gap, shared with the comparison: two advisories that name neither a CVE nor a GHSA (only, say, a PYSEC ID) fall back to their own IDs and count twice. None appeared in the 2026-10-11 data.
 
 An ID lookup (OA-9) matches case-insensitively against the key, every record ID and every `upstream`/`aliases` entry of the grouped records.
 
@@ -99,7 +103,7 @@ None added.
 - [False positives are published after all] → The grype cross-check (task 1) and OA-15 would show extra advisories that grype doesn't report. If found, filter that state and record it here before building the UI.
 - [OSV.dev outage or rate limiting] → The section shows an error with a retry, the fixes section is unaffected, and MCP still returns the fixes (OA-10.3, OA-13).
 - [Hourly freshness costs more OSV requests] → At most one request per package per hour per server, 10 at a time. A typical image has 30–80 packages.
-- [Differences from the comparison's numbers until its fix lands] → The comparison's Chainguard counts will disagree with this section (20 vs 7 for python) until the separate fix is merged. Implement this change after it, or reuse its key, so both agree.
+- [Differences from the comparison's numbers until its fix lands] → The comparison's Chainguard counts will disagree with this section (20 vs 7 for python) until the separate fix is merged. Implement this change after it merges, reusing `vulnKeys`, so both agree.
 - [grype tolerance] → OA-15's tolerance is set from the manual cross-check in task 1. Record it here (CVEs grype reports that OSV lacks, and why) before writing the live test.
 
 ## Open Questions
