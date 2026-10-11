@@ -44,6 +44,7 @@ Both run and exit without starting the MCP server. `main.go` handles them after 
 ### 3. Backfill from the Internet Archive
 - List captures with the CDX API: `https://web.archive.org/cdx/search/cdx?url=images.chainguard.dev/sitemap.xml&output=json&fl=timestamp,mimetype&filter=statuscode:200`.
 - Group by month (`timestamp[:6]`); in each month try captures in time order, fetching `https://web.archive.org/web/<timestamp>id_/https://images.chainguard.dev/sitemap.xml` (the `id_` form returns the original bytes, not the Archive's HTML wrapper), until one parses as a sitemap with at least one image page (CH-8.2).
+  *(Changed during implementation:* the `id_` form redirected the 2026-10-08 capture to an older one, which would have recorded old data under a newer date. The code uses the `if_` form, which also serves the original XML, sends a descriptive `User-Agent` (the Archive answered 498 to anonymous rapid requests), and treats any redirect to a different capture as an error.*)*
 - Parse with the same code as `Catalog`: move the decoding in `Catalog.Images` into `parseSitemap(io.Reader) ([]string, error)` and use it in both places, so the archive and the live snapshot agree on what counts as an image.
 - Pause 2 seconds between Archive requests (CH-8); about 20 requests in all.
 - The first line holds every name (CH-2); each later line diffs with the previous one. Lines are dated by the capture's date.

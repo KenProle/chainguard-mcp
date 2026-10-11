@@ -9,7 +9,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | 3 | Security fixes per package | Security tab | Done: the fixes chart (`image-security-fixes`, prefix `SF`) |
 | 4 | Catalog map | Catalog page | Done: the Map view (`catalog-map`, prefix `CM`) |
 | 5 | Size and known vulnerabilities vs. the upstream image | Alternatives page | Idea; data sources approved; explore before proposing |
-| 6 | Catalog history | Catalog page, image page, MCP | Scoped: collector first (`add-catalog-history-collector`, prefix `CH`), then `add-catalog-history-view` |
+| 6 | Catalog history | Catalog page, image page, MCP | Collector done (`catalog-history`, prefix `CH`, daily since 2026-10-10); next: `add-catalog-history-view` |
 | 7 | Open vulnerabilities on Chainguard images | Security tab, MCP | Idea; the user thinks it's worth doing |
 
 ## 1. Minimal vs. `-dev` comparison
