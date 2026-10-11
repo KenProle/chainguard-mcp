@@ -363,3 +363,55 @@ func TestUC4_2_SummarizeCountsEachIDOnce(t *testing.T) {
 		t.Errorf("empty: %+v", got)
 	}
 }
+
+func TestUC4_3_VulnKeys(t *testing.T) {
+	for _, tc := range []struct {
+		v    OSVVuln
+		want []string
+	}{
+		{OSVVuln{ID: "DEBIAN-CVE-2025-1", Upstream: []string{"CVE-2025-1"}}, []string{"CVE-2025-1"}},
+		{OSVVuln{ID: "CGA-x", Upstream: []string{"CVE-2026-1", "GHSA-a"}}, []string{"CVE-2026-1"}},
+		// A DSA covers several CVEs, each also listed as DEBIAN-CVE-….
+		{OSVVuln{ID: "DSA-1-1", Upstream: []string{"CVE-1", "CVE-2", "DEBIAN-CVE-1", "DEBIAN-CVE-2"}}, []string{"CVE-1", "CVE-2"}},
+		{OSVVuln{ID: "GHSA-a", Aliases: []string{"CVE-3", "CVE-3"}}, []string{"CVE-3"}},
+		{OSVVuln{ID: "CVE-4"}, []string{"CVE-4"}},
+		{OSVVuln{ID: "CGA-y", Upstream: []string{"GHSA-b"}}, []string{"GHSA-b"}},
+		{OSVVuln{ID: "ALPINE-1"}, []string{"ALPINE-1"}},
+	} {
+		if got := vulnKeys(tc.v); !slices.Equal(got, tc.want) {
+			t.Errorf("vulnKeys(%+v) = %v, want %v", tc.v, got, tc.want)
+		}
+	}
+}
+
+func TestUC4_3_SeveralAdvisoriesForOneCVE(t *testing.T) {
+	cg := loadOSVFixture[OSVVuln](t, "osv-chainguard-glibc.json")
+	glibc := OSVPackage{"Chainguard", "glibc-2.44", "2.44-r6"}
+	locale := OSVPackage{"Chainguard", "glibc-locale-posix", "2.44-r6"}
+	// Chainguard publishes one advisory per package per CVE, sometimes two.
+	other, twin := cg, cg
+	other.ID, twin.ID = "CGA-other", "CGA-twin"
+	other.Affected = slices.Clone(cg.Affected)
+	for i := range other.Affected {
+		other.Affected[i].Package.Name = locale.Name
+	}
+	got := summarize(map[OSVPackage][]OSVVuln{glibc: {cg, twin}, locale: {other}})
+	if want := (VulnCounts{Total: 1, NoFixYet: 1}); got != want {
+		t.Errorf("chainguard: got %+v, want %+v", got, want)
+	}
+
+	// A DSA that is fixed and a DEBIAN-CVE record for the same CVE with no
+	// fix: one vulnerability, fix available (UC-5).
+	deb := loadOSVFixture[map[string]OSVVuln](t, "osv-debian-openssl.json")
+	noFix := deb["unimportant"]
+	noFix.Affected = slices.Clone(noFix.Affected)
+	for i := range noFix.Affected {
+		noFix.Affected[i].EcosystemSpecific.Urgency = "not yet assigned"
+	}
+	dsa := deb["fixed"]
+	dsa.ID, dsa.Upstream = "DSA-0001-1", append(slices.Clone(noFix.Upstream), "CVE-2099-0001")
+	got = summarize(map[OSVPackage][]OSVVuln{openssl12: {noFix, dsa}})
+	if want := (VulnCounts{Total: 2, FixAvailable: 2}); got != want {
+		t.Errorf("debian: got %+v, want %+v", got, want)
+	}
+}

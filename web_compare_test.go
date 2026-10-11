@@ -63,7 +63,7 @@ func TestWA_CompareUpstreamRunsThenDone(t *testing.T) {
 	if err := json.Unmarshal(body, &done); err != nil {
 		t.Fatal(err)
 	}
-	if done.Status != "done" || done.UpstreamComparison == nil || done.Total != 5 || done.Checked != 5 {
+	if done.Status != "done" || done.UpstreamComparison == nil || done.Total != 6 || done.Checked != 6 {
 		t.Fatalf("done = %+v", done)
 	}
 
@@ -105,8 +105,8 @@ func TestWA_CompareUpstreamConcurrentCallsShareOneJob(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	if n := f.OSV.requests.Load(); n != 5 {
-		t.Errorf("OSV requests = %d, want 5 (one job)", n)
+	if n := f.OSV.requests.Load(); n != 6 {
+		t.Errorf("OSV requests = %d, want 6 (one job)", n)
 	}
 	if n := f.Hub.blobRequests.Load(); n != 2 { // image config and SBOM
 		t.Errorf("Docker Hub blob requests = %d, want 2 (one job)", n)

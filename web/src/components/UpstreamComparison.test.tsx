@@ -31,7 +31,7 @@ const node20: Comparison = {
     sbom_published: true,
     packages_checked: true,
     os_packages: 28,
-    vulnerabilities: { total: 22, fix_available: 0, no_fix_yet: 22, wont_fix: 0 },
+    vulnerabilities: { total: 6, fix_available: 0, no_fix_yet: 6, wont_fix: 0 },
   },
   end_of_life: { product: 'Node.js', cycle: '20', date: '2026-04-30' },
   source: "Known vulnerabilities per each distribution's published advisories, via OSV.dev.",
@@ -64,9 +64,9 @@ describe('UpstreamComparison', () => {
     const table = screen.getByRole('table')
     const row = (name: string) => within(within(table).getByRole('rowheader', { name })).getByText(name).closest('tr')!
     expect(within(row('OS packages')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['393', '28'])
-    expect(within(row('Known vulnerabilities')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['833', '22'])
+    expect(within(row('Known vulnerabilities')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['833', '6'])
     expect(within(row('Fix available')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['295', '0'])
-    expect(within(row('No fix yet')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['325', '22'])
+    expect(within(row('No fix yet')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['325', '6'])
     expect(within(row("Won't fix")).getAllByRole('cell').map((c) => c.textContent)).toEqual(['213', '0'])
     expect(within(row('Download size')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['398.4 MB', '65.9 MB'])
     expect(within(row('Built')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['2026-04-22', '2026-10-09'])
@@ -139,7 +139,7 @@ describe('UpstreamComparison', () => {
     const table = screen.getByRole('table')
     const row = (name: string) => within(within(table).getByRole('rowheader', { name })).getByText(name).closest('tr')!
     expect(within(row('OS packages')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', '28'])
-    expect(within(row('Known vulnerabilities')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', '22'])
+    expect(within(row('Known vulnerabilities')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', '6'])
     expect(screen.queryByText(/with a fix available;/)).not.toBeInTheDocument()
     expect(screen.queryByText(new RegExp(`${input}: 0 known`))).not.toBeInTheDocument()
   })

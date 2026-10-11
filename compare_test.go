@@ -77,22 +77,24 @@ func TestUC2_1_UC3_1_UC4_UC5_NodeCounts(t *testing.T) {
 	if len(cmp.Upstream.LanguagePackages) != 1 || cmp.Upstream.LanguagePackages[0] != (LanguageCount{"npm", 2}) {
 		t.Errorf("language packages = %+v", cmp.Upstream.LanguagePackages)
 	}
-	if cmp.Chainguard.OSPackages != 3 {
-		t.Errorf("chainguard packages = %d, want 3", cmp.Chainguard.OSPackages)
+	if cmp.Chainguard.OSPackages != 4 {
+		t.Errorf("chainguard packages = %d, want 4", cmp.Chainguard.OSPackages)
 	}
 
 	// UC-4.2 and UC-5: A is fixable (and no fix for glibc) so it counts once as
-	// fix available; B won't be fixed; C has no fix yet; the kernel's D isn't counted.
+	// fix available, though DEBIAN-CVE-A and DSA-0001-1 both list it; B won't
+	// be fixed; C has no fix yet; the kernel's D isn't counted.
 	if got, want := *cmp.Upstream.Vulnerabilities, (VulnCounts{Total: 3, FixAvailable: 1, NoFixYet: 1, WontFix: 1}); got != want {
 		t.Errorf("upstream vulnerabilities = %+v, want %+v", got, want)
 	}
-	// UC-5.2: Chainguard's advisory is pending an upstream fix.
+	// UC-4.2 and UC-5.2: Chainguard's two advisories, one per package, are for
+	// one CVE pending an upstream fix.
 	if got, want := *cmp.Chainguard.Vulnerabilities, (VulnCounts{Total: 1, NoFixYet: 1}); got != want {
 		t.Errorf("chainguard vulnerabilities = %+v, want %+v", got, want)
 	}
-	// 2 upstream sources (the kernel is skipped) + 3 Chainguard packages.
-	if n := f.OSV.requests.Load(); n != 5 {
-		t.Errorf("OSV requests = %d, want 5", n)
+	// 2 upstream sources (the kernel is skipped) + 4 Chainguard packages.
+	if n := f.OSV.requests.Load(); n != 6 {
+		t.Errorf("OSV requests = %d, want 6", n)
 	}
 }
 

@@ -536,16 +536,31 @@ type fakeUpstream struct {
 }
 
 // debianVuln is an OSV record for a Debian 12 source package, fixed in
-// 12.0-1 when fixed is set, otherwise with the given Debian urgency.
-func debianVuln(id, source string, fixed bool, urgency string) map[string]any {
+// 12.0-1 when fixed is set, otherwise with the given Debian urgency. As on
+// OSV.dev, a DEBIAN-CVE-… record names its CVE in upstream; a DSA-… record
+// is given the IDs it covers.
+func debianVuln(id, source string, fixed bool, urgency string, upstream ...string) map[string]any {
 	events := []map[string]string{{"introduced": "0"}}
 	if fixed {
 		events = append(events, map[string]string{"fixed": "99:9.9-1~deb12u1"})
 	}
-	return map[string]any{"id": id, "affected": []map[string]any{{
+	if cve, ok := strings.CutPrefix(id, "DEBIAN-"); ok {
+		upstream = []string{cve}
+	}
+	return map[string]any{"id": id, "upstream": upstream, "affected": []map[string]any{{
 		"package":            map[string]string{"name": source, "ecosystem": "Debian:12"},
 		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": events}},
 		"ecosystem_specific": map[string]string{"urgency": urgency},
+	}}}
+}
+
+// chainguardVuln is a Chainguard advisory (one per package per CVE, as
+// Chainguard publishes them) pending an upstream fix.
+func chainguardVuln(id, pkg, cve string) map[string]any {
+	return map[string]any{"id": id, "upstream": []string{cve}, "affected": []map[string]any{{
+		"package":            map[string]string{"name": pkg, "ecosystem": "Wolfi"},
+		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": []map[string]string{{"introduced": "0"}}}},
+		"ecosystem_specific": map[string]any{"components": []map[string]string{{"latest_event_status": "pending_upstream_fix"}}},
 	}}}
 }
 
@@ -561,10 +576,11 @@ const (
 //     openssl and glibc, linux-libc-dev from the kernel source, 2 npm packages;
 //   - library/python:3.12-slim, which publishes no SBOM.
 //
-// Chainguard's node image has glibc-2.44, busybox and c-ares. The node:20
-// vulnerabilities: openssl A (fix available) and B (won't fix), glibc C (no
-// fix yet) and A again; the kernel has D, which must never be counted.
-// Chainguard's glibc-2.44 has one advisory pending an upstream fix.
+// Chainguard's node image has glibc-2.44 and its subpackage ld-linux, busybox
+// and c-ares. The node:20 vulnerabilities: openssl A (fix available, listed
+// again by DSA-0001-1) and B (won't fix), glibc C (no fix yet) and A again;
+// the kernel has D, which must never be counted. Chainguard has one advisory
+// each for glibc-2.44 and ld-linux, both for one CVE pending an upstream fix.
 func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 	t.Helper()
 	svc, cg := newFakeBackend(t)
@@ -572,6 +588,7 @@ func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 		{"busybox", "1.38.0-r3", "busybox"},
 		{"c-ares", "1.34.8-r3", "c-ares"},
 		{"glibc-2.44", "2.44-r8", "glibc-2.44"},
+		{"ld-linux", "2.44-r8", "glibc-2.44"},
 	})
 
 	reg, hub := newFakeDockerHub(t)
@@ -585,16 +602,14 @@ func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 	osv, osvFake := newFakeOSV(t)
 	osvFake.add(OSVPackage{"Debian:12", "openssl", fakeOpenSSLVersion},
 		debianVuln("DEBIAN-CVE-A", "openssl", true, "not yet assigned"),
-		debianVuln("DEBIAN-CVE-B", "openssl", false, "unimportant"))
+		debianVuln("DEBIAN-CVE-B", "openssl", false, "unimportant"),
+		debianVuln("DSA-0001-1", "openssl", true, "", "CVE-A", "DEBIAN-CVE-A"))
 	osvFake.add(OSVPackage{"Debian:12", "glibc", fakeGlibcVersion},
 		debianVuln("DEBIAN-CVE-C", "glibc", false, "not yet assigned"),
 		debianVuln("DEBIAN-CVE-A", "glibc", false, "not yet assigned"))
 	osvFake.add(OSVPackage{"Debian:12", "linux", "6.1.164-1"}, debianVuln("DEBIAN-CVE-D", "linux", true, "not yet assigned"))
-	osvFake.add(OSVPackage{"Wolfi", "glibc-2.44", "2.44-r8"}, map[string]any{"id": "CGA-0000-0000-0001", "affected": []map[string]any{{
-		"package":            map[string]string{"name": "glibc-2.44", "ecosystem": "Wolfi"},
-		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": []map[string]string{{"introduced": "0"}}}},
-		"ecosystem_specific": map[string]any{"components": []map[string]string{{"latest_event_status": "pending_upstream_fix"}}},
-	}}})
+	osvFake.add(OSVPackage{"Wolfi", "glibc-2.44", "2.44-r8"}, chainguardVuln("CGA-0000-0000-0001", "glibc-2.44", "CVE-2026-0001"))
+	osvFake.add(OSVPackage{"Wolfi", "ld-linux", "2.44-r8"}, chainguardVuln("CGA-0000-0000-0002", "ld-linux", "CVE-2026-0001"))
 
 	eol, eolFake := newFakeEndOfLife(t)
 	svc.Upstream, svc.OSV, svc.EOL = reg, osv, eol

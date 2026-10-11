@@ -173,7 +173,7 @@ func TestLive(t *testing.T) {
 		}
 		found := map[string]bool{}
 		for id := range classifyAll(results) {
-			found[strings.TrimPrefix(id, "DEBIAN-")] = true
+			found[id] = true
 		}
 		if len(found) != cmp.Upstream.Vulnerabilities.Total {
 			t.Errorf("%d distinct IDs, but the comparison counts %d", len(found), cmp.Upstream.Vulnerabilities.Total)

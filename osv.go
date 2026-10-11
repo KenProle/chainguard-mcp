@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -44,8 +45,33 @@ func NewOSV(client *http.Client) *OSV {
 
 // OSVVuln is the part of an OSV record used to classify a vulnerability.
 type OSVVuln struct {
-	ID       string        `json:"id"`
+	ID string `json:"id"`
+	// Aliases and Upstream name the same vulnerability in other databases.
+	// Distribution records (DEBIAN-CVE-…, DSA-…, CGA-…) put the CVE in Upstream.
+	Aliases  []string      `json:"aliases"`
+	Upstream []string      `json:"upstream"`
 	Affected []OSVAffected `json:"affected"`
+}
+
+// vulnKeys returns the vulnerabilities an OSV record stands for, so records
+// for the same vulnerability count once (UC-4.2): Chainguard publishes a CGA
+// record per package per CVE, and Debian's DSA records repeat CVEs that also
+// have DEBIAN-CVE records. The keys are the record's CVEs, else its GHSAs,
+// else its own ID.
+func vulnKeys(v OSVVuln) []string {
+	ids := slices.Concat([]string{v.ID}, v.Upstream, v.Aliases)
+	for _, prefix := range []string{"CVE-", "GHSA-"} {
+		var keys []string
+		for _, id := range ids {
+			if strings.HasPrefix(id, prefix) && !slices.Contains(keys, id) {
+				keys = append(keys, id)
+			}
+		}
+		if len(keys) > 0 {
+			return keys
+		}
+	}
+	return []string{v.ID}
 }
 
 type OSVAffected struct {
@@ -288,15 +314,18 @@ type VulnCounts struct {
 // different packages: a fix for any package wins (UC-5).
 var fixRank = map[FixStatus]int{FixAvailable: 3, NoFixYet: 2, WontFix: 1}
 
-// classifyAll gives each vulnerability ID across all packages one status, however
-// many packages it affects (UC-4.2), with the best fix status winning.
+// classifyAll gives each vulnerability (see vulnKeys) across all packages and
+// records one status, however many packages or records it appears in
+// (UC-4.2), with the best fix status winning.
 func classifyAll(results map[OSVPackage][]OSVVuln) map[string]FixStatus {
 	status := make(map[string]FixStatus)
 	for pkg, vulns := range results {
 		for _, v := range vulns {
 			s := classify(v, pkg)
-			if prev, ok := status[v.ID]; !ok || fixRank[s] > fixRank[prev] {
-				status[v.ID] = s
+			for _, key := range vulnKeys(v) {
+				if prev, ok := status[key]; !ok || fixRank[s] > fixRank[prev] {
+					status[key] = s
+				}
 			}
 		}
 	}
