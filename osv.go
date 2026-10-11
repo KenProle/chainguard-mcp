@@ -342,7 +342,21 @@ const (
 // package's own name and ecosystem, so a fix released only for another
 // release (Debian 13's) doesn't count for this one (UC-5.3). OSV's query
 // already returns only records that affect the installed version.
+//
+// A Chainguard advisory (ecosystem Wolfi or Chainguard) is read as the open
+// advisories read it: fix available only when a fixed version newer than the
+// installed one closes the range it is in, won't fix when Chainguard marked it
+// fix_not_planned, otherwise no fix yet (UC-5.4, UC-5.5, UC-18.3).
 func classify(v OSVVuln, pkg OSVPackage) FixStatus {
+	if pkg.Ecosystem == "Wolfi" || pkg.Ecosystem == "Chainguard" {
+		switch advisoryStatus(v, pkg) {
+		case AdvFixAvailable:
+			return FixAvailable
+		case AdvFixNotPlanned:
+			return WontFix
+		}
+		return NoFixYet
+	}
 	for _, a := range v.Affected {
 		if a.Package.Name != pkg.Name || a.Package.Ecosystem != pkg.Ecosystem {
 			continue

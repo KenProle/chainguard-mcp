@@ -14,8 +14,9 @@ import (
 
 // comparisonSource is the wording that accompanies every vulnerability count
 // (UC-6): the counts are known vulnerabilities per each side's own
-// maintainers' advisories, not a verdict on either image.
-const comparisonSource = "Known vulnerabilities per each distribution's published advisories, via OSV.dev. " +
+// maintainers' advisories, not a verdict on either image. Chainguard's statuses
+// come from its own feed, since OSV.dev can serve older copies (UC-17).
+const comparisonSource = "Known vulnerabilities per each distribution's published advisories, via OSV.dev, with the status of Chainguard's advisories from Chainguard's advisory feed. " +
 	"Each image is graded by its own maintainers' advisories, and the counts are known vulnerabilities only, not a guarantee about either image."
 
 type CompareUpstreamInput struct {
@@ -167,7 +168,11 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 		c := summarize(subset(results, upLookups))
 		up.Vulnerabilities = &c
 	}
-	c := summarize(subset(results, cgLookups))
+	cgResults, fromOSV, err := s.chainguardOpenAdvisories(ctx, subset(results, cgLookups))
+	if err != nil {
+		return nil, err
+	}
+	c := summarize(cgResults)
 	cg.Vulnerabilities = &c
 
 	cmp := &UpstreamComparison{
@@ -181,6 +186,9 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 			"Only installed OS packages are compared; language packages (npm, PyPI, …) are counted but not compared.",
 			"Advisories for the Linux kernel are excluded: containers ship only its headers and run on the host's kernel.",
 		},
+	}
+	if len(fromOSV) > 0 {
+		cmp.Notes = append(cmp.Notes, unconfirmedStatusNote(fromOSV))
 	}
 	switch up.UncheckedReason {
 	case uncheckedNoSBOM:
@@ -209,6 +217,27 @@ func validateCompareInput(in CompareUpstreamInput) (repo, tag, arch string, err 
 		return "", "", "", err
 	}
 	return repo, tag, arch, nil
+}
+
+// chainguardOpenAdvisories reads the Chainguard image's advisories from
+// Chainguard's feed (UC-17) and keeps only those still open for the installed
+// version (UC-18). It also returns the advisories the feed has no record of,
+// whose OSV.dev copy was used. The upstream side never goes through it.
+func (s *Service) chainguardOpenAdvisories(ctx context.Context, results map[OSVPackage][]OSVVuln) (map[OSVPackage][]OSVVuln, []string, error) {
+	current, fromOSV, _, err := s.currentAdvisories(ctx, results)
+	if err != nil {
+		return nil, nil, err
+	}
+	open := make(map[OSVPackage][]OSVVuln, len(current))
+	for pkg, vulns := range current {
+		open[pkg] = nil
+		for _, v := range vulns {
+			if ok, _ := openState(v, pkg); ok {
+				open[pkg] = append(open[pkg], v)
+			}
+		}
+	}
+	return open, fromOSV, nil
 }
 
 func subset(results map[OSVPackage][]OSVVuln, pkgs []OSVPackage) map[OSVPackage][]OSVVuln {

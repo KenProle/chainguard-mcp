@@ -386,10 +386,32 @@ func (s *Service) openAdvisories(ctx context.Context, image, tag, digest string,
 	if err != nil {
 		return nil, err
 	}
+	results, fromOSV, feedChecked, err := s.currentAdvisories(ctx, results)
+	if err != nil {
+		return nil, err
+	}
+	if !feedChecked.IsZero() && (checked.IsZero() || feedChecked.Before(checked)) {
+		checked = feedChecked
+	}
+	if checked.IsZero() {
+		checked = time.Now()
+	}
 
-	// OSV.dev can serve older copies of an advisory, so each one's current
-	// record is read from Chainguard's feed (OA-17), one step after the OSV
-	// step so no more than osvMaxInFlight requests run at once.
+	report := buildAdvisoryReport(pkgs, results, checked, id)
+	report.Image, report.Tag, report.Digest = image, tag, digest
+	if len(fromOSV) > 0 {
+		report.StatusFromOSV = fromOSV
+		report.Note = strings.TrimSpace(report.Note + " " + unconfirmedStatusNote(fromOSV))
+	}
+	return &report, nil
+}
+
+// currentAdvisories replaces the Chainguard advisories in OSV results by their
+// current records from Chainguard's feed, since OSV.dev can serve older copies
+// (OA-17, UC-17). It returns the IDs the feed has no record of, whose OSV.dev
+// copy was kept, and the oldest time a record was fetched. Run it after the
+// OSV step, so no more than osvMaxInFlight requests run at once.
+func (s *Service) currentAdvisories(ctx context.Context, results map[OSVPackage][]OSVVuln) (map[OSVPackage][]OSVVuln, []string, time.Time, error) {
 	var ids []string
 	seen := make(map[string]bool)
 	for _, vulns := range results {
@@ -401,26 +423,18 @@ func (s *Service) openAdvisories(ctx context.Context, image, tag, digest string,
 		}
 	}
 	sort.Strings(ids)
-	current, feedChecked, err := s.Feed.FetchAll(ctx, ids)
+	current, checked, err := s.Feed.FetchAll(ctx, ids)
 	if err != nil {
-		return nil, err
-	}
-	if !feedChecked.IsZero() && (checked.IsZero() || feedChecked.Before(checked)) {
-		checked = feedChecked
-	}
-	if checked.IsZero() {
-		checked = time.Now()
+		return nil, nil, time.Time{}, err
 	}
 	results, fromOSV := withCurrentRecords(results, current)
+	return results, fromOSV, checked, nil
+}
 
-	report := buildAdvisoryReport(pkgs, results, checked, id)
-	report.Image, report.Tag, report.Digest = image, tag, digest
-	if len(fromOSV) > 0 {
-		report.StatusFromOSV = fromOSV
-		note := "Chainguard's advisory feed has no record of " + strings.Join(fromOSV, ", ") + ", so OSV.dev's copy was used for the status of " + map[bool]string{true: "this advisory", false: "these advisories"}[len(fromOSV) == 1] + ", which couldn't be confirmed."
-		report.Note = strings.TrimSpace(report.Note + " " + note)
-	}
-	return &report, nil
+// unconfirmedStatusNote says which advisories' status came from OSV.dev
+// because Chainguard's feed has no record of them.
+func unconfirmedStatusNote(ids []string) string {
+	return "Chainguard's advisory feed has no record of " + strings.Join(ids, ", ") + ", so OSV.dev's copy was used for the status of " + map[bool]string{true: "this advisory", false: "these advisories"}[len(ids) == 1] + ", which couldn't be confirmed."
 }
 
 // withCurrentRecords replaces each OSV.dev record by the feed's current one.

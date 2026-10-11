@@ -158,4 +158,14 @@ func TestWA_CompareUpstreamErrors(t *testing.T) {
 			t.Errorf("retry: %d %s", code, body)
 		}
 	})
+	t.Run("UC-11.3 advisory feed failure, then a retry succeeds", func(t *testing.T) {
+		srv, _, f := newCompareServer(t)
+		f.Feed.failID = map[string]bool{"CGA-0000-0000-0001": true}
+		const path = "/api/compare-upstream?image=node:20"
+		check(t, srv, path, 502, "source_failed", "Chainguard advisories")
+		f.Feed.failID = nil
+		if code, body := pollCompare(t, srv, path); code != 200 || !strings.Contains(string(body), `"done"`) {
+			t.Errorf("retry: %d %s", code, body)
+		}
+	})
 }

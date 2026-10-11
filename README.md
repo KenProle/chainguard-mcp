@@ -37,7 +37,7 @@ The Security tab shows Chainguard's open advisories for the image's packages (re
 
 ### Find alternative
 
-Enter an image you use today, such as `node:20`, to get its Chainguard replacement and migration notes, then a comparison of the two: size, build date, installed OS packages, and known vulnerabilities per OSV.dev, split by whether a fix exists. Docker Hub images only; a first comparison takes about 20 seconds.
+Enter an image you use today, such as `node:20`, to get its Chainguard replacement and migration notes, then a comparison of the two: size, build date, installed OS packages, and known vulnerabilities per OSV.dev (with Chainguard's statuses from its advisory feed), split by whether a fix exists. Docker Hub images only; a first comparison takes about 20 seconds.
 
 ![node:20 compared with Chainguard's node: 295 known vulnerabilities with a fix available against 0, and 393 OS packages against 28](docs/screenshots/upstream-comparison.png)
 
@@ -55,7 +55,7 @@ Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), a
 | `save_sbom` | Save the image's full SPDX SBOM as a JSON file, for compliance or scanning tools. See [Saving SBOMs](#saving-sboms). |
 | `check_vulnerabilities` | Recorded fixes per package (Wolfi security database) plus the known open advisories Chainguard has published for the image's packages (via OSV.dev), counted by vulnerability with a status each. Pass a CVE/GHSA/CGA ID to look it up in both. |
 | `find_alternative` | Suggest the Chainguard image to replace an upstream one, e.g. `node:20-alpine` → `cgr.dev/chainguard/node`. |
-| `compare_with_upstream` | Compare a Docker Hub image as you run it, e.g. `node:20`, with its Chainguard replacement by size, build date, OS packages and known vulnerabilities (from OSV.dev), plus an end-of-life note. See [Upstream comparison](#upstream-comparison). |
+| `compare_with_upstream` | Compare a Docker Hub image as you run it, e.g. `node:20`, with its Chainguard replacement by size, build date, OS packages and known vulnerabilities (from OSV.dev, with Chainguard's statuses from its advisory feed), plus an end-of-life note. See [Upstream comparison](#upstream-comparison). |
 
 It also provides a `migrate_dockerfile` **prompt** that walks the assistant through converting a Dockerfile to Chainguard images using the tools above.
 
@@ -136,17 +136,17 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 | Recorded fixes | The [Wolfi security database](https://packages.wolfi.dev/os/security.json), cached for 6 hours. |
 | Open advisories | Chainguard's published advisories for the image's packages, found through [OSV.dev](https://osv.dev) (ecosystems `Wolfi` and `Chainguard`, one lookup per package), then each advisory's current record read from Chainguard's own advisory feed (`advisories.cgr.dev`), because OSV.dev can serve older copies. Both cached for 1 hour. |
 | Upstream images | Docker Hub's registry with an anonymous token: the image's SPDX SBOM attestation, size and build date. Docker Hub allows about 100 anonymous requests an hour per IP; a comparison makes about 5. |
-| Known vulnerabilities (comparison) | [OSV.dev](https://osv.dev), queried per package version, cached for 24 hours. |
+| Known vulnerabilities (comparison) | [OSV.dev](https://osv.dev), queried per package version, cached for 24 hours (1 hour for Chainguard packages). The Chainguard side's advisories are then read from Chainguard's advisory feed, as for open advisories. |
 | End of life (comparison) | [endoflife.date](https://endoflife.date), cached for 24 hours. |
 
 The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed ones; those come from Chainguard's open advisories, found through OSV.dev with their status read from Chainguard's advisory feed, and shown separately (advisories already fixed in the installed version are left out; a vulnerability is counted once however many advisories and packages it has, and "not yet assessed" means Chainguard detected it but hasn't decided whether it applies). Neither is a full scan, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype), and an empty result never means an image has no vulnerabilities.
 
 ## Upstream comparison
 
-`compare_with_upstream` and the Alternatives page's comparison (`GET /api/compare-upstream`, a background job the UI polls) read the upstream image's SBOM from Docker Hub and look up each package on OSV.dev:
+`compare_with_upstream` and the Alternatives page's comparison (`GET /api/compare-upstream`, a background job the UI polls) read the upstream image's SBOM from Docker Hub and look up each package on OSV.dev. For the Chainguard image, each advisory found is read again from Chainguard's advisory feed, as on the Security tab, and those already fixed in the installed version aren't counted:
 
 - **Binary vs source packages:** a Debian SBOM lists installed binary packages and the source packages they were built from. The OS package count is the binary packages; vulnerabilities are looked up by distinct source package, which is how Debian keys its advisories.
-- **Counting:** each vulnerability counts once per image however many packages it affects, and if it is fixable for any package it counts as *fix available*. Debian's "unimportant" and "end-of-life" urgencies count as *won't fix*; a Chainguard advisory pending an upstream fix counts as *no fix yet*. A fix released only for another Debian release doesn't count.
+- **Counting:** each vulnerability counts once per image however many packages it affects, and if it is fixable for any package it counts as *fix available*. Debian's "unimportant" and "end-of-life" urgencies and Chainguard's "fix not planned" count as *won't fix*; a Chainguard advisory pending an upstream fix or not yet assessed counts as *no fix yet*. A fix released only for another Debian release doesn't count.
 - **Accuracy:** on 2026-10-11 the comparison found all 817 CVEs that [grype](https://github.com/anchore/grype) reported for `node:20`'s OS packages. `CHAINGUARD_LIVE=1 go test -run TestLive/upstream` repeats that check when `grype` is on `PATH`.
 - **Not covered:** registries other than Docker Hub, language packages, severity ratings, and images without an SBOM attestation.
 

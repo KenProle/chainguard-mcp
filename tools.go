@@ -94,7 +94,7 @@ func newServer(svc *Service) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compare_with_upstream",
 		Description: "Compare an upstream Docker Hub image, exactly as you run it (e.g. 'node:20'), with its Chainguard replacement's latest tag by download size, build date, installed OS packages and known vulnerabilities, split into fix available, no fix yet and won't fix, with an end-of-life note when the release is out of support. " +
-			"Vulnerabilities come from OSV.dev per each distribution's published advisories (the Linux kernel is excluded): the counts are known vulnerabilities, not a guarantee about either image, and each side is graded by its own maintainers. " +
+			"Vulnerabilities come from OSV.dev per each distribution's published advisories, with the status of Chainguard's advisories read from Chainguard's own advisory feed and those already fixed in the installed version left out (the Linux kernel is excluded): the counts are known vulnerabilities, not a guarantee about either image, and each side is graded by its own maintainers. " +
 			"Only Docker Hub images that publish an SBOM can be compared in full, and only free-tier Chainguard images. A first comparison takes about 20 seconds.",
 		Annotations: readOnly,
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in CompareUpstreamInput) (*mcp.CallToolResult, *UpstreamComparison, error) {

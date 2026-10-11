@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"os/exec"
@@ -310,6 +311,35 @@ func TestLive(t *testing.T) {
 			}
 			if r.Match != nil {
 				t.Errorf("%s is an open advisory, but the feed has %s fixed in glibc-2.44 %s: %+v", lookup, id, glibc.Version, r.Match)
+			}
+		}
+	})
+
+	t.Run("upstream_chainguard_matches_open_advisories", func(t *testing.T) {
+		// UC-17, UC-18: the comparison counts the Chainguard side by the same
+		// rules as open advisories, so for latest on amd64 the totals agree
+		// (both read the same cached OSV results and feed records).
+		ctx := context.Background()
+		for _, ref := range []string{"node:20", "python:3"} {
+			cmp, err := svc.CompareUpstream(ctx, CompareUpstreamInput{Image: ref})
+			if errors.Is(err, ErrRateLimited) {
+				t.Skip("Docker Hub rate limit reached")
+			}
+			if err != nil {
+				t.Fatalf("%s: %v", ref, err)
+			}
+			image := strings.TrimSuffix(strings.TrimPrefix(cmp.Chainguard.Reference, "cgr.dev/chainguard/"), ":latest")
+			report, err := svc.OpenAdvisories(ctx, OpenAdvisoriesInput{Image: image})
+			if err != nil {
+				t.Fatalf("%s: %v", image, err)
+			}
+			cg := cmp.Chainguard.Vulnerabilities
+			t.Logf("%s: upstream %+v; chainguard %s %+v; open advisories %d", ref, *cmp.Upstream.Vulnerabilities, image, *cg, report.Total)
+			if cg.Total != report.Total {
+				t.Errorf("%s: comparison counts %d for %s, open advisories %d", ref, cg.Total, image, report.Total)
+			}
+			if cg.FixAvailable != report.Counts.FixAvailable || cg.WontFix != report.Counts.FixNotPlanned {
+				t.Errorf("%s: comparison split %+v, open advisories %+v", ref, *cg, report.Counts)
 			}
 		}
 	})

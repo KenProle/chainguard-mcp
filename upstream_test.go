@@ -415,3 +415,55 @@ func TestUC4_3_SeveralAdvisoriesForOneCVE(t *testing.T) {
 		t.Errorf("debian: got %+v, want %+v", got, want)
 	}
 }
+
+func TestUC5_4_ChainguardFixNotPlannedIsWontFix(t *testing.T) {
+	pkg := OSVPackage{"Wolfi", "argo-cd-fips-3.2-compat", "3.2.1-r0"}
+	v := decodeVuln(t, advisoryVuln("CGA-vjm6-5xm3-7w39", pkg.Name, "fix_not_planned", "", []string{"CVE-2026-0002"}))
+	if got := classify(v, pkg); got != WontFix {
+		t.Errorf("fix_not_planned: %s, want wont_fix", got)
+	}
+}
+
+func TestUC5_5_OtherChainguardStatesAreNoFixYet(t *testing.T) {
+	pkg := OSVPackage{"Wolfi", "python-3.15", "3.15.0-r1"}
+	for _, state := range []string{"pending_upstream_fix", "detection", "true_positive_determination", ""} {
+		v := decodeVuln(t, advisoryVuln("CGA-2w26-qvh7-3jhg", pkg.Name, state, "", []string{"CVE-2026-12345"}))
+		if got := classify(v, pkg); got != NoFixYet {
+			t.Errorf("state %q: %s, want no_fix_yet", state, got)
+		}
+	}
+}
+
+func TestUC18_3_ChainguardFixClassification(t *testing.T) {
+	pkg := OSVPackage{"Wolfi", "glibc-2.44", "2.44-r8"}
+	// A fix newer than the installed version is fix available.
+	newer := decodeVuln(t, advisoryVuln("CGA-0000-0000-0003", pkg.Name, "pending_upstream_fix", "2.44-r9", []string{"CVE-2026-0003"}))
+	if got := classify(newer, pkg); got != FixAvailable {
+		t.Errorf("fixed in 2.44-r9: %s, want fix_available", got)
+	}
+	// A fixed event that closed an earlier range, before a later
+	// reintroduction, is not a fix for the installed version.
+	reopened := decodeVuln(t, map[string]any{"id": "CGA-0000-0000-0004", "upstream": []string{"CVE-2026-0004"}, "affected": []map[string]any{{
+		"package": map[string]string{"name": pkg.Name, "ecosystem": "Wolfi"},
+		"ranges": []map[string]any{{"type": "ECOSYSTEM", "events": []map[string]string{
+			{"introduced": "0"}, {"fixed": "2.44-r2"}, {"introduced": "2.44-r5"},
+		}}},
+		"ecosystem_specific": map[string]any{"components": []map[string]string{{"component_type": "apk", "latest_event_status": "pending_upstream_fix"}}},
+	}}})
+	if got := classify(reopened, pkg); got != NoFixYet {
+		t.Errorf("reintroduced after an earlier fix: %s, want no_fix_yet", got)
+	}
+}
+
+func decodeVuln(t *testing.T, record map[string]any) OSVVuln {
+	t.Helper()
+	b, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v OSVVuln
+	if err := json.Unmarshal(b, &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
