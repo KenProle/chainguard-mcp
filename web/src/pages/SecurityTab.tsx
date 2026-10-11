@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { api, type CVEMatch } from '../api'
+import { api, type CVEMatch, type VulnReport } from '../api'
 import { FixesChart } from '../components/FixesChart'
-import { Badge, Card, ErrorState, Loading } from '../components/ui'
+import { AdvisoryLookup, OpenAdvisories } from '../components/OpenAdvisories'
+import { Badge, Card, ErrorState, Loading, Stat } from '../components/ui'
 import { buttonClass, inputClass } from '../styles'
 
 const statusLabel: Record<CVEMatch['status'], { text: string; tone: 'green' | 'gray' | 'red' }> = {
@@ -18,10 +19,19 @@ function LookupResult({ name, tag, id }: { name: string; tag: string; id: string
   })
   if (isPending) return <Loading label={`Looking up ${id}…`} />
   if (error) return <ErrorState error={error} />
+  return (
+    <>
+      <FixesResult data={data} />
+      <AdvisoryLookup name={name} tag={tag} id={id} />
+    </>
+  )
+}
+
+function FixesResult({ data }: { data: VulnReport }) {
   if (!data.matches?.length) {
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        No record of <strong>{data.id}</strong> for any package in this image.
+        No record of <strong>{data.id}</strong> in the Wolfi security database for any package in this image.
       </p>
     )
   }
@@ -64,7 +74,7 @@ export function SecurityTab({ name, tag }: { name: string; tag: string }) {
     <div className="space-y-4">
       <Card>
         <h2 className="mb-1 font-semibold">Look up a vulnerability</h2>
-        <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">Check whether a CVE or GHSA affects this image's packages.</p>
+        <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">Check whether a CVE, GHSA or Chainguard advisory (CGA) ID is fixed in this image's packages or is an open advisory.</p>
         <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
           <label className="flex-1">
             <span className="sr-only">Vulnerability ID</span>
@@ -80,6 +90,8 @@ export function SecurityTab({ name, tag }: { name: string; tag: string }) {
           </div>
         )}
       </Card>
+
+      <OpenAdvisories name={name} tag={tag} />
 
       <Card>
         <h2 className="mb-3 font-semibold">Recorded fixes</h2>
@@ -135,17 +147,8 @@ export function SecurityTab({ name, tag }: { name: string; tag: string }) {
 
       <p className="rounded-lg bg-zinc-100 p-3 text-xs text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
         This data comes from the Wolfi security database, which records which vulnerabilities each package version fixes. It
-        doesn't list unfixed vulnerabilities, so it isn't a full scan. Use a scanner such as grype for that.
+        doesn't list unfixed vulnerabilities, so it isn't a full scan. See Open advisories above for the advisories Chainguard has published, and use a scanner such as grype for a full report.
       </p>
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50">
-      <div className="text-2xl font-semibold tabular-nums">{value.toLocaleString()}</div>
-      <div className="text-xs text-zinc-600 dark:text-zinc-400">{label}</div>
     </div>
   )
 }

@@ -1,0 +1,2315 @@
+{
+ "CGA-2727-9j94-3x3p": {
+  "id": "CGA-2727-9j94-3x3p",
+  "modified": "2026-10-07T02:17:51Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-2v63-758j-xjm7": {
+  "id": "CGA-2v63-758j-xjm7",
+  "modified": "2026-09-20T16:34:57Z",
+  "upstream": [
+   "CVE-2026-90831",
+   "GHSA-fjw7-r654-jjmq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-2w26-qvh7-3jhg": {
+  "id": "CGA-2w26-qvh7-3jhg",
+  "modified": "2026-10-10T15:36:09Z",
+  "upstream": [
+   "CVE-2026-12345"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "python-3.15",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "python-3.15",
+       "component_type": "apk",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-2wfw-w4p7-55x5": {
+  "id": "CGA-2wfw-w4p7-55x5",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-91781",
+   "GHSA-x33g-4rqc-v4wq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-37wc-rr96-hm3f": {
+  "id": "CGA-37wc-rr96-hm3f",
+  "modified": "2026-10-07T02:18:11Z",
+  "upstream": [
+   "CVE-2026-95818",
+   "GHSA-h8x4-734c-9753"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-3gg8-98rw-pxh5": {
+  "id": "CGA-3gg8-98rw-pxh5",
+  "modified": "2026-09-20T16:34:57Z",
+  "upstream": [
+   "CVE-2026-91780",
+   "GHSA-9vhp-r9qm-xf9x"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-3p64-pj6v-586c": {
+  "id": "CGA-3p64-pj6v-586c",
+  "modified": "2026-10-07T02:17:31Z",
+  "upstream": [
+   "CVE-2026-8674",
+   "GHSA-qghr-qhfc-4hxp"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-locale-posix",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-locale-posix",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-3x96-2xqq-vjp6": {
+  "id": "CGA-3x96-2xqq-vjp6",
+  "modified": "2026-09-22T11:55:10Z",
+  "upstream": [
+   "CVE-2026-90801",
+   "GHSA-x22q-2wh5-h6hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-4gmv-8mr7-5pxx": {
+  "id": "CGA-4gmv-8mr7-5pxx",
+  "modified": "2026-10-07T02:18:17Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-4mgp-78rw-5337": {
+  "id": "CGA-4mgp-78rw-5337",
+  "modified": "2026-10-07T02:17:52Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-4pq8-rj3p-hwfh": {
+  "id": "CGA-4pq8-rj3p-hwfh",
+  "modified": "2026-09-20T16:34:57Z",
+  "upstream": [
+   "CVE-2026-91781",
+   "GHSA-x33g-4rqc-v4wq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-4r22-ccq9-ch88": {
+  "id": "CGA-4r22-ccq9-ch88",
+  "modified": "2026-09-15T01:22:00Z",
+  "upstream": [
+   "CVE-2026-58472",
+   "GHSA-332r-8pmf-8m9p"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "wget",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "wget",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-5273-pf8c-cg4v": {
+  "id": "CGA-5273-pf8c-cg4v",
+  "modified": "2026-10-07T02:17:59Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "libcrypt1-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "libcrypt1-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-52cx-9f2g-9fj3": {
+  "id": "CGA-52cx-9f2g-9fj3",
+  "modified": "2026-09-22T11:55:10Z",
+  "upstream": [
+   "CVE-2026-90802",
+   "GHSA-9587-j488-f7h3"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-59hv-jrxx-977f": {
+  "id": "CGA-59hv-jrxx-977f",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-91782",
+   "GHSA-vqfr-4h6g-3q8x"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-59px-82vq-wxf5": {
+  "id": "CGA-59px-82vq-wxf5",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-90829",
+   "GHSA-chxw-w34g-8w5c"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-5gv6-97hw-c99g": {
+  "id": "CGA-5gv6-97hw-c99g",
+  "modified": "2026-09-22T11:55:10Z",
+  "upstream": [
+   "CVE-2026-90804",
+   "GHSA-45j6-5xqm-57mq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-5w45-f7wm-grx2": {
+  "id": "CGA-5w45-f7wm-grx2",
+  "modified": "2026-10-07T02:17:56Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-locale-posix",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-locale-posix",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-654r-h3j3-cp6j": {
+  "id": "CGA-654r-h3j3-cp6j",
+  "modified": "2026-09-20T16:34:57Z",
+  "upstream": [
+   "CVE-2026-90830",
+   "GHSA-4xpf-8h39-fxrf"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-6cv2-mm79-q3h6": {
+  "id": "CGA-6cv2-mm79-q3h6",
+  "modified": "2026-10-07T02:17:33Z",
+  "upstream": [
+   "CVE-2026-8674",
+   "GHSA-qghr-qhfc-4hxp"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "libcrypt1-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "libcrypt1-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-6px6-pp92-76hc": {
+  "id": "CGA-6px6-pp92-76hc",
+  "modified": "2026-10-07T02:17:56Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-locale-posix",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-locale-posix",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-793r-8w27-7cpx": {
+  "id": "CGA-793r-8w27-7cpx",
+  "modified": "2026-09-20T14:22:07Z",
+  "upstream": [
+   "CVE-2026-90830",
+   "GHSA-4xpf-8h39-fxrf"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-7cxq-52mv-wf27": {
+  "id": "CGA-7cxq-52mv-wf27",
+  "modified": "2026-09-25T12:00:35Z",
+  "upstream": [
+   "CVE-2026-90828",
+   "GHSA-fx9g-rhcq-63jg"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-84q2-7229-4h7w": {
+  "id": "CGA-84q2-7229-4h7w",
+  "modified": "2026-09-20T16:35:00Z",
+  "upstream": [
+   "CVE-2026-91779",
+   "GHSA-9ww6-c2m6-3277"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-84qm-pxw8-f58f": {
+  "id": "CGA-84qm-pxw8-f58f",
+  "modified": "2026-10-07T02:17:39Z",
+  "upstream": [
+   "CVE-2026-86805",
+   "GHSA-fmf4-pr35-46c2"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-84rc-65mm-8c9g": {
+  "id": "CGA-84rc-65mm-8c9g",
+  "modified": "2026-10-10T20:49:06Z",
+  "upstream": [
+   "CVE-2025-47273",
+   "GHSA-5rjg-fvgr-3xxf"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "py3.15-pip-base",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "setuptools",
+       "component_type": "python",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-85j7-p5fv-48pq": {
+  "id": "CGA-85j7-p5fv-48pq",
+  "modified": "2026-10-07T02:18:18Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-dev",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-dev",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-87j2-rf55-jc3p": {
+  "id": "CGA-87j2-rf55-jc3p",
+  "modified": "2026-10-07T02:18:11Z",
+  "upstream": [
+   "CVE-2026-95818",
+   "GHSA-h8x4-734c-9753"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-8h6p-6495-cwhr": {
+  "id": "CGA-8h6p-6495-cwhr",
+  "modified": "2026-10-07T02:17:58Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-8wmh-vmch-wfc4": {
+  "id": "CGA-8wmh-vmch-wfc4",
+  "modified": "2026-10-07T02:18:21Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-locale-posix",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-locale-posix",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-9c6v-m8x8-j3fw": {
+  "id": "CGA-9c6v-m8x8-j3fw",
+  "modified": "2026-09-22T11:55:10Z",
+  "upstream": [
+   "CVE-2026-90803",
+   "GHSA-fw55-q7rw-84f9"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-9gj8-gjxv-82qf": {
+  "id": "CGA-9gj8-gjxv-82qf",
+  "modified": "2026-09-15T01:31:22Z",
+  "upstream": [
+   "CVE-2026-6844",
+   "GHSA-p33j-xffm-gxj7"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-9jhh-7whq-9r98": {
+  "id": "CGA-9jhh-7whq-9r98",
+  "modified": "2026-10-07T02:17:52Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-dev",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-dev",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-9rcc-j9xg-72hj": {
+  "id": "CGA-9rcc-j9xg-72hj",
+  "modified": "2026-09-22T13:43:40Z",
+  "upstream": [
+   "CVE-2026-90801",
+   "GHSA-x22q-2wh5-h6hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-c5rh-xxpp-872r": {
+  "id": "CGA-c5rh-xxpp-872r",
+  "modified": "2026-10-10T13:18:52Z",
+  "upstream": [
+   "CVE-2025-15367",
+   "GHSA-g82h-mgfp-jx8g"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "python-3.15",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "python-3.15",
+       "component_type": "apk",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-cjx6-763w-4wfc": {
+  "id": "CGA-cjx6-763w-4wfc",
+  "modified": "2026-10-10T15:36:08Z",
+  "upstream": [
+   "CVE-2025-15367",
+   "GHSA-g82h-mgfp-jx8g"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "python-3.15",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "python-3.15",
+       "component_type": "apk",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-fjmw-f657-w678": {
+  "id": "CGA-fjmw-f657-w678",
+  "modified": "2026-10-07T02:17:26Z",
+  "upstream": [
+   "CVE-2026-8674",
+   "GHSA-qghr-qhfc-4hxp"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-fp47-6j6h-hj89": {
+  "id": "CGA-fp47-6j6h-hj89",
+  "modified": "2026-09-15T02:03:28Z",
+  "upstream": [
+   "CVE-2026-6844",
+   "GHSA-p33j-xffm-gxj7"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-fw29-622p-rcr2": {
+  "id": "CGA-fw29-622p-rcr2",
+  "modified": "2026-09-22T13:43:42Z",
+  "upstream": [
+   "CVE-2026-90802",
+   "GHSA-9587-j488-f7h3"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-fxmw-q594-mwr3": {
+  "id": "CGA-fxmw-q594-mwr3",
+  "modified": "2026-09-20T16:34:57Z",
+  "upstream": [
+   "CVE-2026-90829",
+   "GHSA-chxw-w34g-8w5c"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-g89r-r3vh-pg54": {
+  "id": "CGA-g89r-r3vh-pg54",
+  "modified": "2026-09-15T01:31:23Z",
+  "upstream": [
+   "CVE-2026-6845",
+   "GHSA-chmq-57c3-4p7v"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-hv3q-j74h-9m29": {
+  "id": "CGA-hv3q-j74h-9m29",
+  "modified": "2026-01-23T19:31:01Z",
+  "upstream": [
+   "CVE-2026-21895",
+   "GHSA-9c48-w39g-hm26"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "uv",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "rsa",
+       "component_type": "rust-crate",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-jr99-f6q8-945r": {
+  "id": "CGA-jr99-f6q8-945r",
+  "modified": "2026-10-07T02:18:12Z",
+  "upstream": [
+   "CVE-2026-95818",
+   "GHSA-h8x4-734c-9753"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "libcrypt1-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "libcrypt1-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-m742-4p9j-3f58": {
+  "id": "CGA-m742-4p9j-3f58",
+  "modified": "2026-09-25T13:53:18Z",
+  "upstream": [
+   "CVE-2026-90828",
+   "GHSA-fx9g-rhcq-63jg"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-m82f-jwmx-jq9w": {
+  "id": "CGA-m82f-jwmx-jq9w",
+  "modified": "2026-10-10T20:08:06Z",
+  "upstream": [
+   "CVE-2025-47273",
+   "GHSA-5rjg-fvgr-3xxf"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "py3.15-pip-base",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "setuptools",
+       "component_type": "python",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-mp3h-w2rr-vq2f": {
+  "id": "CGA-mp3h-w2rr-vq2f",
+  "modified": "2026-10-10T14:08:50Z",
+  "upstream": [
+   "CVE-2026-12345"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "python-3.15",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "python-3.15",
+       "component_type": "apk",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-mppp-qcxg-vfqx": {
+  "id": "CGA-mppp-qcxg-vfqx",
+  "modified": "2026-10-07T02:18:23Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-mxhv-p599-37pj": {
+  "id": "CGA-mxhv-p599-37pj",
+  "modified": "2026-09-22T13:43:40Z",
+  "upstream": [
+   "CVE-2026-90804",
+   "GHSA-45j6-5xqm-57mq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-p698-26h2-8jh4": {
+  "id": "CGA-p698-26h2-8jh4",
+  "modified": "2026-10-07T02:17:58Z",
+  "upstream": [
+   "CVE-2026-89092",
+   "GHSA-gwqp-9qgw-c5pv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-p7p9-m5xm-f387": {
+  "id": "CGA-p7p9-m5xm-f387",
+  "modified": "2026-10-07T02:18:22Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-locale-posix",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-locale-posix",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-pq49-vpwf-9c5h": {
+  "id": "CGA-pq49-vpwf-9c5h",
+  "modified": "2026-10-07T02:18:18Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-dev",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-dev",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-q3jg-48p9-vppw": {
+  "id": "CGA-q3jg-48p9-vppw",
+  "modified": "2026-09-15T01:22:00Z",
+  "upstream": [
+   "CVE-2026-58470",
+   "GHSA-5f52-px6m-c5hw"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "wget",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "wget",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-q52v-g232-2h9m": {
+  "id": "CGA-q52v-g232-2h9m",
+  "modified": "2026-10-07T02:17:33Z",
+  "upstream": [
+   "CVE-2026-8674",
+   "GHSA-qghr-qhfc-4hxp"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "ld-linux-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "ld-linux-2.44",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-q98f-x5gg-77jq": {
+  "id": "CGA-q98f-x5gg-77jq",
+  "modified": "2026-10-07T02:17:40Z",
+  "upstream": [
+   "CVE-2026-86805",
+   "GHSA-fmf4-pr35-46c2"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-dev",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-dev",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-qpvq-hw46-jg8f": {
+  "id": "CGA-qpvq-hw46-jg8f",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-90831",
+   "GHSA-fjw7-r654-jjmq"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-r4h9-8rmm-9h9q": {
+  "id": "CGA-r4h9-8rmm-9h9q",
+  "modified": "2026-09-20T16:35:00Z",
+  "upstream": [
+   "CVE-2026-91782",
+   "GHSA-vqfr-4h6g-3q8x"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-rcxm-9cq6-m5fx": {
+  "id": "CGA-rcxm-9cq6-m5fx",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-91780",
+   "GHSA-9vhp-r9qm-xf9x"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-rfj3-3xpp-75fh": {
+  "id": "CGA-rfj3-3xpp-75fh",
+  "modified": "2026-09-22T13:43:42Z",
+  "upstream": [
+   "CVE-2026-90803",
+   "GHSA-fw55-q7rw-84f9"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-rqgg-6xvr-c6q9": {
+  "id": "CGA-rqgg-6xvr-c6q9",
+  "modified": "2026-09-20T14:22:06Z",
+  "upstream": [
+   "CVE-2026-91779",
+   "GHSA-9ww6-c2m6-3277"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-rx72-wfwm-8qwm": {
+  "id": "CGA-rx72-wfwm-8qwm",
+  "modified": "2026-01-23T19:31:01Z",
+  "upstream": [
+   "CVE-2026-21895",
+   "GHSA-9c48-w39g-hm26"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "uv",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "rsa",
+       "component_type": "rust-crate",
+       "latest_event_status": "detection"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-vm64-rhrg-jq27": {
+  "id": "CGA-vm64-rhrg-jq27",
+  "modified": "2026-09-15T02:03:28Z",
+  "upstream": [
+   "CVE-2026-6845",
+   "GHSA-chmq-57c3-4p7v"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "binutils",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "binutils",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-vxj5-vgq2-w95g": {
+  "id": "CGA-vxj5-vgq2-w95g",
+  "modified": "2026-10-07T02:17:40Z",
+  "upstream": [
+   "CVE-2026-86805",
+   "GHSA-fmf4-pr35-46c2"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "glibc-2.44-dev",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "2.44-r8"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "glibc-2.44-dev",
+       "component_type": "apk",
+       "latest_event_status": "fixed"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-wcr9-rxgr-hrq5": {
+  "id": "CGA-wcr9-rxgr-hrq5",
+  "modified": "2026-09-15T01:22:00Z",
+  "upstream": [
+   "CVE-2026-58471",
+   "GHSA-vv88-699v-w5rh"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "wget",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "wget",
+       "component_type": "apk",
+       "latest_event_status": "pending_upstream_fix"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "CGA-xqrp-7jh5-56v7": {
+  "id": "CGA-xqrp-7jh5-56v7",
+  "modified": "2026-10-07T02:18:24Z",
+  "upstream": [
+   "CVE-2026-97399",
+   "GHSA-qhjw-2xw3-v2hv"
+  ],
+  "affected": [
+   {
+    "package": {
+     "name": "libcrypt1-2.44",
+     "ecosystem": "Wolfi"
+    },
+    "ranges": [
+     {
+      "type": "ECOSYSTEM",
+      "events": [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "0"
+       }
+      ]
+     }
+    ],
+    "ecosystem_specific": {
+     "components": [
+      {
+       "component_name": "libcrypt1-2.44",
+       "component_type": "apk",
+       "latest_event_status": "false_positive_determination"
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

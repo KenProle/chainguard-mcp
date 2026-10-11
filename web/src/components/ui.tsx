@@ -119,3 +119,13 @@ export function CopyableCode({ value }: { value: string }) {
   )
 }
 
+
+/** A large number with a caption, for summary rows. */
+export function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50">
+      <div className="text-2xl font-semibold tabular-nums">{value.toLocaleString()}</div>
+      <div className="text-xs text-zinc-600 dark:text-zinc-400">{label}</div>
+    </div>
+  )
+}

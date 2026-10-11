@@ -244,4 +244,137 @@ func TestLive(t *testing.T) {
 			t.Errorf("captures cover %d months since 2024-04, want at least 17", len(months))
 		}
 	})
+	t.Run("open_advisories", func(t *testing.T) {
+		// OA-5 and OA-12 as stable properties: every package is looked up in
+		// Wolfi, the counts add up, and each vulnerability has a package. The
+		// exact figures (21 = 17 + 4 on 2026-10-11, with statuses from the advisory feed) change as Chainguard
+		// publishes advisories, so they are logged, not asserted.
+		r, err := svc.OpenAdvisories(context.Background(), OpenAdvisoriesInput{Image: "python", Tag: "latest-dev"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("python latest-dev: total=%d counts=%+v checked_at=%s", r.Total, r.Counts, r.CheckedAt)
+		if len(r.NotCovered) != 0 {
+			t.Errorf("packages not looked up: %v", r.NotCovered)
+		}
+		c := r.Counts
+		if sum := c.FixAvailable + c.PendingUpstreamFix + c.Confirmed + c.FixNotPlanned + c.NotYetAssessed; sum != r.Total || r.Total != len(r.Vulnerabilities) {
+			t.Errorf("counts %+v add up to %d, total %d, %d vulnerabilities", c, sum, r.Total, len(r.Vulnerabilities))
+		}
+		for _, v := range r.Vulnerabilities {
+			if len(v.Packages) == 0 {
+				t.Errorf("%s has no packages", v.ID)
+			}
+		}
+		checked, err := time.Parse(time.RFC3339, r.CheckedAt)
+		if err != nil || time.Since(checked) > 5*time.Minute {
+			t.Errorf("checked_at %q is not recent: %v", r.CheckedAt, err)
+		}
+	})
+
+	t.Run("open_advisories_feed", func(t *testing.T) {
+		// OA-16.1 and OA-17.1 as a stable property: an advisory that the feed has
+		// fixed in the installed version is not an open advisory, whatever
+		// OSV.dev's copy says. On 2026-10-11 that was CGA-2727-9j94-3x3p for
+		// glibc-2.44 2.44-r8 on python latest; it is skipped once the image
+		// moves on or the feed's record changes.
+		ctx := context.Background()
+		pkgs, _, err := svc.Registry.Packages(ctx, "python", "latest", "amd64")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var glibc *Package
+		for i := range pkgs {
+			if pkgs[i].Name == "glibc-2.44" {
+				glibc = &pkgs[i]
+			}
+		}
+		if glibc == nil {
+			t.Skip("python latest no longer has glibc-2.44")
+		}
+		const id = "CGA-2727-9j94-3x3p"
+		rec, _, err := svc.Feed.fetch(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec == nil {
+			t.Skip(id + " is no longer in the feed")
+		}
+		if open, _ := openState(*rec, OSVPackage{"Wolfi", glibc.Name, glibc.Version}); open {
+			t.Skipf("%s is open for glibc-2.44 %s now", id, glibc.Version)
+		}
+		for _, lookup := range []string{id, "CVE-2026-89092"} {
+			r, err := svc.OpenAdvisories(ctx, OpenAdvisoriesInput{Image: "python", ID: lookup})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Match != nil {
+				t.Errorf("%s is an open advisory, but the feed has %s fixed in glibc-2.44 %s: %+v", lookup, id, glibc.Version, r.Match)
+			}
+		}
+	})
+
+	t.Run("open_advisories_grype", func(t *testing.T) {
+		// OA-15.1: every CVE grype reports for an OS package of python
+		// latest-dev is an open advisory or a recorded fix not yet installed
+		// (tolerance zero, see the design's grype cross-check).
+		grype, err := exec.LookPath("grype")
+		if err != nil {
+			t.Skip("grype is not on PATH")
+		}
+		ctx := context.Background()
+		const image, tag = "python", "latest-dev"
+		report, err := svc.SecurityReport(ctx, CheckVulnerabilitiesInput{Image: image, Tag: tag})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.OpenAdvisories == nil {
+			t.Fatalf("no open advisories: %s", report.OpenAdvisoriesError)
+		}
+		known := map[string]bool{}
+		for _, v := range report.OpenAdvisories.Vulnerabilities {
+			known[v.ID] = true
+			for _, a := range v.Aliases {
+				known[a] = true
+			}
+		}
+		for _, p := range report.Packages {
+			for _, id := range p.PendingFixes {
+				known[id] = true
+			}
+		}
+
+		scanCtx, cancel := context.WithTimeout(ctx, 8*time.Minute)
+		defer cancel()
+		out, err := exec.CommandContext(scanCtx, grype, "registry:cgr.dev/chainguard/"+image+":"+tag, "--platform", "linux/amd64", "-o", "json", "-q").Output()
+		if err != nil {
+			t.Fatalf("grype: %v", err)
+		}
+		var scan struct {
+			Matches []struct {
+				Vulnerability struct{ ID string }
+				Artifact      struct {
+					Name string
+					Type string
+				}
+			}
+		}
+		if err := json.Unmarshal(out, &scan); err != nil {
+			t.Fatal(err)
+		}
+		var checked, missing []string
+		for _, m := range scan.Matches {
+			if m.Artifact.Type != "apk" || !(strings.HasPrefix(m.Vulnerability.ID, "CVE-") || strings.HasPrefix(m.Vulnerability.ID, "GHSA-")) {
+				continue
+			}
+			checked = append(checked, m.Vulnerability.ID)
+			if !known[m.Vulnerability.ID] {
+				missing = append(missing, m.Artifact.Name+" "+m.Vulnerability.ID)
+			}
+		}
+		t.Logf("grype: %d OS-package findings %v; open advisories: %d; missing from both: %v", len(checked), checked, report.OpenAdvisories.Total, missing)
+		if len(missing) > 0 {
+			t.Errorf("grype reports OS-package CVEs that are neither open advisories nor recorded fixes not yet installed: %v", missing)
+		}
+	})
 }

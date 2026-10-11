@@ -1,6 +1,7 @@
 // Shared Tailwind class strings and formatting helpers. Kept out of the
 // component files so React fast refresh keeps working during development.
 
+import type { AdvisoryStatus } from './api'
 import type { FreeStatus } from './catalogMap'
 import type { LicenseCategory } from './licenses'
 
@@ -44,6 +45,23 @@ export const groupHeaderColor = { band: 'fill-slate-700 dark:fill-slate-300', te
  * (a parent with the group class) has keyboard focus.
  */
 export const focusOutline = 'fill-none stroke-indigo-600 opacity-0 group-focus-visible:opacity-100 dark:stroke-indigo-400'
+
+/** Labels, badge tones and display order for the open advisories' statuses (OA-4). */
+export const advisoryStatus: Record<AdvisoryStatus, { text: string; tone: 'green' | 'amber' | 'red' | 'gray' }> = {
+  fix_available: { text: 'Fix available', tone: 'green' },
+  pending_upstream_fix: { text: 'Waiting on an upstream fix', tone: 'amber' },
+  confirmed: { text: 'Confirmed', tone: 'red' },
+  fix_not_planned: { text: 'Fix not planned', tone: 'red' },
+  not_yet_assessed: { text: 'Not yet assessed', tone: 'gray' },
+}
+
+export const advisoryStatusOrder: AdvisoryStatus[] = [
+  'fix_available',
+  'pending_upstream_fix',
+  'confirmed',
+  'fix_not_planned',
+  'not_yet_assessed',
+]
 
 /** A row of toggle buttons, such as the catalog's List / Map switch. */
 export const segmentGroup = 'inline-flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800'

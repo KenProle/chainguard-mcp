@@ -22,11 +22,19 @@ var fakeUI = fstest.MapFS{
 	"favicon.svg":        {Data: []byte(`<svg/>`)},
 }
 
+// newWebServer serves the fake backend with a fake OSV.dev holding advisories
+// (newFakeAdvisoryService), so every endpoint's index example can be answered.
 func newWebServer(t *testing.T, ui fstest.MapFS) *httptest.Server {
-	t.Helper()
-	srv := httptest.NewServer(newWebHandler(newFakeService(t), ui))
-	t.Cleanup(srv.Close)
+	srv, _ := newWebServerWithOSV(t, ui)
 	return srv
+}
+
+func newWebServerWithOSV(t *testing.T, ui fstest.MapFS) (*httptest.Server, *fakeOSV) {
+	t.Helper()
+	svc, osv, _, _ := newFakeAdvisoryService(t)
+	srv := httptest.NewServer(newWebHandler(svc, ui))
+	t.Cleanup(srv.Close)
+	return srv, osv
 }
 
 // getJSON fetches path and decodes the JSON body into out (if non-nil).
@@ -410,6 +418,7 @@ func TestAPIIndex(t *testing.T) {
 			"/api/images/{name}/pin",
 			"/api/images/{name}/packages",
 			"/api/images/{name}/vulnerabilities",
+			"/api/images/{name}/advisories",
 			"/api/images/{name}/sbom",
 			"/api/alternatives",
 			"/api/compare-upstream",
@@ -480,4 +489,115 @@ func TestAPIIndex(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestOpenAdvisoriesAPI(t *testing.T) {
+	srv, osv := newWebServerWithOSV(t, fakeUI)
+
+	t.Run("OA-1.1 python latest rule level", func(t *testing.T) {
+		var r AdvisoryReport
+		if resp := getJSON(t, srv, "/api/images/python/advisories", &r); resp.StatusCode != 200 {
+			t.Fatalf("status %d", resp.StatusCode)
+		}
+		// Every installed package is looked up, and none is left out.
+		if osv.requests.Load() != 3 || len(r.NotCovered) != 0 {
+			t.Errorf("%d OSV requests, not covered %v; want 3 and none", osv.requests.Load(), r.NotCovered)
+		}
+		if r.Image != "python" || r.Tag != "latest" || r.Digest == "" || r.Total != 4 || len(r.Vulnerabilities) != 4 {
+			t.Errorf("report: %+v", r)
+		}
+		if r.CheckedAt == "" || !strings.Contains(r.Source, "Chainguard's published advisories, found via OSV.dev with their status from Chainguard's advisory feed") {
+			t.Errorf("checked_at %q, source %q", r.CheckedAt, r.Source)
+		}
+		c := r.Counts
+		if c.NotYetAssessed != 1 || c.PendingUpstreamFix != 1 || c.FixAvailable != 1 || c.FixNotPlanned != 1 || c.Confirmed != 0 {
+			t.Errorf("counts: %+v", c)
+		}
+	})
+
+	t.Run("OA-9 id lookup keeps the list", func(t *testing.T) {
+		var r AdvisoryReport
+		getJSON(t, srv, "/api/images/python/advisories?id=cga-bbbb-0000-0002", &r)
+		if r.ID != "CGA-BBBB-0000-0002" || r.Match == nil || r.Match.ID != "CVE-2026-0102" || len(r.Match.Packages) != 2 || r.Total != 4 {
+			t.Errorf("report: %+v", r)
+		}
+	})
+
+	t.Run("OA-13.3 tag switch", func(t *testing.T) {
+		var r AdvisoryReport
+		getJSON(t, srv, "/api/images/python/advisories?tag=latest-dev", &r)
+		if r.Tag != "latest-dev" || r.Total != 4 {
+			t.Fatalf("report: %+v", r)
+		}
+		for _, v := range r.Vulnerabilities {
+			if v.ID == "CVE-2026-0105" && (v.Packages[0].Name != "busybox" || len(v.Packages[0].Components) != 1 || v.Packages[0].Components[0].Kind != "Rust crate") {
+				t.Errorf("component: %+v", v.Packages)
+			}
+		}
+	})
+
+	t.Run("OA-11.2 subscription-only image", func(t *testing.T) {
+		var e apiError
+		if resp := getJSON(t, srv, "/api/images/loki-fips/advisories", &e); resp.StatusCode != 403 || e.Code != "not_public" {
+			t.Errorf("status %d, %+v", resp.StatusCode, e)
+		}
+	})
+
+	t.Run("invalid input", func(t *testing.T) {
+		var e apiError
+		if resp := getJSON(t, srv, "/api/images/Py%20thon/advisories", &e); resp.StatusCode != 400 || e.Code != "invalid_input" {
+			t.Errorf("status %d, %+v", resp.StatusCode, e)
+		}
+	})
+}
+
+func TestOA11_OSVFailureIsSourceFailed(t *testing.T) {
+	srv, osv := newWebServerWithOSV(t, fakeUI)
+	osv.failName = map[string]bool{"libssl3": true}
+	var e apiError
+	resp := getJSON(t, srv, "/api/images/python/advisories", &e)
+	if resp.StatusCode != 502 || e.Code != "source_failed" || e.Source != "OSV.dev" {
+		t.Errorf("status %d, %+v", resp.StatusCode, e)
+	}
+}
+
+func TestVulnerabilitiesEndpointMakesNoOSVRequest(t *testing.T) {
+	srv, osv := newWebServerWithOSV(t, fakeUI)
+	var r VulnReport
+	if resp := getJSON(t, srv, "/api/images/python/vulnerabilities", &r); resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if n := osv.requests.Load(); n != 0 {
+		t.Errorf("%d OSV requests from /vulnerabilities", n)
+	}
+}
+
+func TestOA13_4_FeedFailureIsSourceFailed(t *testing.T) {
+	svc, _, _, feed := newFakeAdvisoryService(t)
+	srv := httptest.NewServer(newWebHandler(svc, fakeUI))
+	t.Cleanup(srv.Close)
+	feed.failID = map[string]bool{"CGA-bbbb-0000-0002": true}
+	var e apiError
+	resp := getJSON(t, srv, "/api/images/python/advisories", &e)
+	if resp.StatusCode != 502 || e.Code != "source_failed" || e.Source != "Chainguard advisories" {
+		t.Errorf("status %d, %+v", resp.StatusCode, e)
+	}
+}
+
+func TestOA17_APIReportsStaleAndMissingAdvisories(t *testing.T) {
+	srv, _ := newWebServerWithOSV(t, fakeUI)
+
+	// OA-9.4: OSV.dev lists CVE-2026-0106 as pending, the feed has it fixed.
+	var stale AdvisoryReport
+	getJSON(t, srv, "/api/images/python/advisories?id=CVE-2026-0106", &stale)
+	if stale.Match != nil || !strings.Contains(stale.LookupNote, "No open advisory for CVE-2026-0106") || stale.Total != 4 {
+		t.Errorf("stale: match %+v, note %q, total %d", stale.Match, stale.LookupNote, stale.Total)
+	}
+
+	// OA-17.3: the feed has no record of CGA-cccc-0000-0002.
+	var missing AdvisoryReport
+	getJSON(t, srv, "/api/images/python/advisories?tag=latest-dev", &missing)
+	if !slices.Equal(missing.StatusFromOSV, []string{"CGA-cccc-0000-0002"}) || !strings.Contains(missing.Note, "CGA-cccc-0000-0002") {
+		t.Errorf("status_from_osv %v, note %q", missing.StatusFromOSV, missing.Note)
+	}
 }

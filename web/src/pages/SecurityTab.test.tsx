@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { VulnReport } from '../api'
 import { pythonTags } from '../test/fixtures/python'
+import { pythonAdvisoriesLatest, pythonAdvisoriesLatestDev } from '../test/fixtures/pythonAdvisories'
 import { pythonVulnsLatest, pythonVulnsLatestDev, pythonVulnsWithPending } from '../test/fixtures/pythonVulns'
 import { mockApi, renderAt } from '../test/render'
 import { ImagePage } from './ImagePage'
@@ -13,6 +14,10 @@ function mockPython(latest: VulnReport = pythonVulnsLatest) {
     '/api/images/python/vulnerabilities': [
       { query: { tag: 'latest' }, body: latest },
       { query: { tag: 'latest-dev' }, body: pythonVulnsLatestDev },
+    ],
+    '/api/images/python/advisories': [
+      { query: { tag: 'latest' }, body: pythonAdvisoriesLatest },
+      { query: { tag: 'latest-dev' }, body: pythonAdvisoriesLatestDev },
     ],
   })
 }
@@ -120,14 +125,16 @@ describe('SecurityTab fixes chart', () => {
     renderSecurity()
     await chart()
     expect(screen.getByText(/doesn't list unfixed vulnerabilities, so it isn't a full scan/)).toBeInTheDocument()
+    expect(screen.getByText(/See Open advisories above/)).toBeInTheDocument()
   })
 
-  it('SF-8.1 makes no request beyond the vulnerability summary', async () => {
+  it('SF-8.1 makes no request for the chart beyond the vulnerability summary', async () => {
     const fetchMock = mockPython()
     renderSecurity()
     await chart()
     const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://localhost').pathname)
-    expect(new Set(paths)).toEqual(new Set(['/api/images/python/tags', '/api/images/python/vulnerabilities']))
+    // The Open advisories section makes its own request (OA-13); the chart makes none.
+    expect(new Set(paths)).toEqual(new Set(['/api/images/python/tags', '/api/images/python/vulnerabilities', '/api/images/python/advisories']))
     expect(paths.filter((p) => p.endsWith('/vulnerabilities'))).toHaveLength(1)
   })
 

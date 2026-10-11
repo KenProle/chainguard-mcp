@@ -25,8 +25,12 @@ const (
 type OSV struct {
 	HTTP *http.Client
 	URL  string
-	// TTL is how long a package's result is cached.
-	TTL time.Duration
+	// TTL is how long a package's result is cached; ChainguardTTL replaces it
+	// for the Wolfi and Chainguard ecosystems, whose open advisories change
+	// during the day (OA-12).
+	TTL, ChainguardTTL time.Duration
+	// Now is the clock, replaced in tests.
+	Now func() time.Time
 
 	sem chan struct{}
 
@@ -39,8 +43,23 @@ type osvCacheEntry struct {
 	fetched time.Time
 }
 
+func (o *OSV) now() time.Time {
+	if o.Now != nil {
+		return o.Now()
+	}
+	return time.Now()
+}
+
+// ttl returns how long a result for the package's ecosystem stays fresh.
+func (o *OSV) ttl(pkg OSVPackage) time.Duration {
+	if pkg.Ecosystem == "Wolfi" || pkg.Ecosystem == "Chainguard" {
+		return o.ChainguardTTL
+	}
+	return o.TTL
+}
+
 func NewOSV(client *http.Client) *OSV {
-	return &OSV{HTTP: client, URL: defaultOSVURL, TTL: 24 * time.Hour, sem: make(chan struct{}, osvMaxInFlight)}
+	return &OSV{HTTP: client, URL: defaultOSVURL, TTL: 24 * time.Hour, ChainguardTTL: time.Hour, sem: make(chan struct{}, osvMaxInFlight)}
 }
 
 // OSVVuln is the part of an OSV record used to classify a vulnerability.
@@ -51,6 +70,24 @@ type OSVVuln struct {
 	Aliases  []string      `json:"aliases"`
 	Upstream []string      `json:"upstream"`
 	Affected []OSVAffected `json:"affected"`
+}
+
+// fixedVersion returns the first fixed version the record names for the
+// package, if any.
+func (v OSVVuln) fixedVersion(pkg OSVPackage) string {
+	for _, a := range v.Affected {
+		if a.Package.Name != pkg.Name || a.Package.Ecosystem != pkg.Ecosystem {
+			continue
+		}
+		for _, r := range a.Ranges {
+			for _, e := range r.Events {
+				if e.Fixed != "" {
+					return e.Fixed
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // vulnKeys returns the vulnerabilities an OSV record stands for, so records
@@ -81,13 +118,19 @@ type OSVAffected struct {
 	} `json:"package"`
 	Ranges []struct {
 		Events []struct {
-			Fixed string `json:"fixed"`
+			Introduced string `json:"introduced"`
+			Fixed      string `json:"fixed"`
 		} `json:"events"`
 	} `json:"ranges"`
 	EcosystemSpecific struct {
 		// Urgency is Debian's triage, e.g. "unimportant" or "end-of-life".
 		Urgency    string `json:"urgency"`
 		Components []struct {
+			// ComponentName and ComponentType name what the advisory is
+			// about: the package itself ("apk") or software compiled or
+			// bundled into it ("rust-crate", "python", "go-module", …).
+			ComponentName string `json:"component_name"`
+			ComponentType string `json:"component_type"`
 			// LatestEventStatus is Chainguard's, e.g. "pending_upstream_fix".
 			LatestEventStatus string `json:"latest_event_status"`
 		} `json:"components"`
@@ -111,10 +154,16 @@ type osvQueryResponse struct {
 // Query returns the vulnerabilities OSV.dev lists for a package version,
 // following pagination. Results are cached by ecosystem, name and version.
 func (o *OSV) Query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, error) {
+	vulns, _, err := o.query(ctx, pkg)
+	return vulns, err
+}
+
+// query is Query that also returns when the result was fetched.
+func (o *OSV) query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, time.Time, error) {
 	o.mu.Lock()
-	if e, ok := o.cache[pkg]; ok && time.Since(e.fetched) < o.TTL {
+	if e, ok := o.cache[pkg]; ok && o.now().Sub(e.fetched) < o.ttl(pkg) {
 		o.mu.Unlock()
-		return e.vulns, nil
+		return e.vulns, e.fetched, nil
 	}
 	o.mu.Unlock()
 
@@ -123,7 +172,7 @@ func (o *OSV) Query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, error) {
 	for {
 		page, err := o.queryPage(ctx, pkg, token)
 		if err != nil {
-			return nil, err
+			return nil, time.Time{}, err
 		}
 		vulns = append(vulns, page.Vulns...)
 		if page.NextPageToken == "" {
@@ -138,14 +187,15 @@ func (o *OSV) Query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, error) {
 	}
 	if len(o.cache)%1000 == 999 {
 		for k, e := range o.cache {
-			if time.Since(e.fetched) >= o.TTL {
+			if o.now().Sub(e.fetched) >= o.ttl(k) {
 				delete(o.cache, k)
 			}
 		}
 	}
-	o.cache[pkg] = osvCacheEntry{vulns: vulns, fetched: time.Now()}
+	fetched := o.now()
+	o.cache[pkg] = osvCacheEntry{vulns: vulns, fetched: fetched}
 	o.mu.Unlock()
-	return vulns, nil
+	return vulns, fetched, nil
 }
 
 // queryPage makes one request, retrying once on a server error.
@@ -211,6 +261,13 @@ func (o *OSV) post(ctx context.Context, body []byte) (*osvQueryResponse, bool, e
 // done and the total. The first failure cancels the rest, since a partial
 // result must not be shown as complete (UC-11).
 func (o *OSV) QueryAll(ctx context.Context, pkgs []OSVPackage, progress func(done, total int)) (map[OSVPackage][]OSVVuln, error) {
+	out, _, err := o.QueryAllAt(ctx, pkgs, progress)
+	return out, err
+}
+
+// QueryAllAt is QueryAll that also returns the oldest time any of the results
+// was fetched, so a cached answer reports its real age (OA-12.1).
+func (o *OSV) QueryAllAt(ctx context.Context, pkgs []OSVPackage, progress func(done, total int)) (map[OSVPackage][]OSVVuln, time.Time, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -220,12 +277,13 @@ func (o *OSV) QueryAll(ctx context.Context, pkgs []OSVPackage, progress func(don
 		out      = make(map[OSVPackage][]OSVVuln, len(pkgs))
 		done     int
 		firstErr error
+		oldest   time.Time
 		ch       = make(chan OSVPackage)
 	)
 	for range osvMaxInFlight {
 		wg.Go(func() {
 			for pkg := range ch {
-				vulns, err := o.Query(ctx, pkg)
+				vulns, fetched, err := o.query(ctx, pkg)
 				mu.Lock()
 				if err != nil {
 					if firstErr == nil {
@@ -234,6 +292,9 @@ func (o *OSV) QueryAll(ctx context.Context, pkgs []OSVPackage, progress func(don
 					}
 				} else {
 					out[pkg] = vulns
+					if oldest.IsZero() || fetched.Before(oldest) {
+						oldest = fetched
+					}
 					done++
 					if progress != nil {
 						progress(done, len(pkgs))
@@ -254,12 +315,12 @@ feed:
 	close(ch)
 	wg.Wait()
 	if firstErr != nil {
-		return nil, &SourceError{Source: "OSV.dev", Err: firstErr}
+		return nil, time.Time{}, &SourceError{Source: "OSV.dev", Err: firstErr}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
-	return out, nil
+	return out, oldest, nil
 }
 
 // FixStatus says whether a known vulnerability can be fixed by updating.

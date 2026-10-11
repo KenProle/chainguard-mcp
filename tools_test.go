@@ -293,3 +293,113 @@ func TestSaveSBOMDisabledWithoutDir(t *testing.T) {
 		}
 	}
 }
+
+func TestOA10_1_SummaryHasFixesAndOpenAdvisories(t *testing.T) {
+	svc, _, cg, _ := newFakeAdvisoryService(t)
+	s := mcpClient(t, svc)
+	var r VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python"}, &r)
+	if r.TotalFixed != 3 || len(r.Packages) != 2 {
+		t.Errorf("fixes as before: %+v", r)
+	}
+	a := r.OpenAdvisories
+	if a == nil || r.OpenAdvisoriesError != "" || a.Total != 4 || a.Counts.PendingUpstreamFix != 1 || a.Counts.NotYetAssessed != 1 || a.Counts.FixAvailable != 1 || a.Counts.FixNotPlanned != 1 {
+		t.Fatalf("open advisories: %+v (error %q)", a, r.OpenAdvisoriesError)
+	}
+	if len(a.Vulnerabilities) != 4 || a.CheckedAt == "" || !strings.Contains(a.Source, "via OSV.dev") {
+		t.Errorf("open advisories: %+v", a)
+	}
+	// The SBOM is read once: the attestation manifest, its blob, nothing more.
+	if n := cg.blobRequests.Load(); n > 3 {
+		t.Errorf("%d blob requests for one call", n)
+	}
+}
+
+func TestOA10_SBOMIsFetchedOncePerCall(t *testing.T) {
+	svc, _, cg, _ := newFakeAdvisoryService(t)
+	if _, err := svc.CheckVulnerabilities(context.Background(), CheckVulnerabilitiesInput{Image: "python"}); err != nil {
+		t.Fatal(err)
+	}
+	one := cg.blobRequests.Load()
+	if _, err := svc.SecurityReport(context.Background(), CheckVulnerabilitiesInput{Image: "python"}); err != nil {
+		t.Fatal(err)
+	}
+	if two := cg.blobRequests.Load() - one; two != one {
+		t.Errorf("SecurityReport read %d blobs, CheckVulnerabilities %d", two, one)
+	}
+}
+
+func TestOA10_2_Description(t *testing.T) {
+	s := mcpClient(t, newFakeService(t))
+	tools, err := s.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range tools.Tools {
+		if tool.Name != "check_vulnerabilities" {
+			continue
+		}
+		d := tool.Description
+		if !strings.Contains(d, "open advisories") || !strings.Contains(d, "OSV.dev") || strings.Contains(d, "records fixes, not open vulnerabilities") {
+			t.Errorf("description: %s", d)
+		}
+		// OA-8: it must not claim, or imply, that an image has no vulnerabilities.
+		if !strings.Contains(d, "doesn't mean an image has no vulnerabilities") || strings.Contains(d, " means an image has no vulnerabilities") || strings.Contains(strings.ToLower(d), "is secure") {
+			t.Errorf("description overclaims or lacks the disclaimer: %s", d)
+		}
+		return
+	}
+	t.Error("check_vulnerabilities not listed")
+}
+
+func TestOA10_3_OSVUnavailableKeepsTheFixes(t *testing.T) {
+	// newFakeService leaves OSV unreachable.
+	s := mcpClient(t, newFakeService(t))
+	var r VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python"}, &r)
+	if r.TotalFixed != 3 || len(r.Packages) != 2 {
+		t.Errorf("fixes missing: %+v", r)
+	}
+	if r.OpenAdvisories != nil || !strings.Contains(r.OpenAdvisoriesError, "Open advisories could not be checked") {
+		t.Errorf("advisories %+v, error %q", r.OpenAdvisories, r.OpenAdvisoriesError)
+	}
+}
+
+func TestOA9_IDCallReturnsFixesAndOpenAdvisoryMatch(t *testing.T) {
+	svc, _, _, _ := newFakeAdvisoryService(t)
+	s := mcpClient(t, svc)
+
+	// CVE-2022-3602 is a recorded fix; CVE-2026-0102 is an open advisory.
+	var fixed VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python", "id": "CVE-2022-3602"}, &fixed)
+	if len(fixed.Matches) != 1 || fixed.OpenAdvisories == nil || fixed.OpenAdvisories.Match != nil || fixed.OpenAdvisories.LookupNote == "" {
+		t.Errorf("fixed ID: %+v", fixed)
+	}
+	var open VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python", "id": "ghsa-aaaa-bbbb-cccc"}, &open)
+	m := open.OpenAdvisories.Match
+	if len(open.Matches) != 1 || m == nil || m.ID != "CVE-2026-0102" || m.Status != AdvPendingUpstream || len(m.Packages) != 2 {
+		t.Errorf("open ID: matches %+v, advisory %+v", open.Matches, m)
+	}
+}
+
+func TestOA10_3_FeedUnavailableKeepsTheFixes(t *testing.T) {
+	svc, _, _, feed := newFakeAdvisoryService(t)
+	feed.failID = map[string]bool{"CGA-aaaa-0000-0001": true}
+	s := mcpClient(t, svc)
+	var r VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python"}, &r)
+	if r.TotalFixed != 3 || r.OpenAdvisories != nil || !strings.Contains(r.OpenAdvisoriesError, "Chainguard advisories failed") {
+		t.Errorf("fixes %d, advisories %+v, error %q", r.TotalFixed, r.OpenAdvisories, r.OpenAdvisoriesError)
+	}
+}
+
+func TestOA9_4_StaleAdvisoryIsNotAnOpenMatch(t *testing.T) {
+	svc, _, _, _ := newFakeAdvisoryService(t)
+	s := mcpClient(t, svc)
+	var r VulnReport
+	mustCall(t, s, "check_vulnerabilities", map[string]any{"image": "python", "id": "CVE-2026-0106"}, &r)
+	if r.OpenAdvisories == nil || r.OpenAdvisories.Match != nil || !strings.Contains(r.OpenAdvisories.LookupNote, "No open advisory for CVE-2026-0106") {
+		t.Errorf("got %+v", r.OpenAdvisories)
+	}
+}

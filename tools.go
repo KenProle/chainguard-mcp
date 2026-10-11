@@ -73,11 +73,12 @@ func newServer(svc *Service) *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_vulnerabilities",
-		Description: "Check a Chainguard image's packages against the Wolfi security database. With an id (CVE or GHSA), reports whether each affected package is fixed, never affected, or still vulnerable. " +
-			"Without an id, summarizes fixes per package and lists any fixes not yet in the image. The database records fixes, not open vulnerabilities, so this is not a full scan. Only works for free-tier images.",
+		Description: "Check a Chainguard image's packages. Reports recorded fixes from the Wolfi security database, and the known open advisories Chainguard has published for the image's packages (found via OSV.dev, status from Chainguard's advisory feed), counted by vulnerability with a status each, such as waiting on an upstream fix. " +
+			"With an id (CVE, GHSA or CGA), reports whether each affected package is fixed, never affected, or still vulnerable, and whether the id is an open advisory. Without an id, summarizes fixes per package and lists any fixes not yet in the image. " +
+			"Neither source is a full scan, so finding nothing doesn't mean an image has no vulnerabilities. Only works for free-tier images.",
 		Annotations: readOnly,
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in CheckVulnerabilitiesInput) (*mcp.CallToolResult, VulnReport, error) {
-		out, err := svc.CheckVulnerabilities(ctx, in)
+		out, err := svc.SecurityReport(ctx, in)
 		return nil, out, err
 	})
 

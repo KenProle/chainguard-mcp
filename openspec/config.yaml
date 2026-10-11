@@ -12,7 +12,8 @@ context: |
     The exceptions are this project's own catalog history file (published on its `data`
     branch), the Internet Archive copies of Chainguard's sitemap used to backfill it, and the
     upstream comparison's sources: Docker Hub (upstream images' SBOM attestations, sizes and
-    build dates), OSV.dev (known vulnerabilities by package) and endoflife.date (support end dates).
+    build dates), OSV.dev (known vulnerabilities by package, and
+    Chainguard's open advisories on its own images' packages) and endoflife.date (support end dates).
   - Never overclaim security: the Wolfi data records fixes, not open vulnerabilities, so no
     output may suggest an image is vulnerability-free.
   - Web UI: strict Content Security Policy (no inline scripts or styles, so no libraries that

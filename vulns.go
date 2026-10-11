@@ -136,12 +136,16 @@ type VulnReport struct {
 	TotalFixed       int            `json:"total_fixed"`
 	TotalNotAffected int            `json:"total_not_affected"`
 	Uncovered        []string       `json:"uncovered,omitempty" jsonschema:"packages outside Wolfi that this data doesn't cover"`
-	Note             string         `json:"note"`
+	// OpenAdvisories is set by Service.SecurityReport (the MCP tool); the web
+	// API's /vulnerabilities endpoint leaves it out and serves it separately.
+	OpenAdvisories      *AdvisoryReport `json:"open_advisories,omitempty" jsonschema:"known open advisories for the image's packages per Chainguard's published advisories, found via OSV.dev with their status from Chainguard's advisory feed"`
+	OpenAdvisoriesError string          `json:"open_advisories_error,omitempty" jsonschema:"set instead of open_advisories when they could not be checked, because OSV.dev or Chainguard's advisory feed failed"`
+	Note                string          `json:"note"`
 }
 
 const vulnNote = "Based on the Wolfi security database, which records fixed and non-applicable vulnerabilities per package. " +
 	"It does not list unfixed vulnerabilities, so absence of a record does not prove an image is unaffected. " +
-	"Use a scanner such as grype for a full report."
+	"Known open advisories are reported separately; use a scanner such as grype for a full report."
 
 // analyzeVulns reports on an image's packages against the security database.
 // If id is set, only that vulnerability is looked up.

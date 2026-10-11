@@ -135,6 +135,61 @@ export type VulnReport = {
   note: string
 }
 
+/** Chainguard's stance on one vulnerability in an image (advisories.go). */
+export type AdvisoryStatus = 'fix_available' | 'pending_upstream_fix' | 'confirmed' | 'fix_not_planned' | 'not_yet_assessed'
+
+export type AdvisoryComponent = {
+  name: string
+  /** A readable kind, such as 'Rust crate' or 'Python package'. */
+  kind: string
+}
+
+export type AdvisoryPackage = {
+  name: string
+  version: string
+  status: AdvisoryStatus
+  advisories: string[]
+  fixed_version?: string
+  components?: AdvisoryComponent[]
+}
+
+export type OpenVulnerability = {
+  id: string
+  status: AdvisoryStatus
+  aliases?: string[]
+  packages: AdvisoryPackage[]
+}
+
+export type AdvisoryCounts = {
+  fix_available: number
+  pending_upstream_fix: number
+  confirmed: number
+  fix_not_planned: number
+  not_yet_assessed: number
+}
+
+/**
+ * Known open advisories per Chainguard's published advisories, found via
+ * OSV.dev with each one's status read from Chainguard's advisory feed.
+ */
+export type AdvisoryReport = {
+  image: string
+  tag: string
+  digest: string
+  checked_at: string
+  source: string
+  note?: string
+  total: number
+  counts: AdvisoryCounts
+  vulnerabilities: OpenVulnerability[]
+  not_covered?: string[]
+  /** Advisories the feed has no record of; their status is OSV.dev's copy and unconfirmed. */
+  status_from_osv?: string[]
+  id?: string
+  match?: OpenVulnerability
+  lookup_note?: string
+}
+
 export type Alternative = {
   image: string
   reference: string
@@ -283,6 +338,8 @@ export const api = {
     get<ImagePackages>(`${image(name)}/packages`, { tag, arch }, signal),
   vulnerabilities: (name: string, tag: string, id?: string, signal?: AbortSignal) =>
     get<VulnReport>(`${image(name)}/vulnerabilities`, { tag, id }, signal),
+  advisories: (name: string, tag: string, id?: string, signal?: AbortSignal) =>
+    get<AdvisoryReport>(`${image(name)}/advisories`, { tag, id }, signal),
   alternatives: (ref: string, signal?: AbortSignal) => get<AlternativesResult>('/alternatives', { image: ref }, signal),
   compareUpstream: (ref: string, arch: string, signal?: AbortSignal) =>
     get<CompareJob>('/compare-upstream', { image: ref, arch }, signal),

@@ -23,6 +23,9 @@ type Service struct {
 	Upstream *Registry
 	OSV      *OSV
 	EOL      *EndOfLife
+	// Feed is Chainguard's advisory feed, which open advisories read for each
+	// advisory's current status (advisory_feed.go).
+	Feed *AdvisoryFeed
 	// SBOMDir is where save_sbom writes files. The tool is only offered
 	// when it's set.
 	SBOMDir string
@@ -40,6 +43,7 @@ func NewService() *Service {
 		Upstream: NewDockerHubRegistry(client),
 		OSV:      NewOSV(client),
 		EOL:      NewEndOfLife(client),
+		Feed:     NewAdvisoryFeed(client),
 	}
 }
 
@@ -417,6 +421,36 @@ func (s *Service) CheckVulnerabilities(ctx context.Context, in CheckVulnerabilit
 	}
 	report := analyzeVulns(pkgs, fixes, in.ID)
 	report.Image, report.Tag, report.Digest = image, tag, digest
+	return report, nil
+}
+
+// SecurityReport is CheckVulnerabilities plus the image's open advisories,
+// from one read of the SBOM. If OSV.dev fails, the recorded fixes are still
+// returned, with OpenAdvisoriesError in place of the advisories (OA-10.3).
+func (s *Service) SecurityReport(ctx context.Context, in CheckVulnerabilitiesInput) (VulnReport, error) {
+	image, tag, err := imageAndTag(in.Image, in.Tag)
+	if err != nil {
+		return VulnReport{}, err
+	}
+	pkgs, digest, err := s.Registry.Packages(ctx, image, tag, "amd64")
+	if err != nil {
+		return VulnReport{}, notPublicHint(image, err)
+	}
+	fixes, err := s.SecDB.Fixes(ctx)
+	if err != nil {
+		return VulnReport{}, err
+	}
+	report := analyzeVulns(pkgs, fixes, in.ID)
+	report.Image, report.Tag, report.Digest = image, tag, digest
+	adv, err := s.openAdvisories(ctx, image, tag, digest, pkgs, in.ID)
+	switch {
+	case ctx.Err() != nil:
+		return VulnReport{}, ctx.Err()
+	case err != nil:
+		report.OpenAdvisoriesError = "Open advisories could not be checked: " + err.Error()
+	default:
+		report.OpenAdvisories = adv
+	}
 	return report, nil
 }
 

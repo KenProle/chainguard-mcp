@@ -33,7 +33,7 @@ Search every Chainguard image and filter to the free ones, or switch to the **Ma
 
 ![Fixes per source package for python, led by openssl-4.0 with 147 fixes](docs/screenshots/security-fixes.png)
 
-The security data records fixes, not open vulnerabilities, so it isn't a full scan.
+The Security tab shows Chainguard's open advisories for the image's packages (read through OSV.dev) above the recorded fixes. Neither is a full scan.
 
 ### Find alternative
 
@@ -53,7 +53,7 @@ Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), a
 | `pin_image` | Resolve a tag to its digest, e.g. `cgr.dev/chainguard/python:latest@sha256:…`, for reproducible builds. |
 | `get_image_packages` | OS packages from the image's signed SBOM, with versions, licenses and source packages, plus whether it has a shell or `apk`. |
 | `save_sbom` | Save the image's full SPDX SBOM as a JSON file, for compliance or scanning tools. See [Saving SBOMs](#saving-sboms). |
-| `check_vulnerabilities` | Look up a CVE/GHSA ID against the image's packages, or summarize recorded fixes per package. |
+| `check_vulnerabilities` | Recorded fixes per package (Wolfi security database) plus the known open advisories Chainguard has published for the image's packages (via OSV.dev), counted by vulnerability with a status each. Pass a CVE/GHSA/CGA ID to look it up in both. |
 | `find_alternative` | Suggest the Chainguard image to replace an upstream one, e.g. `node:20-alpine` → `cgr.dev/chainguard/node`. |
 | `compare_with_upstream` | Compare a Docker Hub image as you run it, e.g. `node:20`, with its Chainguard replacement by size, build date, OS packages and known vulnerabilities (from OSV.dev), plus an end-of-life note. See [Upstream comparison](#upstream-comparison). |
 
@@ -133,12 +133,13 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 | Free-tier status | Whether cgr.dev issues an anonymous pull token, cached for 24 hours. |
 | Tags, details, digests | The cgr.dev registry API, with an anonymous token. |
 | Packages | The SPDX SBOM that Chainguard attaches to each image as a signed attestation (`sha256-<digest>.att`). |
-| Vulnerabilities | The [Wolfi security database](https://packages.wolfi.dev/os/security.json), cached for 6 hours. |
+| Recorded fixes | The [Wolfi security database](https://packages.wolfi.dev/os/security.json), cached for 6 hours. |
+| Open advisories | Chainguard's published advisories for the image's packages, found through [OSV.dev](https://osv.dev) (ecosystems `Wolfi` and `Chainguard`, one lookup per package), then each advisory's current record read from Chainguard's own advisory feed (`advisories.cgr.dev`), because OSV.dev can serve older copies. Both cached for 1 hour. |
 | Upstream images | Docker Hub's registry with an anonymous token: the image's SPDX SBOM attestation, size and build date. Docker Hub allows about 100 anonymous requests an hour per IP; a comparison makes about 5. |
 | Known vulnerabilities (comparison) | [OSV.dev](https://osv.dev), queried per package version, cached for 24 hours. |
 | End of life (comparison) | [endoflife.date](https://endoflife.date), cached for 24 hours. |
 
-The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed vulnerabilities, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype).
+The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed ones; those come from Chainguard's open advisories, found through OSV.dev with their status read from Chainguard's advisory feed, and shown separately (advisories already fixed in the installed version are left out; a vulnerability is counted once however many advisories and packages it has, and "not yet assessed" means Chainguard detected it but hasn't decided whether it applies). Neither is a full scan, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype), and an empty result never means an image has no vulnerabilities.
 
 ## Upstream comparison
 
@@ -206,6 +207,7 @@ curl http://127.0.0.1:8080/api/
 | `/api/images/{name}/pin` | `tag` | `/api/images/python/pin?tag=latest-dev` |
 | `/api/images/{name}/packages` | `tag`, `arch` (`amd64` or `arm64`), `query` | `/api/images/python/packages?query=ssl` |
 | `/api/images/{name}/vulnerabilities` | `tag`, `id` (a CVE or GHSA ID) | `/api/images/python/vulnerabilities?id=CVE-2024-12797` |
+| `/api/images/{name}/advisories` | `tag`, `id` (a CVE, GHSA or CGA ID) | `/api/images/python/advisories?id=CVE-2026-89092` |
 | `/api/images/{name}/sbom` | `tag`, `arch` | `/api/images/python/sbom?tag=latest` |
 | `/api/alternatives` | `image` (required) | `/api/alternatives?image=node:20-alpine` |
 | `/api/compare-upstream` | `image` (required, a Docker Hub image as you run it), `arch` | `/api/compare-upstream?image=node:20` |
@@ -313,6 +315,7 @@ git push origin v0.2.0
 | `details.go` | `get_image_details` and `pin_image`. |
 | `sbom.go` | SBOM attestation parsing for `get_image_packages`, and saving for `save_sbom`. |
 | `vulns.go` | Wolfi security database and APK version comparison. |
+| `advisories.go`, `advisory_feed.go` | Open advisories for an image: grouping OSV.dev's Chainguard records by vulnerability, their statuses and totals, and the client for Chainguard's advisory feed that supplies each advisory's current record. |
 | `alternatives.go` | Upstream image → Chainguard image mapping, and grouping images into families of variants. |
 | `groups.go` | Grouping images by variant kind or name prefix for the catalog map. |
 | `compare.go`, `compare_job.go` | The upstream comparison and the background job behind its API. |

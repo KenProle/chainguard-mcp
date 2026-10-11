@@ -2,20 +2,21 @@
 
 ## Why
 
-The Security tab and `check_vulnerabilities` can only show *recorded fixes*: the Wolfi security database lists what each package version fixed, never what is still open. Users want to know what is still open. Chainguard publishes advisories for its own packages, in OSV format, and the OSV.dev client built for the upstream comparison can already read them. Measured live on 2026-10-11 for `python` (amd64):
+The Security tab and `check_vulnerabilities` can only show *recorded fixes*: the Wolfi security database lists what each package version fixed, never what is still open. Users want to know what is still open. Chainguard publishes advisories for its own packages, in OSV format, and the OSV.dev client built for the upstream comparison can already read them. OSV.dev can serve older copies of them, though: it listed 4 glibc CVEs on python `latest` as waiting on an upstream fix, while Chainguard's own advisory feed has them fixed in the installed version. So advisories are found on OSV.dev and each one's current record is read from Chainguard's feed (decided 2026-10-11, see Decisions). Measured live on 2026-10-11 for `python` (amd64):
 
-- `latest`: 29 packages, 20 OSV records, **7 distinct CVEs**. 4 are waiting on an upstream fix (glibc's CVE-2026-89092, -8674, -86805 and -95818) and 3 are detected but not yet assessed by Chainguard (glibc's CVE-2026-97399, and python's CVE-2026-12345 and CVE-2025-15367). None has a released fix.
-- `latest-dev`: 76 packages, 64 records, **26 distinct CVEs** (21 waiting on upstream, 5 not yet assessed), 14 of them in `binutils`. Advisories also name software built into a package: `uv`'s Rust crate `rsa` (CVE-2026-21895) and the `setuptools` copy bundled inside `py3.15-pip-base` (CVE-2025-47273).
-- Looking up all 76 packages with 10 requests at a time took 1.6 s, with nothing cached.
+- `latest`: 29 packages, 20 OSV records, of which 16 are already fixed in the installed version per the feed. The 4 left are **2 distinct CVEs**, CVE-2025-15367 and CVE-2026-12345 (both python's, detected but not yet assessed by Chainguard). Grype reports exactly these two.
+- `latest-dev`: 76 packages, 64 OSV records, 25 already fixed, and **21 distinct CVEs** open (17 waiting on an upstream fix, 4 not yet assessed), 14 of them in `binutils`. Advisories also name software built into a package: `uv`'s Rust crate `rsa` (CVE-2026-21895) and the `setuptools` copy bundled inside `py3.15-pip-base` (CVE-2025-47273).
+- Looking up all 76 packages with 10 requests at a time took 1.6 s, with nothing cached; reading the 64 advisories from the feed adds one request each.
 
 ## What Changes
 
-- An **Open advisories** section at the top of the Security tab: the known open advisories for the image's installed packages, per Chainguard's published advisories via OSV.dev, with when they were checked. It shows one total, split by status (fix available, waiting on an upstream fix, confirmed, fix not planned, not yet assessed), and one row per CVE with the affected packages, any compiled-in component, and a link to the CVE.
+- An **Open advisories** section at the top of the Security tab: the known open advisories for the image's installed packages, per Chainguard's published advisories, found via OSV.dev with each one's status read from Chainguard's advisory feed, and when they were checked. It shows one total, split by status (fix available, waiting on an upstream fix, confirmed, fix not planned, not yet assessed), and one row per CVE with the affected packages, any compiled-in component, and a link to the CVE.
 - The **vulnerability lookup** on the Security tab, and `check_vulnerabilities` with an `id`, also report whether that vulnerability is an open advisory for the image.
 - **`check_vulnerabilities` without an `id`** also returns the open advisories. Its description and note stop saying the tool only knows about fixes.
 - A new web API endpoint, `GET /api/images/{name}/advisories`.
 - The existing fixes chart and table stay as they are. The Security tab's note that the Wolfi data "doesn't list unfixed vulnerabilities" now applies to the Recorded fixes section, not the whole tab.
-- `openspec/config.yaml` lists OSV.dev as a source for open advisories on Chainguard images, not only for the upstream comparison.
+- Advisories already fixed in the installed version (per the feed's current record) are left out, so an out-of-date OSV.dev copy can't show a fixed vulnerability as open.
+- `openspec/config.yaml` lists OSV.dev as a source for open advisories on Chainguard images, not only for the upstream comparison. The advisory feed (`advisories.cgr.dev`) is a Chainguard public anonymous endpoint, so it needs no new exception.
 
 ## Capabilities
 
@@ -33,8 +34,9 @@ Made with the user in `/opsx:explore` on 2026-10-11:
 - **One total, split by status, with unassessed detections included.** *Rejected:* counting only confirmed advisories in the headline, which would hide some from the number people read first.
 
 Proposed in exploration and kept here (the user didn't object):
-- **Count each CVE once per image.** Chainguard files one advisory per package per CVE, sometimes two, so python `latest`'s 20 records are 7 CVEs.
+- **Count each CVE once per image.** Chainguard files one advisory per package per CVE, sometimes two, so python `latest-dev`'s 39 open advisories are 21 CVEs.
 - **Query OSV.dev per package**, reusing the comparison's client, and cache Chainguard advisories for 1 hour. *Rejected:* Chainguard's `advisories.cgr.dev/chainguard/v3/osv/all.json`, which turned out to be only an index of 1.2 million advisory IDs (102 MB, served without compression), so per-package queries would still be needed.
+- **Find advisories on OSV.dev, read each one's current status from Chainguard's own feed** (decided with the user on 2026-10-11, after the first implementation showed OSV.dev's stale copies). *Rejected:* trusting OSV.dev alone, which showed 4 glibc CVEs as waiting on an upstream fix that were fixed in the installed version; and reconciling OSV.dev with the Wolfi security database, which disagrees with the feed for some packages (see design.md).
 - **No severity in the first version.** About half the records carry a CVSS vector (v3 or v4) and none carry a score. Each CVE links to its record instead.
 
 ## Out of Scope
@@ -48,8 +50,8 @@ Proposed in exploration and kept here (the user didn't object):
 
 ## Impact
 
-- **Go:** a new `Service` method for open advisories, a `CheckVulnerabilities` that also returns them for MCP, an `upstream` field read from OSV records, a status mapping for Chainguard advisories, a 1-hour cache for Wolfi and Chainguard lookups (within UC-10's "at most 24 hours"), a new `apiRoutes` entry and a README row.
+- **Go:** a new `Service` method for open advisories, a `CheckVulnerabilities` that also returns them for MCP, an `upstream` field read from OSV records, a status mapping for Chainguard advisories, a client for Chainguard's advisory feed that later work can reuse, a 1-hour cache for Wolfi and Chainguard lookups (within UC-10's "at most 24 hours"), a new `apiRoutes` entry and a README row.
 - **Web UI:** an Open advisories section, an open-advisory answer in the lookup, and `web/src/api.ts` types.
-- **External load:** one OSV.dev request per installed package on a cache miss (29 for python `latest`, 76 for `latest-dev`), at most 10 at a time.
+- **External load:** one OSV.dev request per installed package on a cache miss (29 for python `latest`, 76 for `latest-dev`), then one feed request per distinct advisory found (20 and 64), cached for 1 hour each, never more than 10 in flight.
 - **Planning:** OSV.dev's entry in `openspec/config.yaml` is widened, and `docs/visualization-ideas.md` idea 7 gets its status and corrections.
 - **Dependencies:** none.

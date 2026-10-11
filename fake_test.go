@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ type fakeChainguard struct {
 	secdb  string
 
 	tokenRequests atomic.Int64 // requests to /token, for asserting none were made
+	blobRequests  atomic.Int64 // blob requests, one per SBOM read
 }
 
 type fakeBlob struct {
@@ -189,6 +191,7 @@ func (f *fakeChainguard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Docker-Content-Digest", ref)
 			w.Write(m.body)
 		case "blobs":
+			f.blobRequests.Add(1)
 			b, ok := f.blobs[ref]
 			if !ok {
 				http.NotFound(w, r)
@@ -255,7 +258,7 @@ func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 	// that forgets to fake them fails instead of reaching the real services.
 	const unreachable = "http://127.0.0.1:1"
 	svc.Upstream.BaseURL, svc.Upstream.TokenURL = unreachable, unreachable+"/token"
-	svc.OSV.URL, svc.EOL.URL = unreachable, unreachable
+	svc.OSV.URL, svc.EOL.URL, svc.Feed.URL = unreachable, unreachable, unreachable
 	return svc, f
 }
 
@@ -614,4 +617,152 @@ func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 	eol, eolFake := newFakeEndOfLife(t)
 	svc.Upstream, svc.OSV, svc.EOL = reg, osv, eol
 	return svc, &fakeUpstream{Chainguard: cg, Hub: hub, OSV: osvFake, EOL: eolFake}
+}
+
+// advisoryVuln is a Chainguard advisory in the shape OSV.dev serves it: the
+// tracked IDs in upstream and one component per (name, type) pair, which
+// defaults to the package itself as an apk. A non-empty fixed adds a range
+// with that fixed version.
+func advisoryVuln(id, pkg, status, fixed string, upstream []string, comps ...[2]string) map[string]any {
+	events := []map[string]string{{"introduced": "0"}}
+	if fixed != "" {
+		events = append(events, map[string]string{"fixed": fixed})
+	}
+	if len(comps) == 0 {
+		comps = [][2]string{{pkg, "apk"}}
+	}
+	var components []map[string]string
+	for _, c := range comps {
+		components = append(components, map[string]string{"component_name": c[0], "component_type": c[1], "latest_event_status": status})
+	}
+	return map[string]any{"id": id, "upstream": upstream, "affected": []map[string]any{{
+		"package":            map[string]string{"name": pkg, "ecosystem": "Wolfi"},
+		"ranges":             []map[string]any{{"type": "ECOSYSTEM", "events": events}},
+		"ecosystem_specific": map[string]any{"components": components},
+	}}}
+}
+
+// fakeFeed is an in-process stand-in for Chainguard's advisory feed
+// (advisories.cgr.dev): one JSON file per advisory, 404 for any other ID.
+type fakeFeed struct {
+	records  map[string][]byte
+	failID   map[string]bool // advisories answered with a 500
+	delay    time.Duration
+	requests atomic.Int64
+
+	inFlight    atomic.Int64
+	maxInFlight atomic.Int64
+	mu          sync.Mutex
+	requested   map[string]int // requests per advisory ID
+}
+
+// add publishes the current record of an advisory; its ID comes from the record.
+func (f *fakeFeed) add(record map[string]any) {
+	if f.records == nil {
+		f.records = make(map[string][]byte)
+	}
+	b, err := json.Marshal(record)
+	if err != nil {
+		panic(err)
+	}
+	f.records[record["id"].(string)] = b
+}
+
+func (f *fakeFeed) requestsFor(id string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.requested[id]
+}
+
+func (f *fakeFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	id, ok := strings.CutSuffix(strings.TrimPrefix(r.URL.Path, "/chainguard/v3/osv/"), ".json")
+	if !ok || r.URL.Path == "/chainguard/v3/osv/"+id {
+		http.NotFound(w, r)
+		return
+	}
+	f.requests.Add(1)
+	f.mu.Lock()
+	if f.requested == nil {
+		f.requested = make(map[string]int)
+	}
+	f.requested[id]++
+	f.mu.Unlock()
+	n := f.inFlight.Add(1)
+	defer f.inFlight.Add(-1)
+	for {
+		m := f.maxInFlight.Load()
+		if n <= m || f.maxInFlight.CompareAndSwap(m, n) {
+			break
+		}
+	}
+	time.Sleep(f.delay)
+	if f.failID[id] {
+		http.Error(w, "boom", http.StatusInternalServerError)
+		return
+	}
+	rec, ok := f.records[id]
+	if !ok {
+		// Like the real bucket: an XML error body.
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchKey</Code></Error>`)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(rec)
+}
+
+// newFakeFeed starts a fake advisory feed and returns a client for it.
+func newFakeFeed(t *testing.T) (*AdvisoryFeed, *fakeFeed) {
+	t.Helper()
+	f := &fakeFeed{}
+	srv := httptest.NewServer(f)
+	t.Cleanup(srv.Close)
+	feed := NewAdvisoryFeed(srv.Client())
+	feed.URL = srv.URL
+	return feed, f
+}
+
+// newFakeAdvisoryService wires a Service to the fake Chainguard backend, a
+// fake OSV.dev holding Chainguard-shaped advisories for the fake python image,
+// and a fake advisory feed with their current records (newFakeBackend leaves
+// both unreachable). OSV.dev's copies can be older than the feed's.
+//
+// python latest has four vulnerabilities: CVE-2026-0101 not yet assessed
+// (python-3.13), CVE-2026-0102 pending an upstream fix (two advisories on
+// libssl3, one on libcrypto3), CVE-2026-0103 with a fix available (libssl3,
+// fixed in 3.6.6-r0) and CVE-2026-0104 with no fix planned (python-3.13). A
+// fifth, CVE-2026-0106 on libssl3, is pending in OSV.dev's copy but fixed in
+// the installed version in the feed, so it is not open.
+// latest-dev shares python-3.13's two and adds CVE-2026-0105 in a Rust crate
+// bundled into busybox, and CVE-2026-0107 on busybox, which the feed has no
+// record of (OSV.dev's copy is used).
+func newFakeAdvisoryService(t *testing.T) (*Service, *fakeOSV, *fakeChainguard, *fakeFeed) {
+	t.Helper()
+	svc, cg := newFakeBackend(t)
+	osv, fake := newFakeOSV(t)
+	feed, feedFake := newFakeFeed(t)
+
+	// both: the same record in OSV.dev and the feed; stale: pending in
+	// OSV.dev, fixed in the feed.
+	both := func(pkg OSVPackage, rec map[string]any) {
+		fake.add(pkg, rec)
+		feedFake.add(rec)
+	}
+	python := OSVPackage{"Wolfi", "python-3.13", "3.13.7-r0"}
+	both(python, advisoryVuln("CGA-aaaa-0000-0001", "python-3.13", "detection", "", []string{"CVE-2026-0101"}))
+	both(python, advisoryVuln("CGA-aaaa-0000-0004", "python-3.13", "fix_not_planned", "", []string{"CVE-2026-0104"}))
+	libssl := OSVPackage{"Wolfi", "libssl3", "3.6.5-r1"}
+	both(libssl, advisoryVuln("CGA-bbbb-0000-0001", "libssl3", "pending_upstream_fix", "", []string{"CVE-2026-0102", "GHSA-aaaa-bbbb-cccc"}))
+	both(libssl, advisoryVuln("CGA-bbbb-0000-0002", "libssl3", "pending_upstream_fix", "", []string{"CVE-2026-0102"}))
+	both(libssl, advisoryVuln("CGA-bbbb-0000-0003", "libssl3", "fixed", "3.6.6-r0", []string{"CVE-2026-0103"}))
+	both(OSVPackage{"Wolfi", "libcrypto3", "3.6.5-r1"}, advisoryVuln("CGA-bbbb-0000-0004", "libcrypto3", "pending_upstream_fix", "", []string{"CVE-2026-0102"}))
+	fake.add(libssl, advisoryVuln("CGA-bbbb-0000-0005", "libssl3", "pending_upstream_fix", "", []string{"CVE-2026-0106"}))
+	feedFake.add(advisoryVuln("CGA-bbbb-0000-0005", "libssl3", "fixed", "3.6.5-r1", []string{"CVE-2026-0106"}))
+	busybox := OSVPackage{"Wolfi", "busybox", "1.37.0-r0"}
+	both(busybox, advisoryVuln("CGA-cccc-0000-0001", "busybox", "detection", "", []string{"CVE-2026-0105"}, [2]string{"tiny", "rust-crate"}))
+	fake.add(busybox, advisoryVuln("CGA-cccc-0000-0002", "busybox", "pending_upstream_fix", "", []string{"CVE-2026-0107"}))
+
+	svc.OSV, svc.Feed = osv, feed
+	return svc, fake, cg, feedFake
 }

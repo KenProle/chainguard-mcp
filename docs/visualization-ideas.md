@@ -64,6 +64,10 @@ What Chainguard added, retired, or moved between free and subscription, and how 
 
 ## 7. Open vulnerabilities on Chainguard images
 
+**Status: in progress as `add-open-advisories`** (capability `image-open-advisories`, prefix `OA`). Decided in `/opsx:explore` on 2026-10-11: a separate Open advisories section above Recorded fixes (the fixes chart is unchanged), folded into `check_vulnerabilities` (including looking up one ID), and one total split by status, including advisories not yet assessed.
+
+**Corrections from exploration (2026-10-11):** python `latest` has 2 open CVEs (both not yet assessed, status `detection`), not 20 advisories: OSV.dev's 20 records are 7 CVEs, and 5 of those are already fixed in the installed version per Chainguard's own feed (`advisories.cgr.dev/chainguard/v3/osv/<id>.json`); the "4 waiting on upstream" figure came from OSV.dev's stale copies, so each advisory's current record is read from the feed. The comparison counted by record ID before it was fixed. `all.json` in the OSV bucket is an ID index, not a feed of records. Chainguard records name the tracked IDs in `upstream`, not `aliases`.
+
 Today the Security tab (and `check_vulnerabilities`) can only show *recorded fixes*, because the Wolfi security database lists the vulnerabilities each package version fixed, not the ones still open. OSV.dev also covers the Wolfi and Chainguard ecosystems, so the app could also show known vulnerabilities that are **still open** in an image's installed packages, which is the question users actually ask.
 
 **Real figures, python `latest` (amd64) on 2026-10-10**, from one OSV batch query of its 29 installed packages (ecosystem `Wolfi`):

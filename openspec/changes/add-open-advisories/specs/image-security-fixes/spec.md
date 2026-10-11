@@ -18,3 +18,19 @@ The fixes chart and its surrounding text SHALL describe what the Wolfi security 
 - **WHEN** the chart is shown
 - **THEN** the Recorded fixes section says the Wolfi security database doesn't list unfixed vulnerabilities and isn't a full scan
 - **AND** it refers to the Open advisories section for known open advisories
+
+### Requirement: SF-8 Data, tag changes and unavailable images
+The fixes chart SHALL be computed from the per-package summary the Security tab already loads, with no additional API request for the chart. It SHALL recalculate when the tag changes, and SHALL NOT be shown while the summary is loading or when it fails, including for subscription-only images. The tab's separate Open advisories section makes its own request (OA-13) and is not part of the chart's data.
+
+#### Scenario: SF-8.1 No extra requests
+- **WHEN** the chart is shown
+- **THEN** no API request is made for the chart beyond the vulnerability summary request the tab already makes
+- **AND** the only other request the tab makes for this image's data is the Open advisories section's own
+
+#### Scenario: SF-8.2 Switching tag
+- **WHEN** the user switches `python` from `latest` to `latest-dev`
+- **THEN** the chart shows the 25 bars of `latest-dev`, starting with `openssl-4.0`, `python-3.14` and `curl`
+
+#### Scenario: SF-8.3 Subscription-only image
+- **WHEN** the Security tab is opened for a subscription-only image such as `loki-fips`
+- **THEN** the existing subscription message is shown and no chart is drawn

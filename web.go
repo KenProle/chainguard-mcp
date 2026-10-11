@@ -172,6 +172,20 @@ var apiRoutes = []apiRoute{
 		},
 	},
 	{
+		Method: "GET", Path: "/api/images/{name}/advisories",
+		Description: "List the open advisories Chainguard has published for an image's packages, found through OSV.dev, with each advisory's status read from Chainguard's advisory feed (a separate lookup from /vulnerabilities; may take a few seconds).",
+		Parameters: []apiParam{nameParam, tagParam,
+			{"id", "query", false, "vulnerability ID (CVE, GHSA or CGA) to look up among the open advisories; the list is still returned"},
+		},
+		Example: "/api/images/python/advisories?id=CVE-2026-89092",
+		handle: func(svc *Service, w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			respond(w)(svc.OpenAdvisories(r.Context(), OpenAdvisoriesInput{
+				Image: r.PathValue("name"), Tag: q.Get("tag"), ID: q.Get("id"),
+			}))
+		},
+	},
+	{
 		Method: "GET", Path: "/api/images/{name}/sbom",
 		Description: "Download an image's SPDX SBOM (application/spdx+json).",
 		Parameters:  []apiParam{nameParam, tagParam, archParam},
