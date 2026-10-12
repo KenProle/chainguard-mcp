@@ -536,6 +536,7 @@ type fakeUpstream struct {
 	Hub        *fakeDockerHub
 	OSV        *fakeOSV
 	EOL        *fakeEndOfLife
+	Feed       *fakeFeed
 }
 
 // debianVuln is an OSV record for a Debian 12 source package, fixed in
@@ -574,7 +575,8 @@ const (
 )
 
 // newFakeUpstreamService wires a Service to the fake Chainguard backend plus
-// fakes for Docker Hub, OSV.dev and endoflife.date. Docker Hub has:
+// fakes for Docker Hub, OSV.dev, endoflife.date and Chainguard's advisory
+// feed. Docker Hub has:
 //   - library/node:20 (built 2026-04-22): libssl3 and libc6 with their sources
 //     openssl and glibc, linux-libc-dev from the kernel source, 2 npm packages;
 //   - library/python:3.12-slim, which publishes no SBOM.
@@ -583,7 +585,8 @@ const (
 // and c-ares. The node:20 vulnerabilities: openssl A (fix available, listed
 // again by DSA-0001-1) and B (won't fix), glibc C (no fix yet) and A again;
 // the kernel has D, which must never be counted. Chainguard has one advisory
-// each for glibc-2.44 and ld-linux, both for one CVE pending an upstream fix.
+// each for glibc-2.44 and ld-linux, both for one CVE pending an upstream fix,
+// and the feed's current records say the same.
 func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 	t.Helper()
 	svc, cg := newFakeBackend(t)
@@ -614,9 +617,13 @@ func newFakeUpstreamService(t *testing.T) (*Service, *fakeUpstream) {
 	osvFake.add(OSVPackage{"Wolfi", "glibc-2.44", "2.44-r8"}, chainguardVuln("CGA-0000-0000-0001", "glibc-2.44", "CVE-2026-0001"))
 	osvFake.add(OSVPackage{"Wolfi", "ld-linux", "2.44-r8"}, chainguardVuln("CGA-0000-0000-0002", "ld-linux", "CVE-2026-0001"))
 
+	feed, feedFake := newFakeFeed(t)
+	feedFake.add(chainguardVuln("CGA-0000-0000-0001", "glibc-2.44", "CVE-2026-0001"))
+	feedFake.add(chainguardVuln("CGA-0000-0000-0002", "ld-linux", "CVE-2026-0001"))
+
 	eol, eolFake := newFakeEndOfLife(t)
-	svc.Upstream, svc.OSV, svc.EOL = reg, osv, eol
-	return svc, &fakeUpstream{Chainguard: cg, Hub: hub, OSV: osvFake, EOL: eolFake}
+	svc.Upstream, svc.OSV, svc.EOL, svc.Feed = reg, osv, eol, feed
+	return svc, &fakeUpstream{Chainguard: cg, Hub: hub, OSV: osvFake, EOL: eolFake, Feed: feedFake}
 }
 
 // advisoryVuln is a Chainguard advisory in the shape OSV.dev serves it: the

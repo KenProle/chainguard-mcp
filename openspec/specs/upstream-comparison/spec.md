@@ -4,7 +4,7 @@
 
 Compares an upstream container image a user runs today with its Chainguard replacement, by size, installed OS packages, known vulnerabilities and support status, so the value of switching is visible and stated fairly.
 
-UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility; UC-15 images whose packages can't be checked; UC-16 how a vulnerability is identified across advisories. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`.
+UC-1 to UC-3 define what is compared; UC-4 to UC-6 how vulnerabilities are counted and worded; UC-7 and UC-8 size, build dates and end of life; UC-9 to UC-11 loading, caching and errors; UC-12 the MCP tool; UC-13 accuracy; UC-14 layout and accessibility; UC-15 images whose packages can't be checked; UC-16 how a vulnerability is identified across advisories; UC-17 and UC-18 where the Chainguard advisories' status comes from and which are counted. Figures were measured on 2026-10-11 for Docker Hub's `node:20` (amd64) and `cgr.dev/chainguard/node:latest`, with the Chainguard advisories' status read from Chainguard's advisory feed.
 
 ## Requirements
 
