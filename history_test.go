@@ -81,14 +81,17 @@ func TestCH6_1RefusedSnapshotLeavesFileUnchanged(t *testing.T) {
 	svc, fake := newFakeBackend(t)
 	path := historyPath(t)
 	ctx := context.Background()
-	if _, _, err := recordHistory(ctx, svc, path, time.Date(2026, 10, 12, 1, 0, 0, 0, time.UTC)); err != nil {
+	// Dates before today, so runHistory below (which records today) isn't
+	// skipped as already recorded.
+	start := time.Now().UTC().AddDate(0, 0, -2)
+	if _, _, err := recordHistory(ctx, svc, path, start); err != nil {
 		t.Fatal(err)
 	}
 	before, _ := os.ReadFile(path)
 
 	fake.images = fake.images[:3] // a truncated sitemap
 	svc.Catalog.TTL = 0
-	_, _, err := recordHistory(ctx, svc, path, time.Date(2026, 10, 13, 1, 0, 0, 0, time.UTC))
+	_, _, err := recordHistory(ctx, svc, path, start.AddDate(0, 0, 1))
 	if err == nil || !strings.Contains(err.Error(), "refused") {
 		t.Fatalf("err = %v, want a refusal", err)
 	}
