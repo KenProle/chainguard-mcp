@@ -188,3 +188,74 @@ describe('Growth chart on narrow screens', () => {
     expect(screen.getByTestId('chart-selection')).toHaveTextContent('5 more snapshots are drawn close to this one (2026-10-08 to 2026-10-13) Try "Since daily tracking"')
   })
 })
+
+describe('Growth chart width', () => {
+  /** Stubs ResizeObserver; the returned function reports a width to every observer. */
+  function mockResize() {
+    const callbacks: ResizeObserverCallback[] = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          callbacks.push(cb)
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    return (width: number) => act(() => callbacks.forEach((cb) => cb([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver)))
+  }
+
+  it('HV-24.1 draws one unit per pixel and keeps the card 200 wide', async () => {
+    const resize = mockResize()
+    renderChart()
+    const svg = await screen.findByTestId('growth-chart')
+    resize(935)
+    expect(svg).toHaveAttribute('width', '935')
+    expect(svg).toHaveAttribute('height', '240')
+    expect(svg).toHaveAttribute('viewBox', '0 0 935 240')
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 935, height: 240, right: 935, bottom: 240, x: 0, y: 0, toJSON: () => ({}) })
+    fireEvent.pointerMove(overlay(), { clientX: chartLayout(full.points, 'all', 935).x('2026-10-08'), clientY: 100 })
+    expect(card()).toHaveTextContent('2026-10-08')
+    expect(card()?.querySelector('rect')).toHaveAttribute('width', '200')
+  })
+
+  it('HV-24.3 at 309 the text line still shows and the card is hidden below sm', async () => {
+    const resize = mockResize()
+    renderChart()
+    const svg = await screen.findByTestId('growth-chart')
+    resize(309)
+    expect(svg).toHaveAttribute('viewBox', '0 0 309 240')
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 309, height: 240, right: 309, bottom: 240, x: 0, y: 0, toJSON: () => ({}) })
+    fireEvent.pointerMove(overlay(), { clientX: chartLayout(full.points, 'all', 309).x('2026-10-08'), clientY: 100 })
+    expect(screen.getByTestId('chart-selection')).toHaveTextContent('2026-10-08 · Internet Archive capture')
+    expect(screen.getByTestId('chart-selection')).toHaveClass('sm:hidden')
+    expect(card()).toHaveClass('hidden', 'sm:inline')
+  })
+
+  it('HV-24 never draws narrower than 280 units', async () => {
+    const resize = mockResize()
+    renderChart()
+    const svg = await screen.findByTestId('growth-chart')
+    resize(200)
+    expect(svg).toHaveAttribute('width', '280')
+  })
+
+  it('HV-24.4 redraws when the width changes and keeps the selection', async () => {
+    const resize = mockResize()
+    renderChart()
+    const svg = await screen.findByTestId('growth-chart')
+    resize(935)
+    const group = screen.getByRole('group', { name: /Growth chart/ })
+    fireEvent.keyDown(group, { key: 'Home' })
+    const before = svg.querySelector('circle[r="6"]')?.getAttribute('cx')
+    fireEvent.keyDown(group, { key: 'End' })
+    const endBefore = svg.querySelector('circle[r="6"]')?.getAttribute('cx')
+    resize(600)
+    expect(svg).toHaveAttribute('viewBox', '0 0 600 240')
+    expect(card()).toHaveTextContent('2026-10-14')
+    expect(svg.querySelector('circle[r="6"]')?.getAttribute('cx')).not.toBe(endBefore)
+    expect(before).toBe('44')
+  })
+})

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import type { HistoryPoint } from '../api'
 import { chart, chartLayout, nearestIndex, neighbours, pointParts, pointText, polyline, type ChartRange } from '../history'
 import { historyChartColor as color } from '../styles'
+import { useElementWidth } from '../useElementWidth'
 
 const n = (value: number) => value.toLocaleString('en-US')
 
@@ -20,12 +21,14 @@ const LINE = 16
  * range (HV-20).
  */
 export function GrowthChart({ points, range = 'all', dailyOffered = false }: { points: HistoryPoint[]; range?: ChartRange; dailyOffered?: boolean }) {
-  const { x, y, ticks, years, shown, indexes, startsAtZero } = chartLayout(points, range)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const measured = useElementWidth(wrapRef)
+  const width = measured ?? chart.width
+  const { x, y, ticks, years, shown, indexes, startsAtZero } = chartLayout(points, range, width)
   const [sel, setSel] = useState<number | null>(null)
   const [focused, setFocused] = useState(false)
   const [announced, setAnnounced] = useState('')
   const svgRef = useRef<SVGSVGElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
 
   // A tap outside the chart hides the card (HV-19.4), as touch has no pointer leave.
   useEffect(() => {
@@ -46,7 +49,7 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
   function pick(e: PointerEvent) {
     const box = svgRef.current?.getBoundingClientRect()
     if (!box || box.width === 0) return
-    setSel(nearestIndex(xs, ((e.clientX - box.left) * chart.width) / box.width))
+    setSel(nearestIndex(xs, ((e.clientX - box.left) * width) / box.width))
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -88,12 +91,12 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
         onKeyDown={onKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="rounded-md focus-visible:outline-2 focus-visible:outline-indigo-600"
+        className="overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-indigo-600"
       >
-        <svg ref={svgRef} viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-auto w-full" aria-hidden="true" data-testid="growth-chart">
+        <svg ref={svgRef} width={width} height={chart.height} viewBox={`0 0 ${width} ${chart.height}`} className="block" aria-hidden="true" data-testid="growth-chart">
           {ticks.map((t) => (
             <g key={t.value}>
-              <line x1={chart.left} x2={chart.width - chart.right} y1={t.y} y2={t.y} className={color.grid} />
+              <line x1={chart.left} x2={width - chart.right} y1={t.y} y2={t.y} className={color.grid} />
               <text x={chart.left - 6} y={t.y + 4} textAnchor="end" fontSize="12" className={color.text}>
                 {n(t.value)}
               </text>
@@ -102,7 +105,7 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
           <text x={chart.left} y={chart.height - 8} fontSize="12" className={color.text}>
             {shown[0].date}
           </text>
-          <text x={chart.width - chart.right} y={chart.height - 8} textAnchor="end" fontSize="12" className={color.text}>
+          <text x={width - chart.right} y={chart.height - 8} textAnchor="end" fontSize="12" className={color.text}>
             {shown[shown.length - 1].date}
           </text>
           {years.map((yr) => (
@@ -124,12 +127,12 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
           {freePts.map((p) => (
             <circle key={p.date} data-point="free" cx={p.x} cy={p.y} r="3.5" strokeWidth="2" className={`${color.free.point} ${color.free.filled}`} />
           ))}
-          {sel !== null && <Card points={points} shown={shown} indexes={indexes} totalPts={totalPts} sel={sel} range={range} dailyOffered={dailyOffered} xs={xs} />}
+          {sel !== null && <Card points={points} shown={shown} indexes={indexes} totalPts={totalPts} sel={sel} range={range} dailyOffered={dailyOffered} xs={xs} width={width} />}
           <rect
             data-testid="chart-overlay"
             x={chart.left}
             y={chart.top}
-            width={chart.width - chart.left - chart.right}
+            width={width - chart.left - chart.right}
             height={baseline - chart.top}
             fill="transparent"
             onPointerMove={pick}
@@ -230,7 +233,7 @@ function selectionLines({ points, shown, indexes, xs, sel, range, dailyOffered }
 }
 
 /** The guide line, the ringed point and the card for the selected snapshot (HV-19, HV-20). */
-function Card({ points, shown, indexes, totalPts, sel, range, dailyOffered, xs }: {
+function Card({ points, shown, indexes, totalPts, sel, range, dailyOffered, xs, width }: {
   points: HistoryPoint[]
   shown: HistoryPoint[]
   indexes: number[]
@@ -239,18 +242,19 @@ function Card({ points, shown, indexes, totalPts, sel, range, dailyOffered, xs }
   range: ChartRange
   dailyOffered: boolean
   xs: number[]
+  width: number
 }) {
   const { main, extra } = selectionLines({ points, shown, indexes, xs, sel, range, dailyOffered })
   const lines = [...main, ...extra]
   const p = totalPts[sel]
   const height = lines.length * LINE + 10
-  const left = p.x + 12 + CARD_WIDTH > chart.width - chart.right ? p.x - 12 - CARD_WIDTH : p.x + 12
+  const left = p.x + 12 + CARD_WIDTH > width - chart.right ? p.x - 12 - CARD_WIDTH : p.x + 12
   const top = Math.min(Math.max(p.y - height / 2, chart.top), chart.height - chart.bottom - height)
   return (
     <g pointerEvents="none">
       <line x1={p.x} x2={p.x} y1={chart.top} y2={chart.height - chart.bottom} strokeWidth="1" strokeDasharray="3 3" className={color.guide} />
       <circle cx={p.x} cy={p.y} r="6" fill="none" strokeWidth="2" className={color.total.point} />
-      {/* Below sm the SVG is scaled down too far to read the card, so the text goes under the chart instead (HV-23). */}
+      {/* Below sm the chart is too narrow for the card, so the text goes under the chart instead (HV-23). */}
       <g data-testid="chart-card" className="hidden sm:inline">
         <rect x={left} y={top} width={CARD_WIDTH} height={height} rx="6" strokeWidth="1" className={color.card} />
         {lines.map((line, i) => (
