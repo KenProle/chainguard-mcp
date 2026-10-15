@@ -12,7 +12,7 @@ Run the server in HTTP mode and open http://127.0.0.1:8080/:
 ./chainguard-mcp -http 127.0.0.1:8080
 ```
 
-The UI is built into the binary and runs the same code as the MCP tools, through a JSON API under `/api/` (which lists its endpoints). Screenshots are from 2026-10-11.
+The UI is built into the binary and runs the same code as the MCP tools, through a JSON API under `/api/` (which lists its endpoints). Screenshots are from 2026-10-15.
 
 ### Catalog
 
@@ -20,20 +20,26 @@ Search every Chainguard image and filter to the free ones, or switch to the **Ma
 
 ![The catalog map: 3,171 images, 59 of them free, grouped into base images and FIPS](docs/screenshots/catalog-map.png)
 
+The **History** view shows how the catalog has changed: a growth chart (hover or use the arrow keys for each snapshot, and switch to "Since daily tracking" for the recent days), then a timeline of added, removed and newly free images. It follows the catalog's search. Dates before 2026-10-10 come from Internet Archive captures, so they're ranges.
+
+![The History view: 3,171 images and 59 free, up 2,496 from 675 on 2024-04-19, with the growth chart](docs/screenshots/history-view.png)
+
 ### Image page
 
 - **Overview:** the pinned reference for your Dockerfile, the runtime user, entrypoint, platforms and download sizes.
 - **Packages & SBOM:** every OS package from the image's signed SBOM, a license breakdown, and the full SPDX download.
-- **Security:** recorded vulnerability fixes per source package, and a CVE or GHSA lookup.
+- **Security:** Chainguard's open advisories for the image's packages, recorded vulnerability fixes per source package, and a CVE, GHSA or CGA lookup.
 - **Compare:** two tags side by side, by default `latest` and `latest-dev`.
 
-![Comparing python latest with latest-dev: 29 packages and 28.2 MB against 76 packages and 270.6 MB](docs/screenshots/compare-tab.png)
+![Comparing python latest with latest-dev: 29 packages and 28.2 MB against 76 packages and 269.9 MB](docs/screenshots/compare-tab.png)
 
 ![The license breakdown for python: 16 permissive, 7 strong copyleft and 6 weak copyleft packages](docs/screenshots/license-breakdown.png)
 
 ![Fixes per source package for python, led by openssl-4.0 with 147 fixes](docs/screenshots/security-fixes.png)
 
-The Security tab shows Chainguard's open advisories for the image's packages (read through OSV.dev) above the recorded fixes. Neither is a full scan.
+The Security tab shows Chainguard's open advisories for the image's packages (found through OSV.dev, with each status from Chainguard's advisory feed) above the recorded fixes. Neither is a full scan.
+
+![Open advisories for python latest-dev: 19, of which 17 are waiting on an upstream fix and 2 are not yet assessed](docs/screenshots/open-advisories.png)
 
 ### Find alternative
 
