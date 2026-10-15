@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HistoryReport } from './api'
-import { chartLayout, historyTiles, neighbours, nearestIndex, niceDomain, niceMax, pointText } from './history'
+import { chart, chartLayout, historyTiles, neighbours, nearestIndex, niceDomain, niceMax, pointText } from './history'
 import fixture from './test/fixtures/historyReport.json'
 
 const report = fixture as unknown as HistoryReport
@@ -49,6 +49,24 @@ describe('history helpers', () => {
   it('HV-20.2 finds no neighbours for 2025-05-04', () => {
     const { x, shown } = chartLayout(report.points, 'all')
     expect(neighbours(shown.map((p) => x(p.date)), idx('2025-05-04'))).toEqual([])
+  })
+
+  it.each([480, 935, 309])('HV-24 lays the plot out from left to width - right at %i units', (width) => {
+    const { x, shown } = chartLayout(report.points, 'all', width)
+    expect(x(shown[0].date)).toBe(chart.left)
+    expect(x(shown[shown.length - 1].date)).toBeCloseTo(width - chart.right, 9)
+  })
+
+  it('HV-24 defaults to 480 units', () => {
+    const a = chartLayout(report.points, 'all')
+    const b = chartLayout(report.points, 'all', 480)
+    expect(a.shown.map((p) => a.x(p.date))).toEqual(b.shown.map((p) => b.x(p.date)))
+  })
+
+  it('HV-20 still finds the same 5 close neighbours of 2026-10-14 at 935 units (the axis spans years)', () => {
+    const { x, shown } = chartLayout(report.points, 'all', 935)
+    const xs = shown.map((p) => x(p.date))
+    expect(neighbours(xs, idx('2026-10-14')).map((j) => shown[j].date)).toEqual(['2026-10-08', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13'])
   })
 
   it('HV-22.4 puts a flat series mid-plot with distinct ticks', () => {

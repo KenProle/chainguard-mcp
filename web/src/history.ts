@@ -72,7 +72,10 @@ export function splitEntries(entries: HistoryEntry[]) {
   return { live: entries.filter((e) => !e.archive), archive: entries.filter((e) => e.archive) }
 }
 
-/** Where the chart draws the data: a 480×240 viewBox with room for axis labels. */
+/**
+ * Where the chart draws the data, in pixels, with room for axis labels. `width`
+ * is only the default, used until the real width is measured (HV-24).
+ */
 export const chart = { width: 480, height: 240, left: 44, right: 12, top: 12, bottom: 28 }
 
 const DAY_MS = 86_400_000
@@ -87,14 +90,14 @@ export const NEIGHBOUR_UNITS = 6
  * the axis at zero; "daily" keeps only daily snapshots and zooms the axis
  * around them (HV-22). `indexes` maps each drawn point to its index in `points`.
  */
-export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all') {
+export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all', width: number = chart.width) {
   const indexes = points.flatMap((p, i) => (range === 'all' || p.source === 'live' ? [i] : []))
   const shown = indexes.map((i) => points[i])
   const times = shown.map((p) => Date.parse(p.date))
   const min = Math.min(...times)
   const max = Math.max(...times)
   const [lo, top] = range === 'all' ? [0, niceMax(Math.max(1, ...shown.map((p) => p.total)))] : niceDomain(Math.min(...shown.map((p) => p.total)), Math.max(...shown.map((p) => p.total)))
-  const w = chart.width - chart.left - chart.right
+  const w = width - chart.left - chart.right
   const h = chart.height - chart.top - chart.bottom
   const x = (date: string) => chart.left + (max > min ? ((Date.parse(date) - min) / (max - min)) * w : w / 2)
   const y = (value: number) => chart.top + h - ((value - lo) / (top - lo)) * h
