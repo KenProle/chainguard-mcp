@@ -169,3 +169,33 @@ func TestWA_CompareUpstreamErrors(t *testing.T) {
 		}
 	})
 }
+
+func TestUC9_2_ReportsTheAdvisoryFeedStep(t *testing.T) {
+	srv, _, f := newCompareServer(t)
+	f.Feed.delay = 300 * time.Millisecond
+	const path = "/api/compare-upstream?image=node:20"
+
+	// Poll until the job reports reading Chainguard's advisory feed, which
+	// starts only once every package has been looked up.
+	var seen CompareJobStatus
+	deadline := time.Now().Add(10 * time.Second)
+	for seen.Step != compareStepAdvisories && time.Now().Before(deadline) {
+		var s CompareJobStatus
+		if resp := getJSON(t, srv, path, &s); resp.StatusCode != 200 {
+			t.Fatalf("status %d", resp.StatusCode)
+		}
+		if s.Status == "done" {
+			t.Fatal("finished without reporting the advisories step")
+		}
+		seen = s
+		time.Sleep(10 * time.Millisecond)
+	}
+	if seen.Step != compareStepAdvisories || seen.Status != "running" || seen.Total == 0 || seen.Checked != seen.Total {
+		t.Fatalf("status = %+v, want running in the advisories step with every package checked", seen)
+	}
+
+	code, body := pollCompare(t, srv, path)
+	if code != 200 || !strings.Contains(string(body), `"done"`) || strings.Contains(string(body), `"step"`) {
+		t.Fatalf("after the feed: %d %s, want done without a step", code, body)
+	}
+}

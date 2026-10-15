@@ -69,15 +69,18 @@ export function UpstreamComparison({
       ) : data?.status === 'done' ? (
         <Result comparison={data} />
       ) : (
-        <Progress checked={data?.checked ?? 0} total={data?.total ?? 0} />
+        <Progress checked={data?.checked ?? 0} total={data?.total ?? 0} advisories={data?.status === 'running' && data.step === 'advisories'} />
       )}
     </section>
   )
 }
 
-function Progress({ checked, total }: { checked: number; total: number }) {
-  const label =
-    total > 0
+function Progress({ checked, total, advisories }: { checked: number; total: number; advisories: boolean }) {
+  // After the last package, Chainguard's advisory feed is read for the current
+  // status of its advisories; the bar stays full and says so (UC-9.2).
+  const label = advisories
+    ? "Checking the current status of Chainguard's advisories…"
+    : total > 0
       ? `Checking known vulnerabilities: ${checked.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} packages checked`
       : "Reading both images' package lists. A first comparison takes about 20 seconds."
   return (

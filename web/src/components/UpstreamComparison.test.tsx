@@ -209,6 +209,27 @@ describe('UpstreamComparison', () => {
     expect(fetchMock.mock.calls.length).toBe(after)
   })
 
+  it("UC-9.2 says when Chainguard's advisory feed is being read after the last package", async () => {
+    const responses: CompareJob[] = [
+      { status: 'running', step: 'packages', checked: 210, total: 221 },
+      { status: 'running', step: 'advisories', checked: 221, total: 221 },
+      done(node20),
+    ]
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(responses[Math.min(calls++, responses.length - 1)]), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+    renderSection()
+
+    expect(await screen.findByText(/210 of 221 packages checked/)).toBeInTheDocument()
+    expect(await screen.findByText("Checking the current status of Chainguard's advisories…")).toBeInTheDocument()
+    expect(screen.queryByText(/221 of 221 packages checked/)).not.toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '221')
+
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+  })
+
   it('UC-9.1 keeps polling while the tab is in the background', async () => {
     const responses: CompareJob[] = [{ status: 'running', checked: 0, total: 0 }, { status: 'running', checked: 210, total: 550 }, done(node20)]
     let calls = 0

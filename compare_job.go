@@ -18,10 +18,11 @@ const (
 
 // CompareJobStatus is the state of a comparison running in the background.
 // While Status is "running", Checked of Total packages have been looked up
-// (Total is 0 until the image's packages are known); when it is "done", the
-// comparison's fields are set too.
+// (Total is 0 until the image's packages are known) and Step says what is
+// happening; when it is "done", the comparison's fields are set too.
 type CompareJobStatus struct {
 	Status  string `json:"status" jsonschema:"'running' or 'done'"`
+	Step    string `json:"step,omitempty" jsonschema:"while running: 'packages' (looking up packages on OSV.dev) or 'advisories' (reading Chainguard's advisory feed)"`
 	Checked int    `json:"checked"`
 	Total   int    `json:"total"`
 	*UpstreamComparison
@@ -32,6 +33,7 @@ type compareJob struct {
 
 	mu         sync.Mutex
 	done       bool
+	step       string
 	checked    int
 	total      int
 	result     *UpstreamComparison
@@ -74,9 +76,9 @@ func (s *Service) CompareUpstreamJob(in CompareUpstreamInput) (*CompareJobStatus
 		s.jobs.jobs[key] = job
 		go func() {
 			defer cancel()
-			result, err := s.compareUpstream(ctx, in, func(done, total int) {
+			result, err := s.compareUpstream(ctx, in, func(step string, done, total int) {
 				job.mu.Lock()
-				job.checked, job.total = done, total
+				job.step, job.checked, job.total = step, done, total
 				job.mu.Unlock()
 			})
 			job.mu.Lock()
@@ -90,7 +92,7 @@ func (s *Service) CompareUpstreamJob(in CompareUpstreamInput) (*CompareJobStatus
 	defer job.mu.Unlock()
 	job.lastPolled = time.Now()
 	if !job.done {
-		return &CompareJobStatus{Status: "running", Checked: job.checked, Total: job.total}, nil
+		return &CompareJobStatus{Status: "running", Step: job.step, Checked: job.checked, Total: job.total}, nil
 	}
 	if job.err != nil {
 		s.jobs.mu.Lock()

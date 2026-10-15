@@ -119,9 +119,18 @@ func (s *Service) CompareUpstream(ctx context.Context, in CompareUpstreamInput) 
 	return s.compareUpstream(ctx, in, nil)
 }
 
-// compareUpstream is CompareUpstream that reports progress through the
-// vulnerability lookups, the slow part: done of total packages.
-func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, progress func(done, total int)) (*UpstreamComparison, error) {
+// Steps a running comparison reports (UC-9).
+const (
+	// compareStepPackages: looking up each package on OSV.dev, done of total.
+	compareStepPackages = "packages"
+	// compareStepAdvisories: every package is looked up, and the Chainguard
+	// advisories' current status is being read from Chainguard's feed.
+	compareStepAdvisories = "advisories"
+)
+
+// compareUpstream is CompareUpstream that reports progress: the step, and
+// done of total packages through the vulnerability lookups, the slow part.
+func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, progress func(step string, done, total int)) (*UpstreamComparison, error) {
 	ref := strings.TrimSpace(in.Image)
 	repo, tag, arch, err := validateCompareInput(in)
 	if err != nil {
@@ -160,9 +169,17 @@ func (s *Service) compareUpstream(ctx context.Context, in CompareUpstreamInput, 
 			cgLookups = append(cgLookups, lookup)
 		}
 	}
-	results, err := s.OSV.QueryAll(ctx, slices.Concat(upLookups, cgLookups), progress)
+	lookups := slices.Concat(upLookups, cgLookups)
+	var packagesDone func(done, total int)
+	if progress != nil {
+		packagesDone = func(done, total int) { progress(compareStepPackages, done, total) }
+	}
+	results, err := s.OSV.QueryAll(ctx, lookups, packagesDone)
 	if err != nil {
 		return nil, err
+	}
+	if progress != nil {
+		progress(compareStepAdvisories, len(lookups), len(lookups))
 	}
 	if up.PackagesChecked {
 		c := summarize(subset(results, upLookups))

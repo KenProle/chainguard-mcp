@@ -317,11 +317,12 @@ export type UpstreamComparison = {
 
 /**
  * A comparison running as a background job (compare_job.go). total is 0 until
- * the packages to look up are known. When status is done, the comparison's
- * fields are set too.
+ * the packages to look up are known. While running, step says whether packages
+ * are being looked up or Chainguard's advisory feed is being read (UC-9). When
+ * status is done, the comparison's fields are set too.
  */
 export type CompareJob =
-  | { status: 'running'; checked: number; total: number }
+  | { status: 'running'; step?: 'packages' | 'advisories'; checked: number; total: number }
   | ({ status: 'done'; checked: number; total: number } & UpstreamComparison)
 
 export type ApiErrorCode =
