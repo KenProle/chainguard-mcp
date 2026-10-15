@@ -8,6 +8,9 @@ before:
     # Build the web UI so the binaries embed it (see webui.go).
     - npm --prefix web ci --no-fund --no-audit
     - npm --prefix web run build
+    # Download the catalog history the binaries embed (see history_embed.go).
+    # A failed download fails the release, which must embed the history.
+    - curl -fsSL --create-dirs -o historydata/catalog-history.jsonl https://raw.githubusercontent.com/KenProle/chainguard-mcp/data/catalog-history.jsonl
 
 builds:
   - env:

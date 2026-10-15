@@ -25,6 +25,12 @@ export function ImagePage() {
   const tag = params.get('tag') || 'latest'
 
   const tags = useQuery({ queryKey: ['tags', name], queryFn: ({ signal }) => api.tags(name, signal) })
+  // The same query as the Overview tab's, so the details are fetched once.
+  const details = useQuery({
+    queryKey: ['details', name, tag],
+    queryFn: ({ signal }) => api.details(name, tag, signal),
+    enabled: tags.isSuccess && tab === 'overview',
+  })
 
   // On narrow screens the tab bar scrolls; keep the selected tab in view.
   const tablist = useRef<HTMLDivElement>(null)
@@ -61,6 +67,9 @@ export function ImagePage() {
         <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
         {tags.isSuccess && <Badge tone="green">Free</Badge>}
       </div>
+      {details.data?.catalog_since && (
+        <p className="-mt-3 text-sm text-zinc-600 dark:text-zinc-400">In the catalog: {details.data.catalog_since.text}</p>
+      )}
 
       {tags.isPending ? (
         <Loading />

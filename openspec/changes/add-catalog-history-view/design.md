@@ -78,7 +78,7 @@ When a copy is installed, one pass over the lines builds:
 
 ```
 HistoryReport {
-  last_snapshot, copy_source ("build" | "data_branch"), fetched_at?, days_old, stalled, note,
+  last_snapshot, copy_source ("build" | "data_branch"), fetched_at?, days_old, stalled, note, dates_note (always: archive-era dates are ranges),
   query?, since?,
   points:  [{date, source ("archive" | "live"), total, free?}],
   entries: [{kind ("first_capture" | "changes" | "no_changes"), date?, from?, to?, archive,

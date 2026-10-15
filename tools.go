@@ -24,6 +24,17 @@ func newServer(svc *Service) *mcp.Server {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name: "catalog_changes",
+		Description: "Show what changed in Chainguard's image catalog and when, from this project's catalog history: images added, removed, newly free or newly subscription-only, with the catalog size at `since` and now. " +
+			"Daily snapshots start on 2026-10-10; earlier dates come from Internet Archive captures, so their changes are ranges between two captures, and an image missing from a capture isn't necessarily removed. " +
+			"The result gives the age of the data and says if the daily collector may have stalled.",
+		Annotations: readOnly,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in HistoryInput) (*mcp.CallToolResult, *HistoryReport, error) {
+		out, err := svc.CatalogHistory(ctx, in)
+		return nil, out, err
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_image_tags",
 		Description: "List the tags of a Chainguard image on cgr.dev. Only works for free-tier images.",
 		Annotations: readOnly,

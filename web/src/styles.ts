@@ -95,3 +95,15 @@ export function formatBytes(n: number): string {
 
 /** The progress bar's track and fill, readable in light and dark mode. */
 export const progressBarColor = { track: 'fill-zinc-200 dark:fill-zinc-700', fill: 'fill-indigo-500 dark:fill-indigo-400' }
+
+/** The History view's growth chart: lines, points, grid and axis text, readable in light and dark mode. */
+export const historyChartColor = {
+  total: { line: 'stroke-indigo-500 dark:stroke-indigo-400', point: 'stroke-indigo-500 dark:stroke-indigo-400', filled: 'fill-indigo-500 dark:fill-indigo-400', swatch: 'bg-indigo-500 dark:bg-indigo-400' },
+  free: { line: 'stroke-emerald-500 dark:stroke-emerald-400', point: 'stroke-emerald-500 dark:stroke-emerald-400', filled: 'fill-emerald-500 dark:fill-emerald-400', swatch: 'bg-emerald-500 dark:bg-emerald-400' },
+  hollow: 'fill-white dark:fill-zinc-900',
+  grid: 'stroke-zinc-200 dark:stroke-zinc-700',
+  text: 'fill-zinc-500 dark:fill-zinc-400',
+}
+
+/** A summary tile with a figure and a caption, as in the Security tab. */
+export const statTileClass = 'rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50'

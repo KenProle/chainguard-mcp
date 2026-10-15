@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -259,6 +260,14 @@ func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 	const unreachable = "http://127.0.0.1:1"
 	svc.Upstream.BaseURL, svc.Upstream.TokenURL = unreachable, unreachable+"/token"
 	svc.OSV.URL, svc.EOL.URL, svc.Feed.URL = unreachable, unreachable, unreachable
+	// The history is the real 2026-10-14 file as the embedded copy; the data
+	// branch is unreachable.
+	data, err := os.ReadFile("testdata/catalog-history-2026-10-14.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.History = NewHistorySource(http.DefaultClient, data)
+	svc.History.URL = unreachable
 	return svc, f
 }
 

@@ -7,3 +7,6 @@
 web/node_modules/
 web/dist/*
 !web/dist/.gitkeep
+
+# Catalog history embedded at build time (history_embed.go)
+historydata/catalog-history.jsonl

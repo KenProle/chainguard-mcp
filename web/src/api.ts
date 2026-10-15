@@ -1,6 +1,6 @@
 // Typed client for the Go server's JSON API (web.go). The types mirror the Go
 // output structs in service.go, details.go, sbom.go, vulns.go, alternatives.go,
-// groups.go, compare.go, compare_job.go and endoflife.go. The MCP tools return
+// groups.go, compare.go, compare_job.go, endoflife.go and history_view.go. The MCP tools return
 // the same structs, except ImageFamilies, ImageGroups and the CompareJob
 // wrapper, which only the web UI uses.
 
@@ -81,6 +81,69 @@ export type ImageDetails = {
   working_dir?: string
   env?: string[]
   config_platform: string
+  /** When the image first appeared in the catalog; absent when no history is available. */
+  catalog_since?: CatalogSince
+}
+
+/** When an image first appeared in the catalog (history_view.go). */
+export type CatalogSince = {
+  earliest_capture: boolean
+  date?: string
+  from?: string
+  to?: string
+  text: string
+}
+
+export type HistoryPoint = {
+  date: string
+  source: 'archive' | 'live'
+  total: number
+  /** Absent before the first live snapshot. */
+  free?: number
+}
+
+export type HistoryEntry = {
+  kind: 'first_capture' | 'changes' | 'no_changes'
+  /** An exact day, or from and to for a range between two snapshots. */
+  date?: string
+  from?: string
+  to?: string
+  /** From an Internet Archive capture, so the dates are ranges between captures. */
+  archive: boolean
+  /** Matching images after this snapshot. */
+  total: number
+  added: string[]
+  back: string[]
+  removed: string[]
+  not_in_capture: string[]
+  became_free: string[]
+  became_subscription: string[]
+  /** Free images in the first live snapshot. */
+  free_first_recorded?: number
+}
+
+export type HistoryTotals = {
+  date: string
+  total: number
+  free?: number
+}
+
+export type HistoryReport = {
+  last_snapshot: string
+  copy_source: 'build' | 'data_branch'
+  fetched_at?: string
+  days_old: number
+  stalled: boolean
+  note?: string
+  dates_note: string
+  query?: string
+  since?: string
+  points: HistoryPoint[]
+  /** Newest first. */
+  entries: HistoryEntry[]
+  totals_at_since?: HistoryTotals
+  total_now: number
+  free_now?: number
 }
 
 export type Package = {
@@ -271,6 +334,7 @@ export type ApiErrorCode =
   | 'no_alternative'
   | 'rate_limited'
   | 'source_failed'
+  | 'history_unavailable'
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode
@@ -328,6 +392,7 @@ const image = (name: string) => `/images/${encodeURIComponent(name)}`
 export const api = {
   listImages: (p: { query?: string; freeOnly?: boolean; limit?: number; offset?: number }, signal?: AbortSignal) =>
     get<ImageList>('/images', { query: p.query, free_only: p.freeOnly, limit: p.limit, offset: p.offset }, signal),
+  history: (query: string, signal?: AbortSignal) => get<HistoryReport>('/history', { query }, signal),
   families: (query: string, signal?: AbortSignal) => get<ImageFamilies>('/families', { query }, signal),
   groups: (query: string, groupBy: GroupBy, signal?: AbortSignal) =>
     get<ImageGroups>('/groups', { query, group_by: groupBy }, signal),

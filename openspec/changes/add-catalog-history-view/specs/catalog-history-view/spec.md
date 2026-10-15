@@ -171,7 +171,7 @@ A `catalog_changes` tool SHALL take an optional `since` date and an optional `qu
 - **THEN** image details still load, without `catalog_since`
 
 ### Requirement: HV-14 History view
-The catalog page SHALL offer a History view next to List and Map, kept in the URL like the other views. It SHALL show the data's age, three summary tiles (images now, free now, change since the first capture), the growth chart and the timeline, all following the catalog's search.
+The catalog page SHALL offer a History view next to List and Map, kept in the URL like the other views. It SHALL show the data's age, three summary tiles (images now, free now, change since the first capture), the growth chart and the timeline, all following the catalog's search. When a search's first match comes after the first capture, the third tile counts from that match and reads "Since first match".
 
 #### Scenario: HV-14.1 Opening the view
 - **WHEN** the user picks History on the catalog page
@@ -180,6 +180,10 @@ The catalog page SHALL offer a History view next to List and Map, kept in the UR
 #### Scenario: HV-14.2 Search
 - **WHEN** the user searches `verdaccio` in the History view
 - **THEN** the chart and the timeline show only `verdaccio`, as in HV-6.2
+
+#### Scenario: HV-14.4 Search first matching after the first capture
+- **WHEN** the user searches `verdaccio` in the History view
+- **THEN** the third tile reads "Since first match +0" with "from 1 on 2026-10-10"
 
 #### Scenario: HV-14.3 Search without changes
 - **WHEN** a search matches only images that never changed, such as `traefik` (`traefik` and `traefik-fips`, both in the first capture)
@@ -197,11 +201,11 @@ The chart SHALL plot total images on a time axis, with a point per snapshot, and
 - **THEN** a table lists each of the 22 snapshots with its date, source, total and free count, and the chart itself is hidden from assistive technology
 
 ### Requirement: HV-16 Since line, layout and security policy
-Each free image's page SHALL show its first appearance (HV-10) under its name. The History view and the since line SHALL be usable at 375 px wide, in light and dark mode, by keyboard, and without Content Security Policy violations.
+A free image's Overview tab SHALL show its first appearance (HV-10) under the image's name. The Packages and Security tabs make no extra request for it. The History view and the since line SHALL be usable at 375 px wide, in light and dark mode, by keyboard, and without Content Security Policy violations.
 
 #### Scenario: HV-16.1 Image page
-- **WHEN** the page for `verdaccio` is opened
-- **THEN** it reads "In the catalog: added between 2026-10-08 and 2026-10-10"
+- **WHEN** the Overview tab of `chainctl` (free, in the 2026-05-10 and not the 2026-02-05 capture) is opened
+- **THEN** it reads "In the catalog: added between 2026-02-05 and 2026-05-10"
 
 #### Scenario: HV-16.2 Phone width in dark mode
 - **WHEN** the History view is viewed at 375 px wide in dark mode

@@ -49,7 +49,8 @@ Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), a
 |------|-------------|
 | `list_images` | List images in the Chainguard directory, with free-tier status. Optional `query`, `free_only`, `limit` (default 100) and `offset`. |
 | `get_image_tags` | List the tags for `cgr.dev/chainguard/<image>`. |
-| `get_image_details` | Platforms and download sizes, digest, creation time, user, entrypoint, command, working directory and environment. |
+| `get_image_details` | Platforms and download sizes, digest, creation time, user, entrypoint, command, working directory and environment, and when the image first appeared in the catalog (`catalog_since`). |
+| `catalog_changes` | What changed in Chainguard's catalog and when (images added, removed, newly free), from the project's [catalog history](#catalog-history). Optional `since` (`YYYY-MM-DD`) and `query`. Dates before 2026-10-10 are ranges between Internet Archive captures. |
 | `pin_image` | Resolve a tag to its digest, e.g. `cgr.dev/chainguard/python:latest@sha256:…`, for reproducible builds. |
 | `get_image_packages` | OS packages from the image's signed SBOM, with versions, licenses and source packages, plus whether it has a shell or `apk`. |
 | `save_sbom` | Save the image's full SPDX SBOM as a JSON file, for compliance or scanning tools. See [Saving SBOMs](#saving-sboms). |
@@ -161,7 +162,16 @@ go run . -record-history catalog-history.jsonl     # take today's snapshot (once
 go run . -backfill-history catalog-history.jsonl   # one-time: build an empty file from the Internet Archive
 ```
 
-A snapshot is refused, and the job fails, if the sitemap is empty or would remove more than 5% of the previous snapshot's images. Nothing in the server or UI reads the history yet.
+A snapshot is refused, and the job fails, if the sitemap is empty or would remove more than 5% of the previous snapshot's images.
+
+The server reads this history and shows it: the **History** view on the catalog page (growth chart, summary tiles and a timeline of added, removed and newly free images, following the search), an "In the catalog: …" line on each image page, `GET /api/history`, the `catalog_changes` tool, and `catalog_since` in image details. Dates before the first daily snapshot (2026-10-10) are ranges between Internet Archive captures, and an image missing from a capture is reported as "not in the capture", not as removed. Every response says how old its data is, and warns when the daily job may have stalled.
+
+Release binaries and the Docker image embed the history as it was when they were built, and a running server fetches a newer copy from the `data` branch at most once an hour, keeping what it has if that fails. A plain `go build` embeds nothing, so the History view says the history couldn't be loaded until the server can reach GitHub. To embed it in a local build:
+
+```bash
+mkdir -p historydata && curl -fsSL -o historydata/catalog-history.jsonl https://raw.githubusercontent.com/KenProle/chainguard-mcp/data/catalog-history.jsonl
+go build -o chainguard-mcp .
+```
 
 ## Install
 
@@ -202,6 +212,7 @@ curl http://127.0.0.1:8080/api/
 | `/api/images` | `query`, `free_only=true`, `limit` (default 100, max 1000), `offset` | `/api/images?query=python&free_only=true` |
 | `/api/groups` | `group_by` (`variant` or `prefix`), `query` | `/api/groups?group_by=prefix&query=nginx` |
 | `/api/families` | `query` | `/api/families?query=nginx` |
+| `/api/history` | `query`, `since` (`YYYY-MM-DD`) | `/api/history?query=fips&since=2026-10-09` |
 | `/api/images/{name}/tags` | | `/api/images/python/tags` |
 | `/api/images/{name}/details` | `tag` (default `latest`) | `/api/images/python/details?tag=latest` |
 | `/api/images/{name}/pin` | `tag` | `/api/images/python/pin?tag=latest-dev` |
@@ -321,6 +332,7 @@ git push origin v0.2.0
 | `compare.go`, `compare_job.go` | The upstream comparison and the background job behind its API. |
 | `osv.go`, `endoflife.go`, `upstream.go`, `upstream_packages.go` | OSV.dev and endoflife.date clients, Docker Hub reference parsing, and the SBOM package lists for Debian, Ubuntu and Alpine images. |
 | `history.go` | Catalog history: the daily snapshot (`-record-history`) and the Internet Archive backfill (`-backfill-history`). |
+| `history_view.go`, `history_embed.go` | Reading the history: the embedded and fetched copies, the report behind the History view, `GET /api/history` and `catalog_changes`. |
 | `web/` | React + TypeScript web UI. |
 
 ## License

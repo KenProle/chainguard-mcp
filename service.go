@@ -26,6 +26,8 @@ type Service struct {
 	// Feed is Chainguard's advisory feed, which open advisories read for each
 	// advisory's current status (advisory_feed.go).
 	Feed *AdvisoryFeed
+	// History is the catalog history behind the History view (history_view.go).
+	History *HistorySource
 	// SBOMDir is where save_sbom writes files. The tool is only offered
 	// when it's set.
 	SBOMDir string
@@ -44,6 +46,7 @@ func NewService() *Service {
 		OSV:      NewOSV(client),
 		EOL:      NewEndOfLife(client),
 		Feed:     NewAdvisoryFeed(client),
+		History:  NewHistorySource(client, embeddedHistory()),
 	}
 }
 
@@ -284,6 +287,7 @@ func (s *Service) ImageDetails(ctx context.Context, image, tag string) (*ImageDe
 	if err != nil {
 		return nil, notPublicHint(image, err)
 	}
+	d.CatalogSince = s.catalogSince(ctx, image)
 	return d, nil
 }
 

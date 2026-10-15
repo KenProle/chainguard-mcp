@@ -77,6 +77,7 @@ jobs:
           docker run -d --name app -p 127.0.0.1:8080:8080 chainguard-mcp
           for i in $(seq 1 20); do curl -fs http://127.0.0.1:8080/healthz && break; sleep 1; done
           curl -fs http://127.0.0.1:8080/ | grep -q "<title>Chainguard Image Explorer</title>"
+          curl -fs http://127.0.0.1:8080/api/history | grep -q '"last_snapshot"'
           docker rm -f app
 
   goreleaser:

@@ -6,6 +6,12 @@ COPY --chown=node:node web/package.json web/package-lock.json ./
 RUN npm ci --no-fund --no-audit
 COPY --chown=node:node web/ ./
 RUN npm run build
+# The catalog history the binary embeds (see history_embed.go). This stage has
+# wget and the Go stage doesn't. A failed download leaves the folder empty, so
+# an offline build still works; the image just has no embedded copy.
+RUN mkdir -p historydata && \
+    (wget -q -O historydata/catalog-history.jsonl https://raw.githubusercontent.com/KenProle/chainguard-mcp/data/catalog-history.jsonl \
+     || rm -f historydata/catalog-history.jsonl)
 
 # Go build stage: Chainguard's Go toolchain image. It runs on the build
 # machine's native platform and cross-compiles for the target, so multi-arch
@@ -21,6 +27,8 @@ RUN go mod download
 COPY *.go ./
 # The binary embeds the built UI from web/dist (see webui.go).
 COPY --from=web /app/dist ./web/dist
+# The binary embeds the catalog history from historydata (see history_embed.go).
+COPY --from=web /app/historydata ./historydata
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/chainguard-mcp .
 

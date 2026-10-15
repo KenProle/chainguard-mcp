@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { api } from '../api'
 import { CatalogMap } from '../components/CatalogMap'
+import { HistoryView } from '../components/HistoryView'
 import { ProgressBar } from '../components/ProgressBar'
 import { ErrorState, FreeBadge, Loading, Pagination } from '../components/ui'
 import { FREE_CHECK_BATCH, PROGRESS_DELAY_MS, averageMsPerImage, freeCheckLabel } from '../freeCheck'
@@ -18,7 +19,8 @@ export function CatalogPage() {
   const query = params.get('q') ?? ''
   const freeOnly = params.get('free') === '1'
   const page = Math.max(1, Number(params.get('page')) || 1)
-  const view = params.get('view') === 'map' ? 'map' : 'list'
+  const viewParam = params.get('view')
+  const view = viewParam === 'map' || viewParam === 'history' ? viewParam : 'list'
   const sortParam = params.get('sort')
   const sort: FamilySort = familySorts.find((s) => s === sortParam) ?? 'images'
   const groupBy: GroupBy = params.get('group') === 'prefix' ? 'prefix' : 'variant'
@@ -77,6 +79,9 @@ export function CatalogPage() {
         <button type="button" aria-pressed={view === 'map'} onClick={() => update({ view: 'map', page: '' })} className={segmentButton(view === 'map')}>
           Map
         </button>
+        <button type="button" aria-pressed={view === 'history'} onClick={() => update({ view: 'history', page: '' })} className={segmentButton(view === 'history')}>
+          History
+        </button>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -103,7 +108,9 @@ export function CatalogPage() {
         )}
       </div>
 
-      {view === 'map' ? (
+      {view === 'history' ? (
+        <HistoryView query={query} />
+      ) : view === 'map' ? (
         <CatalogMap
           query={query}
           groupBy={groupBy}

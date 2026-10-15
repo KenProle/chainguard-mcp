@@ -106,6 +106,19 @@ var apiRoutes = []apiRoute{
 		},
 	},
 	{
+		Method: "GET", Path: "/api/history",
+		Description: "What changed in Chainguard's catalog and when: the image count per snapshot and a timeline of added, removed and newly free images, from this project's catalog history. Dates before 2026-10-10 are ranges between Internet Archive captures. The response says how old the data is.",
+		Parameters: []apiParam{
+			{"query", "query", false, "case-insensitive substring to filter image names, as in /api/images"},
+			{"since", "query", false, "only changes after this date, YYYY-MM-DD"},
+		},
+		Example: "/api/history?query=fips&since=2026-10-09",
+		handle: func(svc *Service, w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			respond(w)(svc.CatalogHistory(r.Context(), HistoryInput{Query: q.Get("query"), Since: q.Get("since")}))
+		},
+	},
+	{
 		Method: "GET", Path: "/api/families",
 		Description: "Group images into families of an image and its variants, e.g. nginx with nginx-fips. No free-tier status.",
 		Parameters: []apiParam{
@@ -278,6 +291,8 @@ func writeError(w http.ResponseWriter, err error) {
 	case errors.As(err, &srcErr):
 		log.Printf("api error: %v", err)
 		writeJSON(w, http.StatusBadGateway, apiError{Error: err.Error(), Code: "source_failed", Source: srcErr.Source})
+	case errors.Is(err, ErrHistoryUnavailable):
+		writeJSON(w, http.StatusServiceUnavailable, apiError{Error: err.Error(), Code: "history_unavailable"})
 	case errors.Is(err, ErrNotPublic):
 		writeJSON(w, http.StatusForbidden, apiError{Error: err.Error(), Code: "not_public"})
 	case errors.Is(err, ErrNotFound):

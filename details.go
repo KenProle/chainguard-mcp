@@ -33,6 +33,9 @@ type ImageDetails struct {
 	WorkingDir      string         `json:"working_dir,omitempty"`
 	Env             []string       `json:"env,omitempty"`
 	ConfigPlatform  string         `json:"config_platform" jsonschema:"platform the user/entrypoint/env fields were read from"`
+	// CatalogSince is when the image first appeared in the catalog, from the
+	// catalog history; absent when no history is available.
+	CatalogSince *CatalogSince `json:"catalog_since,omitempty" jsonschema:"when the image first appeared in Chainguard's catalog, from this project's catalog history; archive-era dates are ranges between captures"`
 }
 
 // Details resolves image:tag and summarizes its platforms and runtime config.

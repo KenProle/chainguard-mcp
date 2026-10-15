@@ -412,6 +412,7 @@ func TestAPIIndex(t *testing.T) {
 		want := []string{
 			"/api/images",
 			"/api/groups",
+			"/api/history",
 			"/api/families",
 			"/api/images/{name}/tags",
 			"/api/images/{name}/details",
