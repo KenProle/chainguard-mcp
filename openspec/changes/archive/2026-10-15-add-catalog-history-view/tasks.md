@@ -57,7 +57,7 @@ Commands are for Git Bash on Windows as in CLAUDE.md. Test names start with the 
 - [x] 4.1 Download the history in `.goreleaser.yaml`'s `before` hooks (failing the release on error), and in the `Dockerfile`'s web stage with `wget`, tolerating failure and copying `historydata/` into the Go stage (design decision 1; HV-3). Verify:
   - `docker build -t chainguard-mcp .` succeeds and the image serves `/api/history` with 22 or more snapshots while run with `--network none` (`HV-3.1`)
   - the GoReleaser snapshot config check passes (`goreleaser check`, or CI's `Release config check`)
-- [ ] 4.2 Extend CI's Docker smoke test to request `/api/history` and expect 200. Verify: CI passes on the implementing commit.
+- [x] 4.2 Extend CI's Docker smoke test to request `/api/history` and expect 200. Verify: CI passes on the implementing commit.
 
 ## 5. Web UI
 

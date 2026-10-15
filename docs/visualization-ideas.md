@@ -9,7 +9,7 @@ A backlog of chart ideas for the web UI, first proposed on 2026-10-08. Each idea
 | 3 | Security fixes per package | Security tab | Done: the fixes chart (`image-security-fixes`, prefix `SF`) |
 | 4 | Catalog map | Catalog page | Done: the Map view (`catalog-map`, prefix `CM`) |
 | 5 | Size and known vulnerabilities vs. the upstream image | Alternatives page | Done: the upstream comparison on the Alternatives page (`upstream-comparison`, prefix `UC`) |
-| 6 | Catalog history | Catalog page, image page, MCP | Done: the collector (`catalog-history`, prefix `CH`, daily since 2026-10-10) and the History view (`catalog-history-view`, prefix `HV`; in review, then archived as `add-catalog-history-view`) |
+| 6 | Catalog history | Catalog page, image page, MCP | Done: the collector (`catalog-history`, prefix `CH`, daily since 2026-10-10) and the History view (`catalog-history-view`, prefix `HV`, archived 2026-10-15 as `add-catalog-history-view`) |
 | 7 | Open vulnerabilities on Chainguard images | Security tab, MCP | Done: the Open advisories section and `check_vulnerabilities` (`image-open-advisories`, prefix `OA`) |
 
 ## 1. Minimal vs. `-dev` comparison
@@ -54,7 +54,7 @@ A bar comparing an upstream image (e.g. Docker Hub's `node:20`) with its Chaingu
 What Chainguard added, retired, or moved between free and subscription, and how the catalog has grown (675 images in April 2024, 3,171 on 2026-10-10, 59 free). Scoped in `/opsx:explore` on 2026-10-10 and split in two:
 
 1. **`add-catalog-history-collector`** (the `catalog-history` capability, prefix `CH`): a daily snapshot by a scheduled GitHub Action, one JSON line per day on the `data` branch, with a backfill of image names from 17 monthly Internet Archive captures of the sitemap since 2024-04. Free-tier status can't be backfilled, so it starts on the first live day. Done first so history starts accumulating.
-2. **`add-catalog-history-view`** (implemented; prefix `HV`). Decided scope:
+2. **`add-catalog-history-view`** (done, archived 2026-10-15; capability `catalog-history-view`, prefix `HV`). Decided scope:
    - **Goal:** knowing what changed (added, removed, became free or subscription), plus a chart of total vs. free images over time.
    - **Delivery:** the server embeds the history at build time and fetches a newer copy of the file from GitHub when online, falling back to the embedded copy; the API says how old its data is. The `openspec/config.yaml` exception for this file is added by the collector change. The browser can't fetch from GitHub under the CSP, so the server serves the history through its own API.
    - **Logic** in a `Service` method, shared by the API and MCP (`GET /api/history`).
