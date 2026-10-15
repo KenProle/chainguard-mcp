@@ -77,23 +77,88 @@ export const chart = { width: 480, height: 240, left: 44, right: 12, top: 12, bo
 
 const DAY_MS = 86_400_000
 
-/** Positions the points on a time axis (x) and a linear axis from zero (y). */
-export function chartLayout(points: HistoryPoint[]) {
-  const times = points.map((p) => Date.parse(p.date))
+export type ChartRange = 'all' | 'daily'
+
+/** Snapshots drawn within this many viewBox units of each other overlap visually (HV-20). */
+export const NEIGHBOUR_UNITS = 6
+
+/**
+ * Positions the points on a time axis (x) and a linear axis (y). "all" starts
+ * the axis at zero; "daily" keeps only daily snapshots and zooms the axis
+ * around them (HV-22). `indexes` maps each drawn point to its index in `points`.
+ */
+export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all') {
+  const indexes = points.flatMap((p, i) => (range === 'all' || p.source === 'live' ? [i] : []))
+  const shown = indexes.map((i) => points[i])
+  const times = shown.map((p) => Date.parse(p.date))
   const min = Math.min(...times)
   const max = Math.max(...times)
-  const top = niceMax(Math.max(1, ...points.map((p) => p.total)))
+  const [lo, top] = range === 'all' ? [0, niceMax(Math.max(1, ...shown.map((p) => p.total)))] : niceDomain(Math.min(...shown.map((p) => p.total)), Math.max(...shown.map((p) => p.total)))
   const w = chart.width - chart.left - chart.right
   const h = chart.height - chart.top - chart.bottom
   const x = (date: string) => chart.left + (max > min ? ((Date.parse(date) - min) / (max - min)) * w : w / 2)
-  const y = (value: number) => chart.top + h - (value / top) * h
-  const ticks = [0, top / 2, top].map((v) => ({ value: v, y: y(v) }))
+  const y = (value: number) => chart.top + h - ((value - lo) / (top - lo)) * h
+  const ticks = [lo, (lo + top) / 2, top].map((v) => ({ value: v, y: y(v) }))
   const years: { label: string; x: number }[] = []
   for (let year = new Date(min).getUTCFullYear() + 1; Date.UTC(year, 0, 1) <= max; year++) {
     years.push({ label: String(year), x: x(new Date(Date.UTC(year, 0, 1)).toISOString().slice(0, 10)) })
   }
-  return { x, y, ticks, years, days: Math.round((max - min) / DAY_MS) }
+  return { x, y, ticks, years, days: Math.round((max - min) / DAY_MS), shown, indexes, startsAtZero: lo === 0 }
 }
+
+/**
+ * A y-axis [lo, hi] around the values with a tick in the middle: round numbers
+ * that contain the data, with a flat series sitting mid-plot (HV-22.4).
+ */
+export function niceDomain(min: number, max: number): [number, number] {
+  const center = (min + max) / 2
+  const half = max > min ? ((max - min) / 2) * 1.1 : Math.max(1, Math.abs(center) * 0.003)
+  let step = niceMax(half)
+  for (;;) {
+    let lo = Math.round((center - step) / step) * step
+    if (lo < 0) lo = 0
+    if (lo <= min && lo + 2 * step >= max) return [lo, lo + 2 * step]
+    step = niceMax(step * 1.01)
+  }
+}
+
+/** The index of the x position nearest `px`; `xs` must be sorted ascending. */
+export function nearestIndex(xs: number[], px: number): number {
+  let lo = 0
+  let hi = xs.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (xs[mid] < px) lo = mid + 1
+    else hi = mid
+  }
+  return lo > 0 && px - xs[lo - 1] <= xs[lo] - px ? lo - 1 : lo
+}
+
+/** The other indexes whose x lies within `within` units of the one at `i` (HV-20). */
+export function neighbours(xs: number[], i: number, within = NEIGHBOUR_UNITS): number[] {
+  return xs.flatMap((v, j) => (j !== i && Math.abs(v - xs[i]) <= within ? [j] : []))
+}
+
+/** A snapshot as parts: date, source, images, free images and the change (HV-19). */
+export function pointParts(points: HistoryPoint[], i: number): string[] {
+  const p = points[i]
+  const prev = points[i - 1]
+  let change = 'first capture'
+  if (prev) {
+    const d = p.total - prev.total
+    change = d === 0 ? `no change since ${prev.date}` : `${d < 0 ? '−' : '+'}${n(Math.abs(d))} since ${prev.date}`
+  }
+  return [
+    p.date,
+    p.source === 'archive' ? 'Internet Archive capture' : 'Daily snapshot',
+    `${n(p.total)} ${p.total === 1 ? 'image' : 'images'}`,
+    p.free === undefined ? 'free unknown' : `${n(p.free)} free`,
+    change,
+  ]
+}
+
+/** The same as one line, for the live region (HV-21). */
+export const pointText = (points: HistoryPoint[], i: number) => pointParts(points, i).join(' · ')
 
 /** Rounds up to 1, 2 or 5 times a power of ten, so the axis ends on a round number. */
 export function niceMax(value: number): number {

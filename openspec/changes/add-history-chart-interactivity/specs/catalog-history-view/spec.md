@@ -61,3 +61,10 @@ The chart SHALL offer "All time" and, when there are at least 2 daily snapshots,
 #### Scenario: HV-22.4 Flat values
 - **WHEN** every point in the range has the same total, as 3,171 on all 5 days
 - **THEN** the line is drawn in the middle of a y-axis with distinct tick labels, not on an edge
+
+### Requirement: HV-23 Narrow screens
+Below 640 pixels wide, the selected snapshot's text SHALL appear in a line of the page's normal text size directly below the chart, with the nearby-snapshot note and range suggestion of HV-20 where they apply, instead of in a card inside the chart, whose text is too small there. The guide line and the ringed point SHALL be drawn at every width.
+
+#### Scenario: HV-23.1 Selecting on a phone
+- **WHEN** the screen is 375 pixels wide and the user selects the 2026-10-08 point
+- **THEN** its text is shown below the chart at the page's normal text size and no card is shown inside the chart

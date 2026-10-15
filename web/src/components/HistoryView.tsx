@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, ApiError, type HistoryEntry } from '../api'
+import type { ChartRange } from '../history'
 import { NAMES_SHOWN, entryLists, entrySummary, historyTiles, splitEntries } from '../history'
-import { statTileClass } from '../styles'
+import { segmentButton, segmentGroup, statTileClass } from '../styles'
 import { GrowthChart } from './GrowthChart'
 import { Card, ErrorState, Loading } from './ui'
 
@@ -12,7 +13,7 @@ const n = (value: number) => value.toLocaleString('en-US')
  * (HV-14): the age of the data, summary tiles, a growth chart and a timeline
  * of changes, all following the catalog's search.
  */
-export function HistoryView({ query }: { query: string }) {
+export function HistoryView({ query, range = 'all', onRange }: { query: string; range?: ChartRange; onRange?: (range: ChartRange) => void }) {
   const { data, error, isPending, refetch } = useQuery({
     queryKey: ['history', query],
     queryFn: ({ signal }) => api.history(query, signal),
@@ -33,6 +34,9 @@ export function HistoryView({ query }: { query: string }) {
   const tiles = historyTiles(data)
   const searching = query !== ''
   const { live, archive } = splitEntries(data.entries)
+  // "Since daily tracking" needs at least 2 daily snapshots; without them `range=daily` is ignored (HV-22.3).
+  const dailyOffered = data.points.filter((p) => p.source === 'live').length >= 2
+  const effective: ChartRange = range === 'daily' && dailyOffered ? 'daily' : 'all'
   const firstDate = data.points[0]?.date ?? ''
   const unchanged = data.entries.length > 0 && data.entries.every((e) => e.kind !== 'changes')
   return (
@@ -57,7 +61,17 @@ export function HistoryView({ query }: { query: string }) {
 
       <Card>
         <h2 className="mb-3 font-semibold">{searching ? `Images matching “${query}”` : 'Images in the catalog'}</h2>
-        <GrowthChart points={data.points} />
+        <div role="group" aria-label="Chart range" className={`mb-3 ${segmentGroup}`}>
+          <button type="button" aria-pressed={effective === 'all'} onClick={() => onRange?.('all')} className={segmentButton(effective === 'all')}>
+            All time
+          </button>
+          {dailyOffered && (
+            <button type="button" aria-pressed={effective === 'daily'} onClick={() => onRange?.('daily')} className={segmentButton(effective === 'daily')}>
+              Since daily tracking
+            </button>
+          )}
+        </div>
+        <GrowthChart key={`${effective}|${query}|${data.last_snapshot}`} points={data.points} range={effective} dailyOffered={dailyOffered} />
       </Card>
 
       <section aria-labelledby="timeline-heading" className="space-y-3">

@@ -25,6 +25,7 @@ export function CatalogPage() {
   const sort: FamilySort = familySorts.find((s) => s === sortParam) ?? 'images'
   const groupBy: GroupBy = params.get('group') === 'prefix' ? 'prefix' : 'variant'
   const zoom = params.get('zoom') ?? ''
+  const range = params.get('range') === 'daily' ? 'daily' : 'all'
 
   // The search box updates the URL after a short pause, so the URL (and the
   // query) always reflects the current search and can be shared. If the URL
@@ -109,7 +110,7 @@ export function CatalogPage() {
       </div>
 
       {view === 'history' ? (
-        <HistoryView query={query} />
+        <HistoryView query={query} range={range} onRange={(r) => update({ range: r === 'daily' ? 'daily' : '' })} />
       ) : view === 'map' ? (
         <CatalogMap
           query={query}

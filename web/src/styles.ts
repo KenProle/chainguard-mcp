@@ -103,6 +103,10 @@ export const historyChartColor = {
   hollow: 'fill-white dark:fill-zinc-900',
   grid: 'stroke-zinc-200 dark:stroke-zinc-700',
   text: 'fill-zinc-500 dark:fill-zinc-400',
+  guide: 'stroke-zinc-400 dark:stroke-zinc-500',
+  card: 'fill-white stroke-zinc-300 dark:fill-zinc-800 dark:stroke-zinc-600',
+  cardText: 'fill-zinc-900 dark:fill-zinc-100',
+  cardMuted: 'fill-zinc-600 dark:fill-zinc-400',
 }
 
 /** A summary tile with a figure and a caption, as in the Security tab. */

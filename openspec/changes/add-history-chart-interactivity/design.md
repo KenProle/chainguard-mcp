@@ -51,6 +51,7 @@ See proposal.md for the motivation and the spec delta (HV-19 to HV-22) for the b
 - Its width is fixed (about 190 units) and the text is short enough to fit at 375 px, where the viewBox scales down. The lines are kept at font size 12 or above, so they stay legible after scaling (HV-16.2 still applies).
 - Colors come from `historyChartColor` in `styles.ts` (new `card` and `guide` entries) for light and dark mode.
 - No HTML overlay and no inline style, so it's CSP-safe by construction.
+- Below Tailwind's `sm` (640 px) the SVG is scaled so small that the 12-unit text is about 8 px, so the card is `hidden sm:inline` and the same text is shown in a `text-sm sm:hidden` line under the chart (HV-23); the guide line and ring stay at every width.
 
 ### 4. Keyboard and screen readers
 

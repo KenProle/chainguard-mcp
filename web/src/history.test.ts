@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HistoryReport } from './api'
-import { chartLayout, historyTiles, niceMax } from './history'
+import { chartLayout, historyTiles, neighbours, nearestIndex, niceDomain, niceMax, pointText } from './history'
 import fixture from './test/fixtures/historyReport.json'
 
 const report = fixture as unknown as HistoryReport
@@ -24,5 +24,59 @@ describe('history helpers', () => {
 
   it('rounds the axis maximum up to a round number', () => {
     expect([niceMax(1), niceMax(3171), niceMax(4001), niceMax(675)]).toEqual([1, 5000, 5000, 1000])
+  })
+
+  const idx = (date: string) => report.points.findIndex((p) => p.date === date)
+
+  it('HV-19.1 words an Internet Archive capture', () => {
+    expect(pointText(report.points, idx('2026-10-08'))).toBe('2026-10-08 · Internet Archive capture · 3,166 images · free unknown · +769 since 2026-05-10')
+  })
+
+  it('HV-19.2 words the first capture', () => {
+    expect(pointText(report.points, 0)).toBe('2024-04-19 · Internet Archive capture · 675 images · free unknown · first capture')
+  })
+
+  it('HV-19.3 words a daily snapshot with no change', () => {
+    expect(pointText(report.points, idx('2026-10-12'))).toBe('2026-10-12 · Daily snapshot · 3,171 images · 59 free · no change since 2026-10-11')
+  })
+
+  it('HV-20.1 finds the 5 snapshots drawn close to 2026-10-14 in All time', () => {
+    const { x, shown } = chartLayout(report.points, 'all')
+    const xs = shown.map((p) => x(p.date))
+    expect(neighbours(xs, idx('2026-10-14')).map((j) => shown[j].date)).toEqual(['2026-10-08', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13'])
+  })
+
+  it('HV-20.2 finds no neighbours for 2025-05-04', () => {
+    const { x, shown } = chartLayout(report.points, 'all')
+    expect(neighbours(shown.map((p) => x(p.date)), idx('2025-05-04'))).toEqual([])
+  })
+
+  it('HV-22.4 puts a flat series mid-plot with distinct ticks', () => {
+    const [lo, hi] = niceDomain(3171, 3171)
+    expect([lo, hi]).toEqual([3160, 3180])
+    const { y, ticks, startsAtZero, shown } = chartLayout(report.points, 'daily')
+    expect(shown).toHaveLength(5)
+    expect(new Set(ticks.map((t) => t.value)).size).toBe(3)
+    expect(ticks[1].value).toBe(3170)
+    expect(Math.abs(y(3171) - ticks[1].y)).toBeLessThan(20)
+    expect(startsAtZero).toBe(false)
+  })
+
+  it('niceDomain contains growing data and stays at or above zero', () => {
+    const [lo, hi] = niceDomain(3166, 3171)
+    expect(lo).toBeLessThanOrEqual(3166)
+    expect(hi).toBeGreaterThanOrEqual(3171)
+    expect(niceDomain(0, 0)[0]).toBe(0)
+  })
+
+  it('All time still starts at zero', () => {
+    const { ticks, startsAtZero } = chartLayout(report.points, 'all')
+    expect(ticks[0].value).toBe(0)
+    expect(startsAtZero).toBe(true)
+  })
+
+  it('nearestIndex snaps to the closest x', () => {
+    const xs = [10, 20, 40]
+    expect([nearestIndex(xs, 0), nearestIndex(xs, 14), nearestIndex(xs, 16), nearestIndex(xs, 31), nearestIndex(xs, 99)]).toEqual([0, 0, 1, 2, 2])
   })
 })
