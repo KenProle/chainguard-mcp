@@ -173,6 +173,13 @@ mkdir -p historydata && curl -fsSL -o historydata/catalog-history.jsonl https://
 go build -o chainguard-mcp .
 ```
 
+On Windows (PowerShell):
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/KenProle/chainguard-mcp/data/catalog-history.jsonl -OutFile historydata\catalog-history.jsonl
+go build -o chainguard-mcp.exe .
+```
+
 ## Install
 
 Download a binary for your platform from [Releases](https://github.com/KenProle/chainguard-mcp/releases), or build from source:
@@ -181,6 +188,14 @@ Download a binary for your platform from [Releases](https://github.com/KenProle/
 npm --prefix web ci
 npm --prefix web run build   # optional: builds the web UI, which the Go binary embeds
 go build -o chainguard-mcp .
+```
+
+On Windows (PowerShell), name the binary `chainguard-mcp.exe`. Without the extension, PowerShell's `.\chainguard-mcp` runs an older `chainguard-mcp.exe` if one is still there, and you get the old version. Use `npm.cmd` if PowerShell's execution policy blocks `npm`:
+
+```powershell
+npm.cmd --prefix web ci
+npm.cmd --prefix web run build
+go build -o chainguard-mcp.exe .
 ```
 
 Without the UI build, everything else still works and `/` shows how to build it.
@@ -192,6 +207,8 @@ Without the UI build, everything else still works and `/` shows how to build it.
 ./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API under /api/ (GET /api/ lists the endpoints), health check at /healthz
 ./chainguard-mcp -version
 ```
+
+On Windows, run `.\chainguard-mcp.exe` with the same flags.
 
 Add it to Claude Code:
 
