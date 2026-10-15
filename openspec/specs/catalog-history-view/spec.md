@@ -4,7 +4,7 @@
 
 Reads the project's catalog history (written daily by `catalog-history`) and presents it in the web UI, the web API and MCP: what changed in Chainguard's catalog and when, how the catalog grew, and when each image first appeared. Dates are only as precise as the snapshots behind them, and the data's age is always visible.
 
-HV-1 to HV-4 define how the server obtains the history and reports its age; HV-5 to HV-10 how growth, changes and first-seen dates are derived and worded; HV-11 to HV-13 the web API, the MCP tool and image details; HV-14 to HV-18 the web UI. Figures are from the `data` branch on 2026-10-14: 22 lines, 17 Internet Archive captures from 2024-04-19 (675 images) to 2026-10-08 (3,166), then live snapshots from 2026-10-10 to 2026-10-14 (3,171 images, 59 free).
+HV-1 to HV-4 define how the server obtains the history and reports its age; HV-5 to HV-10 how growth, changes and first-seen dates are derived and worded; HV-11 to HV-13 the web API, the MCP tool and image details; HV-14 to HV-18 the web UI; HV-19 to HV-23 the growth chart's tooltips, keyboard stepping, range choice and narrow-screen layout. Figures are from the `data` branch on 2026-10-14: 22 lines, 17 Internet Archive captures from 2024-04-19 (675 images) to 2026-10-08 (3,166), then live snapshots from 2026-10-10 to 2026-10-14 (3,171 images, 59 free).
 
 ## Requirements
 
@@ -230,3 +230,70 @@ The timeline SHALL show entries from the first live snapshot on directly, and SH
 - **WHEN** the timeline is shown without a search
 - **THEN** the first two entries (no changes from 2026-10-11 to 2026-10-14, and the 5 added between 2026-10-08 and 2026-10-10) are visible
 - **AND** the 17 archive-era entries are behind the collapsed heading, which opens with the keyboard as well as the mouse
+
+### Requirement: HV-19 Tooltip for the nearest snapshot
+Pointing at the growth chart, or tapping it, SHALL highlight the snapshot nearest the pointer on the time axis with a guide line, and SHALL show a card with its date, its source, its images, its free images ("unknown" before the first live snapshot) and its change since the previous snapshot. Leaving the chart, or tapping outside it, SHALL hide the card.
+
+#### Scenario: HV-19.1 An Internet Archive capture
+- **WHEN** the pointer is nearest the 2026-10-08 point without a search
+- **THEN** the card reads 2026-10-08, Internet Archive capture, 3,166 images, free unknown, +769 since 2026-05-10
+
+#### Scenario: HV-19.2 The first capture
+- **WHEN** the pointer is nearest the 2024-04-19 point
+- **THEN** the card reads 675 images and says it is the first capture instead of giving a change
+
+#### Scenario: HV-19.3 A daily snapshot
+- **WHEN** the pointer is nearest the 2026-10-12 point in "Since daily tracking"
+- **THEN** the card reads daily snapshot, 3,171 images, 59 free, no change since 2026-10-11
+
+#### Scenario: HV-19.4 Leaving the chart
+- **WHEN** the pointer leaves the chart
+- **THEN** the card and guide line disappear
+
+### Requirement: HV-20 Snapshots too close to tell apart
+When other snapshots are drawn within 6 pixels of the highlighted one (in the chart's own coordinates), the card SHALL say how many. In "All time", when "Since daily tracking" is offered and the highlighted snapshot is a daily one, it SHALL also suggest that range.
+
+#### Scenario: HV-20.1 The daily snapshots in "All time"
+- **WHEN** the pointer is nearest the 2026-10-14 point in "All time"
+- **THEN** the card says 5 more snapshots are drawn close to this one (2026-10-08 to 2026-10-13) and suggests "Since daily tracking"
+
+#### Scenario: HV-20.2 Spread-out snapshots
+- **WHEN** the pointer is nearest the 2025-05-04 point in "All time"
+- **THEN** the card mentions no nearby snapshots
+
+### Requirement: HV-21 Keyboard and screen readers
+The chart SHALL be focusable. ←/→ SHALL move between snapshots and Home/End SHALL go to the first and last, showing the same card as the pointer, and each move SHALL announce the snapshot's text in a polite live region. Escape SHALL hide the card. The table of snapshots (HV-15.2) SHALL remain.
+
+#### Scenario: HV-21.1 Stepping back from the end
+- **WHEN** the chart has focus and the user presses End, then ←
+- **THEN** the card shows 2026-10-13, and the live region reads its date, source, images, free images and change
+
+#### Scenario: HV-21.2 Focus is visible
+- **WHEN** the chart receives keyboard focus
+- **THEN** it shows a visible focus outline and a hint that the arrow keys move between snapshots
+
+### Requirement: HV-22 Range choice
+The chart SHALL offer "All time" and, when there are at least 2 daily snapshots, "Since daily tracking". The latter SHALL rescale both axes to the daily snapshots, label its y-axis as not starting at zero, draw only the total, and say the free count isn't plotted. The choice SHALL be kept in the URL as `range=daily`.
+
+#### Scenario: HV-22.1 Zooming in
+- **WHEN** the user picks "Since daily tracking" without a search
+- **THEN** the URL gets `range=daily`, the x-axis runs from 2026-10-10 to 2026-10-14 with the 5 points spread across the plot, the y-axis is labelled as not starting at zero, and no free line is drawn
+
+#### Scenario: HV-22.2 Back to all time
+- **WHEN** the user picks "All time"
+- **THEN** `range` leaves the URL and the chart shows all 22 snapshots on an axis from zero
+
+#### Scenario: HV-22.3 Not enough daily snapshots
+- **WHEN** a history has fewer than 2 daily snapshots
+- **THEN** only "All time" is offered, and `range=daily` in the URL is ignored
+
+#### Scenario: HV-22.4 Flat values
+- **WHEN** every point in the range has the same total, as 3,171 on all 5 days
+- **THEN** the line is drawn in the middle of a y-axis with distinct tick labels, not on an edge
+
+### Requirement: HV-23 Narrow screens
+Below 640 pixels wide, the selected snapshot's text SHALL appear in a line of the page's normal text size directly below the chart, with the nearby-snapshot note and range suggestion of HV-20 where they apply, instead of in a card inside the chart, whose text is too small there. The guide line and the ringed point SHALL be drawn at every width.
+
+#### Scenario: HV-23.1 Selecting on a phone
+- **WHEN** the screen is 375 pixels wide and the user selects the 2026-10-08 point
+- **THEN** its text is shown below the chart at the page's normal text size and no card is shown inside the chart
