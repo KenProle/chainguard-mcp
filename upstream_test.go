@@ -364,7 +364,7 @@ func TestUC4_2_SummarizeCountsEachIDOnce(t *testing.T) {
 	}
 }
 
-func TestUC4_3_VulnKeys(t *testing.T) {
+func TestUC16_1_UC16_2_UC16_3_VulnKeys(t *testing.T) {
 	for _, tc := range []struct {
 		v    OSVVuln
 		want []string
