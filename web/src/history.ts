@@ -82,21 +82,30 @@ const DAY_MS = 86_400_000
 
 export type ChartRange = 'all' | 'daily'
 
+/** Which count the chart plots: the total, or the free count on its own axis (HV-25). */
+export type ChartSeries = 'total' | 'free'
+
 /** Snapshots drawn within this many viewBox units of each other overlap visually (HV-20). */
 export const NEIGHBOUR_UNITS = 6
 
 /**
- * Positions the points on a time axis (x) and a linear axis (y). "all" starts
- * the axis at zero; "daily" keeps only daily snapshots and zooms the axis
- * around them (HV-22). `indexes` maps each drawn point to its index in `points`.
+ * Positions the points on a time axis (x) and a linear axis (y). For the total,
+ * "all" starts the axis at zero and "daily" keeps only daily snapshots and zooms
+ * the axis around them (HV-22). The free series keeps the snapshots with a free
+ * count, whatever the range, on an axis around them (HV-25). `indexes` maps each
+ * drawn point to its index in `points`, and `value` reads the plotted count.
  */
-export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all', width: number = chart.width) {
-  const indexes = points.flatMap((p, i) => (range === 'all' || p.source === 'live' ? [i] : []))
+export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all', width: number = chart.width, series: ChartSeries = 'total') {
+  const free = series === 'free'
+  const value = (p: HistoryPoint) => (free ? (p.free ?? 0) : p.total)
+  const keep = (p: HistoryPoint) => (free ? p.free !== undefined : range === 'all' || p.source === 'live')
+  const indexes = points.flatMap((p, i) => (keep(p) ? [i] : []))
   const shown = indexes.map((i) => points[i])
   const times = shown.map((p) => Date.parse(p.date))
   const min = Math.min(...times)
   const max = Math.max(...times)
-  const [lo, top] = range === 'all' ? [0, niceMax(Math.max(1, ...shown.map((p) => p.total)))] : niceDomain(Math.min(...shown.map((p) => p.total)), Math.max(...shown.map((p) => p.total)))
+  const values = shown.map(value)
+  const [lo, top] = range === 'all' && !free ? [0, niceMax(Math.max(1, ...values))] : niceDomain(Math.min(...values), Math.max(...values))
   const w = width - chart.left - chart.right
   const h = chart.height - chart.top - chart.bottom
   const x = (date: string) => chart.left + (max > min ? ((Date.parse(date) - min) / (max - min)) * w : w / 2)
@@ -106,7 +115,7 @@ export function chartLayout(points: HistoryPoint[], range: ChartRange = 'all', w
   for (let year = new Date(min).getUTCFullYear() + 1; Date.UTC(year, 0, 1) <= max; year++) {
     years.push({ label: String(year), x: x(new Date(Date.UTC(year, 0, 1)).toISOString().slice(0, 10)) })
   }
-  return { x, y, ticks, years, days: Math.round((max - min) / DAY_MS), shown, indexes, startsAtZero: lo === 0 }
+  return { x, y, ticks, years, days: Math.round((max - min) / DAY_MS), shown, indexes, value, startsAtZero: lo === 0 }
 }
 
 /**

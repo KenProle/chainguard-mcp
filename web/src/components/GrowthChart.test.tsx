@@ -167,6 +167,56 @@ describe('Growth chart range', () => {
   })
 })
 
+describe('Growth chart series', () => {
+  const freeDrawn = (svg: HTMLElement) => svg.querySelectorAll('circle[data-point="free"]')
+
+  it('HV-25.1 draws only the free counts on their own axis and HV-25.2 goes back', async () => {
+    const user = userEvent.setup()
+    renderChart()
+    await user.click(await screen.findByRole('button', { name: 'Free images' }))
+    expect(screen.getByTestId('url')).toHaveTextContent('series=free')
+    const svg = screen.getByTestId('growth-chart')
+    expect(freeDrawn(svg)).toHaveLength(5)
+    expect(drawn(svg)).toHaveLength(0)
+    expect(svg).toHaveTextContent('2026-10-10')
+    expect(svg).toHaveTextContent('59')
+    expect(screen.getByText("Axis doesn't start at zero")).toBeInTheDocument()
+    expect(screen.getByText(/Free-tier status is known from 2026-10-10/)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Chart range' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Free images' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'All images' }))
+    expect(screen.getByTestId('url')).not.toHaveTextContent('series')
+    expect(drawn(screen.getByTestId('growth-chart'))).toHaveLength(22)
+    expect(screen.getByRole('group', { name: 'Chart range' })).toBeInTheDocument()
+    expect(screen.queryByText(/Free-tier status is known from/)).not.toBeInTheDocument()
+  })
+
+  it('HV-25.3 offers no series choice with fewer than 2 free counts and ignores series=free', async () => {
+    const one = { ...full, points: full.points.map((p) => (p.date === '2026-10-10' ? p : { ...p, free: undefined })) }
+    renderChart('&series=free', one)
+    expect(await screen.findByRole('button', { name: 'All time' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Free images' })).not.toBeInTheDocument()
+    expect(drawn(screen.getByTestId('growth-chart'))).toHaveLength(22)
+  })
+
+  it('HV-25.4 shows the same card text in free images', async () => {
+    renderChart('&series=free')
+    await chartWithBox()
+    const x = chartLayout(full.points, 'all', 480, 'free').x('2026-10-12')
+    fireEvent.pointerMove(overlay(), { clientX: x, clientY: 100 })
+    expect(card()).toHaveTextContent('Daily snapshot')
+    expect(card()).toHaveTextContent('3,171 images · 59 free')
+    expect(card()).toHaveTextContent('no change since 2026-10-11')
+    expect(card()).not.toHaveTextContent('Try "Since daily tracking"')
+  })
+
+  it('HV-22.5 points to free images from the daily range', async () => {
+    renderChart('&range=daily')
+    expect(await screen.findByText(/Free images aren't plotted in this range; pick "Free images" to see their trend/)).toBeInTheDocument()
+  })
+})
+
 describe('Growth chart on narrow screens', () => {
   it('HV-23.1 shows the selected snapshot as text below the chart and hides the card on narrow screens', async () => {
     renderChart()

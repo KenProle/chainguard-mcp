@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, ApiError, type HistoryEntry } from '../api'
-import type { ChartRange } from '../history'
+import type { ChartRange, ChartSeries } from '../history'
 import { NAMES_SHOWN, entryLists, entrySummary, historyTiles, splitEntries } from '../history'
 import { segmentButton, segmentGroup, statTileClass } from '../styles'
 import { GrowthChart } from './GrowthChart'
@@ -13,7 +13,13 @@ const n = (value: number) => value.toLocaleString('en-US')
  * (HV-14): the age of the data, summary tiles, a growth chart and a timeline
  * of changes, all following the catalog's search.
  */
-export function HistoryView({ query, range = 'all', onRange }: { query: string; range?: ChartRange; onRange?: (range: ChartRange) => void }) {
+export function HistoryView({ query, range = 'all', onRange, series = 'total', onSeries }: {
+  query: string
+  range?: ChartRange
+  onRange?: (range: ChartRange) => void
+  series?: ChartSeries
+  onSeries?: (series: ChartSeries) => void
+}) {
   const { data, error, isPending, refetch } = useQuery({
     queryKey: ['history', query],
     queryFn: ({ signal }) => api.history(query, signal),
@@ -37,6 +43,9 @@ export function HistoryView({ query, range = 'all', onRange }: { query: string; 
   // "Since daily tracking" needs at least 2 daily snapshots; without them `range=daily` is ignored (HV-22.3).
   const dailyOffered = data.points.filter((p) => p.source === 'live').length >= 2
   const effective: ChartRange = range === 'daily' && dailyOffered ? 'daily' : 'all'
+  // "Free images" needs at least 2 snapshots with a free count; without them `series=free` is ignored (HV-25.3).
+  const freeOffered = data.points.filter((p) => p.free !== undefined).length >= 2
+  const shownSeries: ChartSeries = series === 'free' && freeOffered ? 'free' : 'total'
   const firstDate = data.points[0]?.date ?? ''
   const unchanged = data.entries.length > 0 && data.entries.every((e) => e.kind !== 'changes')
   return (
@@ -61,17 +70,38 @@ export function HistoryView({ query, range = 'all', onRange }: { query: string; 
 
       <Card>
         <h2 className="mb-3 font-semibold">{searching ? `Images matching “${query}”` : 'Images in the catalog'}</h2>
-        <div role="group" aria-label="Chart range" className={`mb-3 ${segmentGroup}`}>
-          <button type="button" aria-pressed={effective === 'all'} onClick={() => onRange?.('all')} className={segmentButton(effective === 'all')}>
-            All time
-          </button>
-          {dailyOffered && (
-            <button type="button" aria-pressed={effective === 'daily'} onClick={() => onRange?.('daily')} className={segmentButton(effective === 'daily')}>
-              Since daily tracking
-            </button>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {freeOffered && (
+            <div role="group" aria-label="Chart series" className={segmentGroup}>
+              <button type="button" aria-pressed={shownSeries === 'total'} onClick={() => onSeries?.('total')} className={segmentButton(shownSeries === 'total')}>
+                All images
+              </button>
+              <button type="button" aria-pressed={shownSeries === 'free'} onClick={() => onSeries?.('free')} className={segmentButton(shownSeries === 'free')}>
+                Free images
+              </button>
+            </div>
+          )}
+          {/* Free counts exist only for daily snapshots, so the range has nothing to change there (HV-25). */}
+          {shownSeries === 'total' && (
+            <div role="group" aria-label="Chart range" className={segmentGroup}>
+              <button type="button" aria-pressed={effective === 'all'} onClick={() => onRange?.('all')} className={segmentButton(effective === 'all')}>
+                All time
+              </button>
+              {dailyOffered && (
+                <button type="button" aria-pressed={effective === 'daily'} onClick={() => onRange?.('daily')} className={segmentButton(effective === 'daily')}>
+                  Since daily tracking
+                </button>
+              )}
+            </div>
           )}
         </div>
-        <GrowthChart key={`${effective}|${query}|${data.last_snapshot}`} points={data.points} range={effective} dailyOffered={dailyOffered} />
+        <GrowthChart
+          key={`${effective}|${shownSeries}|${query}|${data.last_snapshot}`}
+          points={data.points}
+          range={effective}
+          series={shownSeries}
+          dailyOffered={dailyOffered}
+        />
       </Card>
 
       <section aria-labelledby="timeline-heading" className="space-y-3">

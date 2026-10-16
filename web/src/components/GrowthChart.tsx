@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { HistoryPoint } from '../api'
-import { chart, chartLayout, nearestIndex, neighbours, pointParts, pointText, polyline, type ChartRange } from '../history'
+import { chart, chartLayout, nearestIndex, neighbours, pointParts, pointText, polyline, type ChartRange, type ChartSeries } from '../history'
 import { historyChartColor as color } from '../styles'
 import { useElementWidth } from '../useElementWidth'
 
@@ -20,11 +20,14 @@ const LINE = 16
  * axis, and only the total (HV-22). `dailyOffered` lets the card suggest that
  * range (HV-20).
  */
-export function GrowthChart({ points, range = 'all', dailyOffered = false }: { points: HistoryPoint[]; range?: ChartRange; dailyOffered?: boolean }) {
+export function GrowthChart({ points, range = 'all', series = 'total', dailyOffered = false }: { points: HistoryPoint[]; range?: ChartRange; series?: ChartSeries; dailyOffered?: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const measured = useElementWidth(wrapRef)
   const width = measured ?? chart.width
-  const { x, y, ticks, years, shown, indexes, startsAtZero } = chartLayout(points, range, width)
+  const { x, y, ticks, years, shown, indexes, value, startsAtZero } = chartLayout(points, range, width, series)
+  // "Free images" plots only the free count, on its own axis (HV-25).
+  const freeOnly = series === 'free'
+  const line = freeOnly ? color.free : color.total
   const [sel, setSel] = useState<number | null>(null)
   const [focused, setFocused] = useState(false)
   const [announced, setAnnounced] = useState('')
@@ -41,8 +44,9 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
 
   if (shown.length === 0) return null
   const daily = range === 'daily'
-  const totalPts = shown.map((p) => ({ x: x(p.date), y: y(p.total) }))
-  const freePts = daily ? [] : shown.filter((p) => p.free !== undefined).map((p) => ({ date: p.date, x: x(p.date), y: y(p.free ?? 0) }))
+  // The plotted series' points; the free line is only added alongside the total in "All time".
+  const totalPts = shown.map((p) => ({ x: x(p.date), y: y(value(p)) }))
+  const freePts = daily || freeOnly ? [] : shown.filter((p) => p.free !== undefined).map((p) => ({ date: p.date, x: x(p.date), y: y(p.free ?? 0) }))
   const baseline = chart.height - chart.bottom
   const xs = totalPts.map((p) => p.x)
 
@@ -111,23 +115,23 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
           {years.map((yr) => (
             <line key={yr.label} x1={yr.x} x2={yr.x} y1={baseline} y2={baseline + 4} className={color.grid} />
           ))}
-          <polyline points={polyline(totalPts)} fill="none" strokeWidth="2" strokeLinejoin="round" className={color.total.line} />
+          <polyline points={polyline(totalPts)} fill="none" strokeWidth="2" strokeLinejoin="round" className={line.line} />
           {freePts.length > 1 && <polyline points={polyline(freePts)} fill="none" strokeWidth="2" strokeLinejoin="round" className={color.free.line} />}
           {shown.map((p, i) => (
             <circle
               key={p.date}
-              data-point={p.source}
+              data-point={freeOnly ? 'free' : p.source}
               cx={totalPts[i].x}
               cy={totalPts[i].y}
               r="3.5"
               strokeWidth="2"
-              className={`${color.total.point} ${p.source === 'archive' ? color.hollow : color.total.filled}`}
+              className={`${line.point} ${p.source === 'archive' ? color.hollow : line.filled}`}
             />
           ))}
           {freePts.map((p) => (
             <circle key={p.date} data-point="free" cx={p.x} cy={p.y} r="3.5" strokeWidth="2" className={`${color.free.point} ${color.free.filled}`} />
           ))}
-          {sel !== null && <Card points={points} shown={shown} indexes={indexes} totalPts={totalPts} sel={sel} range={range} dailyOffered={dailyOffered} xs={xs} width={width} />}
+          {sel !== null && <Card points={points} shown={shown} indexes={indexes} totalPts={totalPts} sel={sel} range={range} dailyOffered={dailyOffered && !freeOnly} xs={xs} width={width} />}
           <rect
             data-testid="chart-overlay"
             x={chart.left}
@@ -150,27 +154,34 @@ export function GrowthChart({ points, range = 'all', dailyOffered = false }: { p
       {sel !== null && (
         <p data-testid="chart-selection" className="text-sm sm:hidden">
           {pointText(points, indexes[sel])}
-          {selectionLines({ points, shown, indexes, xs, sel, range, dailyOffered }).extra.map((line, i) => (i === 0 ? ` · ${line}` : ` ${line}`)).join('')}
+          {selectionLines({ points, shown, indexes, xs, sel, range, dailyOffered: dailyOffered && !freeOnly }).extra.map((line, i) => (i === 0 ? ` · ${line}` : ` ${line}`)).join('')}
         </p>
       )}
-      {daily && <p className="text-xs text-zinc-600 dark:text-zinc-400">Free images aren't plotted in this range; the tooltip and the table show them.</p>}
+      {daily && !freeOnly && (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">Free images aren't plotted in this range; pick "Free images" to see their trend, or use the tooltip and the table.</p>
+      )}
+      {freeOnly && (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+          Free-tier status is known from {shown[0].date}, the first daily snapshot, so this shows daily snapshots only.
+        </p>
+      )}
 
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
         <li className="flex items-center gap-1.5">
-          <span className={`inline-block h-0.5 w-4 ${color.total.swatch}`} aria-hidden="true" /> Images
+          <span className={`inline-block h-0.5 w-4 ${line.swatch}`} aria-hidden="true" /> {freeOnly ? 'Free images' : 'Images'}
         </li>
         {freePts.length > 0 && (
           <li className="flex items-center gap-1.5">
             <span className={`inline-block h-0.5 w-4 ${color.free.swatch}`} aria-hidden="true" /> Free (from {freePts[0].date})
           </li>
         )}
-        {!daily && (
+        {!daily && !freeOnly && (
           <li className="flex items-center gap-1.5">
             <span className="inline-block size-2.5 rounded-full border-2 border-indigo-500 dark:border-indigo-400" aria-hidden="true" /> Internet Archive capture
           </li>
         )}
         <li className="flex items-center gap-1.5">
-          <span className={`inline-block size-2.5 rounded-full ${color.total.swatch}`} aria-hidden="true" /> Daily snapshot
+          <span className={`inline-block size-2.5 rounded-full ${line.swatch}`} aria-hidden="true" /> Daily snapshot
         </li>
       </ul>
 

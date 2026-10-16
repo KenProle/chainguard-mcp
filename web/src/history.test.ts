@@ -80,6 +80,15 @@ describe('history helpers', () => {
     expect(startsAtZero).toBe(false)
   })
 
+  it.each(['all', 'daily'] as const)('HV-25.1 lays the free series out on its own axis in the %s range', (range) => {
+    const { shown, value, ticks, y, startsAtZero } = chartLayout(report.points, range, 480, 'free')
+    expect(shown.map((p) => p.date)).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14'])
+    expect(shown.map(value)).toEqual([59, 59, 59, 59, 59])
+    expect(ticks.map((t) => t.value)).toEqual([58, 59, 60])
+    expect(y(59)).toBeCloseTo(ticks[1].y, 9)
+    expect(startsAtZero).toBe(false)
+  })
+
   it('niceDomain contains growing data and stays at or above zero', () => {
     const [lo, hi] = niceDomain(3166, 3171)
     expect(lo).toBeLessThanOrEqual(3166)

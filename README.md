@@ -20,7 +20,7 @@ Search every Chainguard image and filter to the free ones, or switch to the **Ma
 
 ![The catalog map: 3,171 images, 59 of them free, grouped into base images and FIPS](docs/screenshots/catalog-map.png)
 
-The **History** view shows how the catalog has changed: a growth chart (hover or use the arrow keys for each snapshot, and switch to "Since daily tracking" for the recent days), then a timeline of added, removed and newly free images. It follows the catalog's search. Dates before 2026-10-10 come from Internet Archive captures, so they're ranges.
+The **History** view shows how the catalog has changed: a growth chart (hover or use the arrow keys for each snapshot, and switch to "Since daily tracking" for the recent days, or to "Free images" to see the free count on its own scale), then a timeline of added, removed and newly free images. It follows the catalog's search. Dates before 2026-10-10 come from Internet Archive captures, so they're ranges.
 
 ![The History view: 3,171 images and 59 free, up 2,496 from 675 on 2024-04-19, with the growth chart](docs/screenshots/history-view.png)
 
@@ -170,7 +170,7 @@ go run . -backfill-history catalog-history.jsonl   # one-time: build an empty fi
 
 A snapshot is refused, and the job fails, if the sitemap is empty or would remove more than 5% of the previous snapshot's images.
 
-The server reads this history and shows it: the **History** view on the catalog page (growth chart with tooltips, keyboard stepping and an "All time" / "Since daily tracking" range, summary tiles and a timeline of added, removed and newly free images, following the search), an "In the catalog: …" line on each image page, `GET /api/history`, the `catalog_changes` tool, and `catalog_since` in image details. Dates before the first daily snapshot (2026-10-10) are ranges between Internet Archive captures, and an image missing from a capture is reported as "not in the capture", not as removed. Every response says how old its data is, and warns when the daily job may have stalled.
+The server reads this history and shows it: the **History** view on the catalog page (growth chart with tooltips, keyboard stepping, an "All time" / "Since daily tracking" range and an "All images" / "Free images" toggle, summary tiles and a timeline of added, removed and newly free images, following the search), an "In the catalog: …" line on each image page, `GET /api/history`, the `catalog_changes` tool, and `catalog_since` in image details. Dates before the first daily snapshot (2026-10-10) are ranges between Internet Archive captures, and an image missing from a capture is reported as "not in the capture", not as removed. Every response says how old its data is, and warns when the daily job may have stalled.
 
 Release binaries and the Docker image embed the history as it was when they were built, and a running server fetches a newer copy from the `data` branch at most once an hour, keeping what it has if that fails. A plain `go build` embeds nothing, so the History view says the history couldn't be loaded until the server can reach GitHub. To embed it in a local build:
 
