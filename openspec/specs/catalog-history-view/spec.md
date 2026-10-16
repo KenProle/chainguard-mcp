@@ -4,7 +4,7 @@
 
 Reads the project's catalog history (written daily by `catalog-history`) and presents it in the web UI, the web API and MCP: what changed in Chainguard's catalog and when, how the catalog grew, and when each image first appeared. Dates are only as precise as the snapshots behind them, and the data's age is always visible.
 
-HV-1 to HV-4 define how the server obtains the history and reports its age; HV-5 to HV-10 how growth, changes and first-seen dates are derived and worded; HV-11 to HV-13 the web API, the MCP tool and image details; HV-14 to HV-18 the web UI; HV-19 to HV-23 the growth chart's tooltips, keyboard stepping, range choice and narrow-screen layout; HV-24 its drawing at real size. Figures are from the `data` branch on 2026-10-14: 22 lines, 17 Internet Archive captures from 2024-04-19 (675 images) to 2026-10-08 (3,166), then live snapshots from 2026-10-10 to 2026-10-14 (3,171 images, 59 free).
+HV-1 to HV-4 define how the server obtains the history and reports its age; HV-5 to HV-10 how growth, changes and first-seen dates are derived and worded; HV-11 to HV-13 the web API, the MCP tool and image details; HV-14 to HV-18 the web UI; HV-19 to HV-23 the growth chart's tooltips, keyboard stepping, range choice and narrow-screen layout; HV-24 its drawing at real size; HV-25 its free-images series. Figures are from the `data` branch on 2026-10-14: 22 lines, 17 Internet Archive captures from 2024-04-19 (675 images) to 2026-10-08 (3,166), then live snapshots from 2026-10-10 to 2026-10-14 (3,171 images, 59 free).
 
 ## Requirements
 
@@ -273,7 +273,7 @@ The chart SHALL be focusable. ←/→ SHALL move between snapshots and Home/End 
 - **THEN** it shows a visible focus outline and a hint that the arrow keys move between snapshots
 
 ### Requirement: HV-22 Range choice
-The chart SHALL offer "All time" and, when there are at least 2 daily snapshots, "Since daily tracking". The latter SHALL rescale both axes to the daily snapshots, label its y-axis as not starting at zero, draw only the total, and say the free count isn't plotted. The choice SHALL be kept in the URL as `range=daily`.
+The chart SHALL offer "All time" and, when there are at least 2 daily snapshots, "Since daily tracking". The latter SHALL rescale both axes to the daily snapshots, label its y-axis as not starting at zero, draw only the total, and say the free count isn't plotted and that "Free images" shows it. The choice SHALL be kept in the URL as `range=daily`.
 
 #### Scenario: HV-22.1 Zooming in
 - **WHEN** the user picks "Since daily tracking" without a search
@@ -290,6 +290,10 @@ The chart SHALL offer "All time" and, when there are at least 2 daily snapshots,
 #### Scenario: HV-22.4 Flat values
 - **WHEN** every point in the range has the same total, as 3,171 on all 5 days
 - **THEN** the line is drawn in the middle of a y-axis with distinct tick labels, not on an edge
+
+#### Scenario: HV-22.5 Pointing to the free series
+- **WHEN** "Since daily tracking" is shown with "All images"
+- **THEN** the note under the chart says free images aren't plotted in this range and that "Free images" shows them
 
 ### Requirement: HV-23 Narrow screens
 Below 640 pixels wide, the selected snapshot's text SHALL appear in a line of the page's normal text size directly below the chart, with the nearby-snapshot note and range suggestion of HV-20 where they apply, instead of in a card inside the chart, whose text is too small there. The guide line and the ringed point SHALL be drawn at every width.
@@ -316,3 +320,22 @@ The growth chart SHALL be drawn in as many units as its rendered width in pixels
 #### Scenario: HV-24.4 Resizing
 - **WHEN** the window narrows from 1,280 to 768 pixels while the History view is open
 - **THEN** the chart redraws to the new width, and its labels stay at 12 px
+
+### Requirement: HV-25 Series choice
+When at least 2 snapshots have a free count, the chart SHALL offer "All images" and "Free images". "Free images" SHALL draw only the daily snapshots' free counts, on a y-axis around them (labelled when it doesn't start at zero), hide the range choice, and say free counts start on the first live snapshot's date. The choice SHALL be kept in the URL as `series=free`.
+
+#### Scenario: HV-25.1 Free images
+- **WHEN** the user picks "Free images" without a search
+- **THEN** the URL gets `series=free`, the chart draws the 5 daily snapshots from 2026-10-10 to 2026-10-14 at 59 each, mid-plot on an axis that doesn't start at zero, the range buttons are hidden, and a note says free counts start on 2026-10-10
+
+#### Scenario: HV-25.2 Back to all images
+- **WHEN** the user picks "All images"
+- **THEN** `series` leaves the URL and the chart is drawn as before, with the range buttons shown
+
+#### Scenario: HV-25.3 Not enough free counts
+- **WHEN** fewer than 2 snapshots have a free count
+- **THEN** only "All images" is offered, and `series=free` in the URL is ignored
+
+#### Scenario: HV-25.4 Tooltip in free images
+- **WHEN** the pointer is nearest the 2026-10-12 point in "Free images"
+- **THEN** the card gives the same text as in "All images": daily snapshot, 3,171 images, 59 free, no change since 2026-10-11
