@@ -84,10 +84,9 @@ Each question builds on the one before:
 5. "I'm using node:20-alpine. What's the Chainguard equivalent?"
 6. Paste a Dockerfile and ask Claude to migrate it:
 
-   ````
+   ```
    Migrate this Dockerfile to Chainguard images and pin them by digest:
 
-   ```dockerfile
    FROM python:3.12-slim
    WORKDIR /app
    COPY requirements.txt .
@@ -95,7 +94,6 @@ Each question builds on the one before:
    COPY . .
    CMD ["python", "app.py"]
    ```
-   ````
 
 Claude Code also turns the built-in migration prompt into a slash command: type `/mcp__chainguard__migrate_dockerfile` followed by your Dockerfile.
 
