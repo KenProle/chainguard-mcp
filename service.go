@@ -28,6 +28,10 @@ type Service struct {
 	Feed *AdvisoryFeed
 	// History is the catalog history behind the History view (history_view.go).
 	History *HistorySource
+	// Packages is Wolfi's package index and DFC the embedded dfc mappings, both
+	// behind MapPackages (packagemap.go).
+	Packages *PackageIndex
+	DFC      *DFCMappings
 	// SBOMDir is where save_sbom writes files. The tool is only offered
 	// when it's set.
 	SBOMDir string
@@ -47,6 +51,8 @@ func NewService() *Service {
 		EOL:      NewEndOfLife(client),
 		Feed:     NewAdvisoryFeed(client),
 		History:  NewHistorySource(client, embeddedHistory()),
+		Packages: NewPackageIndex(client),
+		DFC:      mustLoadDFCMappings(),
 	}
 }
 

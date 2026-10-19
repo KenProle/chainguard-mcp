@@ -77,7 +77,7 @@ When a name ending in `-dev` would map to a package that doesn't end in `-dev`, 
 - **THEN** the packages are `sqlite-dev`
 
 ### Requirement: PM-6 Rules
-When neither the name nor a dfc mapping gives a package, the rules SHALL look for packages that provide what the apt package is named for: a virtual package of the same name, a pkg-config module for a `lib<x>-dev` name, a shared library for a `lib<x><N>` name, or a command. They SHALL also try the `python3-<x>` to `py3-<x>` naming and the name without a leading `default-`.
+When neither the name nor a dfc mapping gives a package, the rules SHALL look for packages that provide what the apt package is named for: a virtual package of the same name or of its last word, a pkg-config module for a `lib<x>-dev` name, a shared library for a `lib<x><N>` name, or a command. They SHALL also try the `python3-<x>` to `py3-<x>` naming and the name without a leading `default-`.
 
 #### Scenario: PM-6.1 pkg-config module
 - **WHEN** `libpq-dev` is mapped
@@ -94,6 +94,10 @@ When neither the name nor a dfc mapping gives a package, the rules SHALL look fo
 #### Scenario: PM-6.4 Without default-
 - **WHEN** `default-libmysqlclient-dev` is mapped
 - **THEN** the status is `candidates` and the packages are a `mysql-<version>-dev` package
+
+#### Scenario: PM-6.5 Virtual package of the last word
+- **WHEN** `golang-go` is mapped, and `gcc-go` is the only package with a `go` command while the `go-1.<N>` streams provide the virtual package `go`
+- **THEN** the status is `candidates`, the packages are one `go-1.<N>` stream and the source names the virtual package `go`, not `gcc-go`
 
 ### Requirement: PM-7 Version streams
 When the matches are version streams of one package (`nodejs-24`, `nodejs-26`), the mapping SHALL choose the highest version among streams that are actively built and not prereleases, list the other streams as alternatives, and add a note that a version was chosen and should match the version the Dockerfile used.

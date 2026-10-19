@@ -246,6 +246,23 @@ var apiRoutes = []apiRoute{
 			respond(w)(svc.CompareUpstreamJob(CompareUpstreamInput{Image: q.Get("image"), Arch: q.Get("arch")}))
 		},
 	},
+	{
+		Method: "GET", Path: "/api/packages/map",
+		Description: "Map Debian/Ubuntu (apt) package names to the Wolfi packages to apk add, checked against Wolfi's package index. Each result is exact, mapped (from dfc), candidates (found by a rule; check them) or unknown. The first request downloads the index and can take a few seconds.",
+		Parameters: []apiParam{
+			{"names", "query", true, "comma-separated apt package names, e.g. 'build-essential,libpq-dev'; at most 100"},
+		},
+		Example: "/api/packages/map?names=curl,build-essential",
+		handle: func(svc *Service, w http.ResponseWriter, r *http.Request) {
+			var names []string
+			for _, n := range strings.Split(r.URL.Query().Get("names"), ",") {
+				if n = strings.TrimSpace(n); n != "" {
+					names = append(names, n)
+				}
+			}
+			respond(w)(svc.MapPackages(r.Context(), MapPackagesInput{Names: names}))
+		},
+	},
 }
 
 func optionalInt(s string) (int, error) {

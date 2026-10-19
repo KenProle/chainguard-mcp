@@ -38,6 +38,7 @@ type fakeChainguard struct {
 
 	tokenRequests atomic.Int64 // requests to /token, for asserting none were made
 	blobRequests  atomic.Int64 // blob requests, one per SBOM read
+	indexRequests atomic.Int64 // downloads of the Wolfi package index
 }
 
 type fakeBlob struct {
@@ -152,6 +153,15 @@ func (f *fakeChainguard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Fprint(w, `</urlset>`)
 
+	case path == "/APKINDEX.tar.gz":
+		data, err := os.ReadFile("testdata/apkindex-2026-10-19.tar.gz")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		f.indexRequests.Add(1)
+		w.Write(data)
+
 	case path == "/security.json":
 		fmt.Fprint(w, f.secdb)
 
@@ -255,6 +265,7 @@ func newFakeBackend(t *testing.T) (*Service, *fakeChainguard) {
 	svc.Catalog.SitemapURL = srv.URL + "/sitemap.xml"
 	svc.Registry.BaseURL = srv.URL
 	svc.SecDB.URL = srv.URL + "/security.json"
+	svc.Packages.URL = srv.URL + "/APKINDEX.tar.gz"
 	// The upstream comparison's sources get unreachable addresses, so a test
 	// that forgets to fake them fails instead of reaching the real services.
 	const unreachable = "http://127.0.0.1:1"

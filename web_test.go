@@ -423,6 +423,7 @@ func TestAPIIndex(t *testing.T) {
 			"/api/images/{name}/sbom",
 			"/api/alternatives",
 			"/api/compare-upstream",
+			"/api/packages/map",
 		}
 		var got []string
 		for _, e := range index.Endpoints {

@@ -13,7 +13,9 @@ context: |
     branch), the Internet Archive copies of Chainguard's sitemap used to backfill it, and the
     upstream comparison's sources: Docker Hub (upstream images' SBOM attestations, sizes and
     build dates), OSV.dev (known vulnerabilities by package, and
-    Chainguard's open advisories on its own images' packages) and endoflife.date (support end dates).
+    Chainguard's open advisories on its own images' packages) and endoflife.date (support end dates). Package mapping
+    adds Wolfi's package index (packages.wolfi.dev, to check package names) and GitHub (the dfc
+    mapping file, only for the -refresh-mappings run mode).
   - Never overclaim security: the Wolfi data records fixes, not open vulnerabilities, so no
     output may suggest an image is vulnerability-free.
   - Web UI: strict Content Security Policy (no inline scripts or styles, so no libraries that

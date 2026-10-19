@@ -113,6 +113,18 @@ func newServer(svc *Service) *mcp.Server {
 		return nil, out, err
 	})
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "map_packages",
+		Description: "Map Debian/Ubuntu (apt) package names, such as those in a Dockerfile's apt-get install, to the Wolfi packages to apk add. " +
+			"Every returned package is checked against Wolfi's live package index. Each result says where it came from: `exact` (the same name exists), `mapped` (from the dfc mapping file), `candidates` (found by a rule, such as a pkg-config module or shared library; check them) or `unknown` (nothing found, never guessed). " +
+			"When there are several version streams (e.g. nodejs-24, postgresql-18-dev) the newest actively built one is chosen and the others are listed as alternatives; match it to the version the Dockerfile used. " +
+			"A mapped name doesn't by itself mean the Dockerfile will build. The first call downloads Wolfi's package index and can take a few seconds.",
+		Annotations: readOnly,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in MapPackagesInput) (*mcp.CallToolResult, *PackageMappingResult, error) {
+		out, err := svc.MapPackages(ctx, in)
+		return nil, out, err
+	})
+
 	server.AddPrompt(&mcp.Prompt{
 		Name:        "migrate_dockerfile",
 		Title:       "Migrate a Dockerfile to Chainguard images",
@@ -143,7 +155,7 @@ Steps:
 1. For each FROM line, call find_alternative to choose the Chainguard image.
 2. Call get_image_details on each chosen image to check its user, entrypoint and working directory.
 3. Use a multi-stage build where it helps: build in the :latest-dev variant (it has a shell and apk), and copy artifacts into the minimal :latest variant for runtime.
-4. Replace apt-get/yum/dnf commands with apk add, and look up package names where they differ.
+4. Replace apt-get/yum/dnf commands with apk add. Call map_packages with the apt package names (do not guess Wolfi names) and use the packages it returns. For a result with status candidates, use the packages but list the package in the final list of things to check, with its source and any version note; for unknown, say the package has no known replacement and list it too.
 5. The minimal images have no shell, so the runtime stage must use exec-form ENTRYPOINT/CMD (JSON arrays) and no RUN steps.
 6. Chainguard images run as a non-root user (usually UID 65532). Fix file ownership with COPY --chown and avoid binding ports below 1024.
 7. Call pin_image for each final image and use the pinned reference in FROM.

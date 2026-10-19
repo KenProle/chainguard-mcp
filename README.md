@@ -63,6 +63,7 @@ Sizes are compressed download sizes in decimal units (1 MB = 1,000,000 bytes), a
 | `check_vulnerabilities` | Recorded fixes per package (Wolfi security database) plus the known open advisories Chainguard has published for the image's packages (via OSV.dev), counted by vulnerability with a status each. Pass a CVE/GHSA/CGA ID to look it up in both. |
 | `find_alternative` | Suggest the Chainguard image to replace an upstream one, e.g. `node:20-alpine` → `cgr.dev/chainguard/node`. |
 | `compare_with_upstream` | Compare a Docker Hub image as you run it, e.g. `node:20`, with its Chainguard replacement by size, build date, OS packages and known vulnerabilities (from OSV.dev, with Chainguard's statuses from its advisory feed), plus an end-of-life note. See [Upstream comparison](#upstream-comparison). |
+| `map_packages` | Map Debian/Ubuntu (apt) package names, e.g. `build-essential` or `libpq-dev`, to the Wolfi packages to `apk add`, checked against Wolfi's live package index. Each answer says where it came from (`exact`, `mapped` from [dfc](#third-party-data), or `candidates` found by a rule, which need checking). See [Package names](#package-names). |
 
 It also provides a `migrate_dockerfile` **prompt** that walks the assistant through converting a Dockerfile to Chainguard images using the tools above.
 
@@ -132,6 +133,11 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 - "Replace ubuntu:24.04 with a Chainguard base image."
 - "We run node:20 today. How would switching to Chainguard change its size, packages and known vulnerabilities?"
 
+### Dockerfile packages
+
+- "Which Wolfi packages replace build-essential, libpq-dev and python3-dev in my Dockerfile?"
+- "I install curl, libssl-dev and dnsutils with apt-get. What do I apk add instead?"
+
 ## Data sources
 
 | Data | Source |
@@ -145,6 +151,7 @@ Claude Code also turns the built-in migration prompt into a slash command: type 
 | Upstream images | Docker Hub's registry with an anonymous token: the image's SPDX SBOM attestation, size and build date. Docker Hub allows about 100 anonymous requests an hour per IP; a comparison makes about 5. |
 | Known vulnerabilities (comparison) | [OSV.dev](https://osv.dev), queried per package version, cached for 24 hours (1 hour for Chainguard packages). The Chainguard side's advisories are then read from Chainguard's advisory feed, as for open advisories. |
 | End of life (comparison) | [endoflife.date](https://endoflife.date), cached for 24 hours. |
+| Package names | Wolfi's public x86_64 package index (`packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz`, the same packages as the anonymous `apk.cgr.dev/chainguard` listing), cached for 6 hours, plus the embedded [dfc](#third-party-data) mappings. |
 
 The Wolfi database records which vulnerabilities each package version **fixes**, and which never applied. It doesn't list unfixed ones; those come from Chainguard's open advisories, found through OSV.dev with their status read from Chainguard's advisory feed, and shown separately (advisories already fixed in the installed version are left out; a vulnerability is counted once however many advisories and packages it has, and "not yet assessed" means Chainguard detected it but hasn't decided whether it applies). Neither is a full scan, so `check_vulnerabilities` isn't a replacement for a scanner such as [grype](https://github.com/anchore/grype), and an empty result never means an image has no vulnerabilities.
 
@@ -156,6 +163,12 @@ The Wolfi database records which vulnerabilities each package version **fixes**,
 - **Counting:** each vulnerability counts once per image however many packages it affects, and if it is fixable for any package it counts as *fix available*. Debian's "unimportant" and "end-of-life" urgencies and Chainguard's "fix not planned" count as *won't fix*; a Chainguard advisory pending an upstream fix or not yet assessed counts as *no fix yet*. A fix released only for another Debian release doesn't count.
 - **Accuracy:** on 2026-10-11 the comparison found all 817 CVEs that [grype](https://github.com/anchore/grype) reported for `node:20`'s OS packages. `CHAINGUARD_LIVE=1 go test -run TestLive/upstream` repeats that check when `grype` is on `PATH`.
 - **Not covered:** registries other than Docker Hub, language packages, severity ratings, and images without an SBOM attestation.
+
+## Package names
+
+`map_packages` and `GET /api/packages/map` answer "what do I `apk add` instead of this `apt-get install` package?". Each name is resolved by the first step that gives a package in Wolfi's index: the name itself (`exact`), the dfc mapping (`mapped`), then rules over what Wolfi packages provide: pkg-config modules, shared libraries, commands, virtual names and the `python3-x` to `py3-x` naming (`candidates`). A name nothing resolves is `unknown`, never guessed. A `-dev` request is not answered with a runtime-only package when a `-dev` package exists, so `libssl-dev` gives `openssl-dev`, not `libssl3`.
+
+When the matches are version streams (`nodejs-24`, `postgresql-18-dev`), the newest stream that is actively built and not a prerelease is chosen, the others are listed as alternatives and a note says a version was chosen, so check it against the version your Dockerfile used. A mapped name means the package exists in Wolfi, not that your Dockerfile will build. The first call downloads the 11 MB index, which takes a few seconds.
 
 ## Catalog history
 
@@ -212,6 +225,7 @@ Without the UI build, everything else still works and `/` shows how to build it.
 ./chainguard-mcp                     # stdio (for Claude Desktop / Claude Code)
 ./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API under /api/ (GET /api/ lists the endpoints), health check at /healthz
 ./chainguard-mcp -version
+./chainguard-mcp -refresh-mappings mappings/dfc-builtin-mappings.yaml  # update the embedded dfc package mappings from upstream, print what changed and exit
 ```
 
 On Windows, run `.\chainguard-mcp.exe` with the same flags.
@@ -245,6 +259,7 @@ curl http://127.0.0.1:8080/api/
 | `/api/images/{name}/sbom` | `tag`, `arch` | `/api/images/python/sbom?tag=latest` |
 | `/api/alternatives` | `image` (required) | `/api/alternatives?image=node:20-alpine` |
 | `/api/compare-upstream` | `image` (required, a Docker Hub image as you run it), `arch` | `/api/compare-upstream?image=node:20` |
+| `/api/packages/map` | `names` (required, comma-separated apt package names, at most 100) | `/api/packages/map?names=curl,build-essential` |
 
 Errors are JSON `{"error": "...", "code": "..."}` with status 400 `invalid_input` or `unsupported_registry` (only Docker Hub images can be compared), 403 `not_public` (subscription-only image), 404 `not_found` (also for unknown `/api/` paths) or `no_alternative`, 429 `rate_limited` (Docker Hub's anonymous limit), or 502 `upstream_error` or `source_failed` (with the failed `source`). The API has no authentication; bind it to `127.0.0.1` unless you mean to share it.
 
@@ -356,7 +371,12 @@ git push origin v0.2.0
 | `osv.go`, `endoflife.go`, `upstream.go`, `upstream_packages.go` | OSV.dev and endoflife.date clients, Docker Hub reference parsing, and the SBOM package lists for Debian, Ubuntu and Alpine images. |
 | `history.go` | Catalog history: the daily snapshot (`-record-history`) and the Internet Archive backfill (`-backfill-history`). |
 | `history_view.go`, `history_embed.go` | Reading the history: the embedded and fetched copies, the report behind the History view, `GET /api/history` and `catalog_changes`. |
+| `packagemap.go`, `apkindex.go`, `mappings.go` | Mapping apt package names to Wolfi packages: the lookup and its rules, Wolfi's package index, and the embedded dfc mappings with their strict reader and `-refresh-mappings`. |
 | `web/` | React + TypeScript web UI. |
+
+## Third-party data
+
+The embedded package mappings are [dfc](https://github.com/chainguard-dev/dfc)'s `builtin-mappings.yaml`, unchanged, at the upstream commit recorded in [`mappings/dfc-source.json`](mappings/dfc-source.json). dfc is Apache-2.0 licensed by Chainguard, Inc.; its license is in [`mappings/LICENSE-dfc`](mappings/LICENSE-dfc). This project only uses that file and is not affiliated with Chainguard or the dfc project. Run `-refresh-mappings` to update it.
 
 ## License
 

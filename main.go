@@ -28,10 +28,22 @@ func main() {
 	sbomDir := flag.String("sbom-dir", "", "folder where save_sbom writes files (default: the current folder in stdio mode; disabled in HTTP mode unless set)")
 	recordFile := flag.String("record-history", "", "take a live catalog snapshot, append it to this history file and exit")
 	backfillFile := flag.String("backfill-history", "", "build this empty history file from the Internet Archive's sitemap captures and exit")
+	refreshFile := flag.String("refresh-mappings", "", "download dfc's latest package mapping file to this path (with dfc-source.json and LICENSE-dfc beside it), print what changed and exit")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version)
+		return
+	}
+	if *refreshFile != "" {
+		r := NewDFCRefresher(&http.Client{Timeout: 60 * time.Second})
+		r.Now = func() string { return time.Now().UTC().Format("2006-01-02") }
+		report, err := r.Refresh(context.Background(), *refreshFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		fmt.Print(report)
 		return
 	}
 	if *recordFile != "" || *backfillFile != "" {

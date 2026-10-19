@@ -407,4 +407,60 @@ func TestLive(t *testing.T) {
 			t.Errorf("grype reports OS-package CVEs that are neither open advisories nor recorded fixes not yet installed: %v", missing)
 		}
 	})
+	t.Run("package_mapping", func(t *testing.T) {
+		ctx := context.Background()
+		var out PackageMappingResult
+		mustCall(t, s, "map_packages", map[string]any{"names": []string{"build-essential", "libpq-dev", "libssl-dev", "python3", "nodejs", "postgresql-client"}}, &out)
+		got := map[string]PackageMapping{}
+		for _, r := range out.Results {
+			got[r.Name] = r
+			t.Logf("%-18s %-10s %v alternatives=%v source=%q", r.Name, r.Status, r.Packages, r.Alternatives, r.Source)
+		}
+		if be := got["build-essential"]; !slices.Equal(be.Packages, []string{"build-base"}) {
+			t.Errorf("build-essential = %+v, want build-base", be)
+		}
+		if pq := got["libpq-dev"]; len(pq.Packages) != 1 || !strings.HasPrefix(pq.Packages[0], "postgresql-") || !strings.HasSuffix(pq.Packages[0], "-dev") {
+			t.Errorf("libpq-dev = %+v, want a postgresql-*-dev package", pq)
+		}
+
+		// The drift report (PM-17) only reports; it never fails the test.
+		dfc := svc.DFC
+		t.Logf("dfc snapshot: commit %s, fetched %s", dfc.Source.Commit, dfc.Source.Fetched)
+		if fetched, err := time.Parse("2006-01-02", dfc.Source.Fetched); err == nil {
+			t.Logf("snapshot age: %d days since it was fetched", int(time.Since(fetched).Hours()/24))
+		}
+		if latest, err := NewDFCRefresher(&http.Client{Timeout: 30 * time.Second}).LatestCommit(ctx); err != nil {
+			t.Logf("upstream dfc commit: unknown (%v)", err)
+		} else if latest == dfc.Source.Commit {
+			t.Logf("snapshot is at dfc's latest commit %s", latest)
+		} else {
+			t.Logf("snapshot is behind dfc's latest commit %s (run -refresh-mappings)", latest)
+		}
+		idx, fetched, err := svc.Packages.Get(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("package index fetched %s: %d packages", fetched.Format(time.RFC3339), len(idx.Pkgs))
+		var missing, corrected []string
+		names := make([]string, 0, len(dfc.Debian))
+		for n := range dfc.Debian {
+			names = append(names, n)
+		}
+		slices.Sort(names)
+		for _, n := range names {
+			for _, tgt := range dfc.Debian[n] {
+				if _, ok := idx.Pkgs[tgt]; !ok {
+					missing = append(missing, n+" → "+tgt)
+				}
+			}
+			if _, exact := idx.Pkgs[n]; exact {
+				continue
+			}
+			if _, c := dfcTargets(idx, n, dfc.Debian[n]); len(c) > 0 {
+				corrected = append(corrected, n+" ("+strings.Join(c, ", ")+")")
+			}
+		}
+		t.Logf("dfc targets missing from the live index (%d): %v", len(missing), missing)
+		t.Logf("dfc mappings the -dev rule corrects (%d): %v", len(corrected), corrected)
+	})
 }

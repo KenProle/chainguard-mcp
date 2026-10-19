@@ -4,6 +4,7 @@
 !*.go
 *_test.go
 !web/
+!mappings/
 web/node_modules/
 web/dist/
 web/**/*.test.tsx

@@ -25,6 +25,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
+# The binary embeds the dfc package mappings (see mappings.go).
+COPY mappings ./mappings
 # The binary embeds the built UI from web/dist (see webui.go).
 COPY --from=web /app/dist ./web/dist
 # The binary embeds the catalog history from historydata (see history_embed.go).

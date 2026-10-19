@@ -66,7 +66,7 @@ For each distinct name (PM-4):
    - If the name ends in `-dev`, replace each non-`-dev` target with `<target>-dev` or `<origin>-dev`, whichever is in `pkgs` first (PM-5).
    - If no target is left, fall through, unless the mapping was `[]` (PM-4.5).
 3. **`candidates`:** the rules, in this order. Every hit is recorded with its source string (PM-6).
-   - a bare virtual provide equal to the name
+   - a bare virtual provide equal to the name, then the one equal to its last hyphen-separated word (`golang-go` → `go`)
    - for `python3-<x>`, the name `py3-<x>`
    - for `lib<x>-dev`, the names `<x>-dev` and `lib<x>-dev`, then the provides `pc:<x>` and `pc:lib<x>`. These are tried with `<x>` as given and with its trailing version digits removed.
    - for `lib<x><N>`, the provides `so:lib<x>.so.<N>`, then the names `lib<x>` and `<x>`
@@ -75,11 +75,13 @@ For each distinct name (PM-4):
    - all of the above again, for a name with a leading `default-` removed
 4. **`unknown`:** nothing was found.
 
+The first rule that has any hit decides; later rules are not consulted (pooling them would add unrelated `cmd:` matches).
+
 ### 4. Choosing among candidates (PM-7)
 
 1. **Prefer the right kind of package:** `-dev` packages for a `-dev` request, and not `-minimal` variants otherwise. Fall back to all matches if that leaves none.
 2. **Drop streams that can't be chosen:**
-   - Prereleases: the version has `_alpha`, `_beta`, `_pre`, `_rc` or `_git`. (`_p` is a patch level, not a prerelease.)
+   - Prereleases: the version has `_alpha`, `_beta`, `_pre` or `_rc`, or is a `_git` snapshot toward a first release: `x.y.0_git…` or a dotless version (`3.15.0_git20261017`). A `_git` version of a later patch (`3.14.8_git20261014`) is not a prerelease, because Wolfi builds its stable python streams that way. (`_p` is a patch level, not a prerelease.)
    - Streams last built more than 180 days before the most recently built match.
 
    These stay in `alternatives`, so nothing is hidden.
