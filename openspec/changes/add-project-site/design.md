@@ -44,9 +44,15 @@ docs/screenshots/<used>.png --> _site/screenshots/
 The page is written as controlled, flat markup so the test can check it with the standard library (`regexp`, `strings`, `html.UnescapeString`). No HTML parser dependency is added (`golang.org/x/net/html` would be new).
 
 ```
-<header id="hero">     benefit line, install button, notice (PS-1)
+<header id="hero">     benefit line, one real find_alternative + pin_image exchange
+                       for node:20 (no CVE numbers), install button, notice (PS-1)
+<section id="why">     what an assistant gets wrong without live data: package names
+                       (27 of 59 the same, measured 2026-10-19), libssl-dev -> libssl3
+                       lacks headers, version tags need a subscription, non-root/no shell
 <section id="install"> one <details> per client, Claude Code open (PS-5, PS-10.4)
 <section id="workflow"> 4 question/answer pairs as text (PS-6)
+<section id="ask">     "What else you can ask": one question per remaining tool, phrased
+                       as an outcome, each naming its tool (checked by PS-6.2)
 <section id="compare"> dated table: node:20, python:3.12-slim, nginx:latest
                        with the caveat (PS-2.2, PS-3, PS-4.1)
 <section id="sources"> SBOMs, Chainguard advisory feed, OSV.dev, Wolfi index; grype check

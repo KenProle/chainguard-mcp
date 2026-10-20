@@ -4,6 +4,8 @@ An MCP server that helps AI assistants discover, inspect and adopt [Chainguard](
 
 This is an unofficial project, not affiliated with Chainguard.
 
+Project site: https://kenprole.github.io/chainguard-mcp/
+
 ## Web UI
 
 Run the server in HTTP mode and open http://127.0.0.1:8080/:

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+<title>chainguard-mcp</title>
+<meta name="description" content="An unofficial MCP server that lets Claude Code, Cursor and other MCP clients find, inspect, compare and pin Chainguard container images.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="chainguard-mcp: Chainguard images for your AI assistant">
+<meta property="og:description" content="Find the Chainguard image for the one you run today, compare them, and pin by digest. Unofficial; not affiliated with Chainguard.">
+<meta property="og:url" content="https://kenprole.github.io/chainguard-mcp/">
+<meta property="og:image" content="https://kenprole.github.io/chainguard-mcp/screenshots/upstream-comparison.png">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+</head>
+<body>
+
+<header id="hero">
+  <h1><img src="icon.svg" alt="chainguard-mcp icon" width="40" height="40">chainguard-mcp</h1>
+  <p class="lead">Ask your AI assistant which Chainguard image replaces the one you run today, how the two compare, and get a digest-pinned reference for your Dockerfile.</p>
+  <p>An MCP server for Claude Code, Cursor, Claude Desktop, VS Code and other MCP clients, with a web UI for browsing the same data. It reads Chainguard's public endpoints anonymously, so no account or API key is needed.</p>
+  <div class="sample">
+    <p class="sample-q">“I run <code>node:20</code>. What should I use instead?”</p>
+    <p class="answer">The <code class="tool">find_alternative</code> and <code class="tool">pin_image</code> tools answered, <time datetime="2026-10-20">2026-10-20</time> (shortened):</p>
+<pre><code>recommended: cgr.dev/chainguard/node
+  (free tier)
+build on :latest-dev, run on :latest
+version tags need a subscription,
+so pin :latest by digest:
+cgr.dev/chainguard/node:latest
+  @sha256:95f685867310…</code></pre>
+  </div>
+  <p><a class="button" href="#install">Install it</a></p>
+  <p class="notice">This is an unofficial project, not affiliated with Chainguard.</p>
+</header>
+
+<main>
+
+<section id="why">
+  <h2>Why your assistant needs it</h2>
+  <p>Moving a Dockerfile to Chainguard images means answering questions an assistant can’t reliably answer from memory, so without live data it guesses. Some guesses fail the build; others install and break later.</p>
+  <ul>
+    <li><strong>Package names differ.</strong> Of 59 apt packages commonly installed in Dockerfiles, 27 have the same name in Wolfi, the distribution Chainguard images are built from (measured <time datetime="2026-10-19">2026-10-19</time>).</li>
+    <li><strong>Plausible answers can be wrong.</strong> Mapping <code>libssl-dev</code> to <code>libssl3</code> installs the runtime library but not the headers; the build needs <code>openssl-dev</code>.</li>
+    <li><strong>Version tags need a subscription.</strong> The free tier publishes <code>latest</code>-style tags, so <code>node:20</code> can’t simply become <code>cgr.dev/chainguard/node:20</code>.</li>
+    <li><strong>The images work differently.</strong> They run as a non-root user, and the minimal variants have no shell or package manager.</li>
+  </ul>
+  <p>chainguard-mcp gives the assistant tools that read the answers from Chainguard’s registry, the images’ signed SBOMs and Wolfi’s package index instead.</p>
+</section>
+
+<section id="install">
+  <h2>Install</h2>
+  <p><strong>1. Get the binary.</strong> Download the build for your platform from the <a href="https://github.com/KenProle/chainguard-mcp/releases/latest">latest release</a> and put it somewhere permanent. Or install it with Go 1.27 or later:</p>
+  <pre><code>go install github.com/KenProle/chainguard-mcp@latest</code></pre>
+  <p>A <code>go install</code> build has the MCP tools but no web UI; the release binaries include it. The binary lands in <code>$(go env GOPATH)/bin</code>.</p>
+  <p><strong>2. Add it to your client.</strong> Use the full path to the binary in place of <code>/path/to/chainguard-mcp</code>. On Windows that is the <code>.exe</code> file, and backslashes in JSON are doubled (<code>C:\\tools\\chainguard-mcp.exe</code>).</p>
+
+  <details open>
+    <summary>Claude Code</summary>
+    <pre><code>claude mcp add -s user chainguard -- /path/to/chainguard-mcp</code></pre>
+    <p>Run it once in a terminal. <code>-s user</code> makes the server available in all your projects.</p>
+  </details>
+
+  <details>
+    <summary>Cursor</summary>
+    <p>Add this to <code>~/.cursor/mcp.json</code> (or <code>.cursor/mcp.json</code> in one project):</p>
+<pre><code>{
+  "mcpServers": {
+    "chainguard": {
+      "type": "stdio",
+      "command": "/path/to/chainguard-mcp"
+    }
+  }
+}</code></pre>
+  </details>
+
+  <details>
+    <summary>Claude Desktop</summary>
+    <p>Open Settings, then Developer, then Edit Config. The file is <code>claude_desktop_config.json</code> (<code>~/Library/Application Support/Claude/</code> on macOS, <code>%APPDATA%\Claude\</code> on Windows). Add the server, then quit and restart Claude Desktop:</p>
+<pre><code>{
+  "mcpServers": {
+    "chainguard": {
+      "command": "/path/to/chainguard-mcp"
+    }
+  }
+}</code></pre>
+  </details>
+
+  <details>
+    <summary>VS Code</summary>
+    <p>Add this to <code>.vscode/mcp.json</code> in your workspace (or the <code>mcp.json</code> in your user profile):</p>
+<pre><code>{
+  "servers": {
+    "chainguard": {
+      "type": "stdio",
+      "command": "/path/to/chainguard-mcp"
+    }
+  }
+}</code></pre>
+  </details>
+
+  <p>Other flags, saving SBOMs and the Docker image are in the <a href="https://github.com/KenProle/chainguard-mcp#readme">README</a>.</p>
+</section>
+
+<section id="workflow">
+  <h2>Ask your assistant</h2>
+  <p>Four questions that follow a migration, with the answers shortened from real tool output. Your assistant picks the tools itself and often chains several.</p>
+
+  <div class="qa">
+    <h3>“What Chainguard image should replace <code>node:20</code>?”</h3>
+    <p class="answer">The <code class="tool">find_alternative</code> tool answered, <time datetime="2026-10-20">2026-10-20</time>:</p>
+<pre><code>recommended: cgr.dev/chainguard/node   (free tier)
+related:     node-fips                 (subscription)
+notes:  use :latest-dev for build stages and :latest for runtime;
+        the free tier only provides the latest version, so pin
+        :latest by digest for reproducible builds</code></pre>
+  </div>
+
+  <div class="qa">
+    <h3>“How does it compare with what I run now?”</h3>
+    <p class="answer">The <code class="tool">compare_with_upstream</code> tool compared <code>node:20</code> from Docker Hub with <code>cgr.dev/chainguard/node:latest</code> on <time datetime="2026-10-20">2026-10-20</time> (amd64); the numbers are in the <a href="#compare">comparison below</a>. It also noted that Node.js 20 reached end of life on 2026-04-30.</p>
+  </div>
+
+  <div class="qa">
+    <h3>“Pin it for my Dockerfile.”</h3>
+    <p class="answer">The <code class="tool">pin_image</code> tool answered, <time datetime="2026-10-20">2026-10-20</time> (digest shortened):</p>
+<pre><code>cgr.dev/chainguard/node:latest@sha256:95f685867310…</code></pre>
+  </div>
+
+  <div class="qa">
+    <h3>“Migrate this whole Dockerfile.”</h3>
+    <p class="answer">The <code class="tool">migrate_dockerfile</code> prompt takes your Dockerfile and walks the assistant through these steps, as of <time datetime="2026-10-20">2026-10-20</time> (shortened): choose an image for each <code>FROM</code> with <code class="tool">find_alternative</code>, check its user and entrypoint, use a build stage on <code>:latest-dev</code> and copy into the minimal <code>:latest</code>, map <code>apt-get</code> packages to <code>apk</code> names with <code class="tool">map_packages</code>, fix file ownership for a non-root user, and pin each final image with <code class="tool">pin_image</code>. It returns the new Dockerfile and a list of what needs manual testing.</p>
+  </div>
+</section>
+
+<section id="ask">
+  <h2>What else you can ask</h2>
+  <ul class="ask-grid">
+    <li>“What free Chainguard images are there for Python?” <code class="tool">list_images</code></li>
+    <li>“Does the python image run as root? Which architectures does it support?” <code class="tool">get_image_details</code></li>
+    <li>“Does python have a shell? What about latest-dev?” <code class="tool">get_image_packages</code></li>
+    <li>“Which tags can I pull for nginx?” <code class="tool">get_image_tags</code></li>
+    <li>“Is the python image affected by CVE-2022-3602?” <code class="tool">check_vulnerabilities</code></li>
+    <li>“Save the SBOM for nginx so I can scan it.” <code class="tool">save_sbom</code></li>
+    <li>“Which apk packages replace my apt-get line?” <code class="tool">map_packages</code></li>
+    <li>“What did Chainguard add to its catalog this month?” <code class="tool">catalog_changes</code></li>
+  </ul>
+  <p>The <a href="https://github.com/KenProle/chainguard-mcp#tools">README’s tool list</a> has every tool and its options.</p>
+</section>
+
+<section id="compare">
+  <h2>Example: upstream against Chainguard</h2>
+  <p class="caveat">Each image is graded by its own maintainers’ advisories, and the counts are known vulnerabilities only, not a guarantee about either image. A count of 0 means none were known to those sources on that date.</p>
+  <table>
+    <caption>Output of <code class="tool">compare_with_upstream</code>, linux/amd64, <time datetime="2026-10-20">2026-10-20</time>. Sizes are compressed downloads in decimal MB.</caption>
+    <thead>
+      <tr><th scope="col">Image</th><th scope="col">Known vulnerabilities</th><th scope="col">OS packages</th><th scope="col">Download size</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">node:20</th><td data-label="Known vulnerabilities">875</td><td data-label="OS packages">393</td><td data-label="Download size">398.4 MB</td></tr>
+      <tr><th scope="row">cgr.dev/chainguard/node:latest</th><td data-label="Known vulnerabilities">1</td><td data-label="OS packages">28</td><td data-label="Download size">66.0 MB</td></tr>
+      <tr><th scope="row">python:3.12-slim</th><td data-label="Known vulnerabilities">69</td><td data-label="OS packages">84</td><td data-label="Download size">43.3 MB</td></tr>
+      <tr><th scope="row">cgr.dev/chainguard/python:latest</th><td data-label="Known vulnerabilities">0</td><td data-label="OS packages">29</td><td data-label="Download size">28.2 MB</td></tr>
+      <tr><th scope="row">nginx:latest</th><td data-label="Known vulnerabilities">187</td><td data-label="OS packages">148</td><td data-label="Download size">63.9 MB</td></tr>
+      <tr><th scope="row">cgr.dev/chainguard/nginx:latest</th><td data-label="Known vulnerabilities">0</td><td data-label="OS packages">23</td><td data-label="Download size">8.5 MB</td></tr>
+    </tbody>
+  </table>
+  <p>The Chainguard side is always the free <code>latest</code> tag, which can be a newer release than the upstream tag: on that date it was Node.js 26 against <code>node:20</code>, and Python 3.15 against <code>python:3.12-slim</code>. Chainguard rebuilds its images constantly, so run the comparison yourself for current numbers. Only installed OS packages are compared. Language packages are counted but not compared, and the Linux kernel is left out because containers run on the host’s kernel.</p>
+</section>
+
+<section id="sources">
+  <h2>What it reads</h2>
+  <ul>
+    <li>The <strong>signed SBOM</strong> attached to each Chainguard image, and the SBOM that Docker Hub publishes for upstream images.</li>
+    <li><strong>Chainguard’s advisory feed</strong>, for the status of each advisory on its own images.</li>
+    <li><strong>OSV.dev</strong>, for known vulnerabilities by package.</li>
+    <li><strong>Wolfi’s package index</strong>, to check the package names it suggests.</li>
+    <li><strong>endoflife.date</strong>, for support end dates.</li>
+  </ul>
+  <p>The open advisories it lists for Chainguard images were also checked against the scanner grype. Grype reported only the OS vulnerabilities that Chainguard has not yet assessed, and this tool lists those too, together with the ones waiting for an upstream fix.</p>
+</section>
+
+<section id="ui">
+  <h2>The web UI</h2>
+  <p>Run the binary with <code>-http 127.0.0.1:8080</code> to browse the same data in your browser.</p>
+  <figure>
+    <img src="screenshots/catalog-map.png" alt="The catalog map: one square per image, green for free ones, grouped by variant" width="1024" height="748">
+    <figcaption>The catalog map, captured <time datetime="2026-10-15">2026-10-15</time>.</figcaption>
+  </figure>
+  <figure>
+    <img src="screenshots/history-view.png" alt="The History view: a growth chart of the catalog and a timeline of added images" width="1024" height="606">
+    <figcaption>How the catalog has grown, captured <time datetime="2026-10-15">2026-10-15</time>.</figcaption>
+  </figure>
+  <figure>
+    <img src="screenshots/upstream-comparison.png" alt="node:20 compared with Chainguard's node by known vulnerabilities, OS packages and size" width="1024" height="660">
+    <figcaption>An upstream comparison, captured <time datetime="2026-10-15">2026-10-15</time>.</figcaption>
+  </figure>
+</section>
+
+<section id="limits">
+  <h2>Limits</h2>
+  <ul>
+    <li>Detail tools work for <strong>free tier</strong> images only, and the free tier’s public tags are <code>latest</code>-style. Subscription-only images get a clear message.</li>
+    <li>Upstream comparisons cover <strong>Docker Hub</strong> images only, and only those that publish an SBOM.</li>
+    <li>Only <strong>OS packages</strong> are compared. Language packages are counted, not compared.</li>
+    <li>Vulnerability counts are known vulnerabilities from public advisories, not a scan of the image.</li>
+  </ul>
+</section>
+
+<section id="related">
+  <h2>Chainguard’s own documentation server</h2>
+  <p>Chainguard runs a documentation MCP server, hosted at mcp.edu.chainguard.dev, for questions about its docs; see its <a href="https://edu.chainguard.dev/chainguard/mcp-server-ai-docs/">AI Docs page</a>. This project complements it: it answers questions about specific images, their packages and how they compare, using the public image data rather than the documentation.</p>
+</section>
+
+</main>
+
+<footer>
+  <p>chainguard-mcp is an unofficial project, not affiliated with Chainguard.</p>
+  <p><a href="https://github.com/KenProle/chainguard-mcp">Repository</a> · <a href="https://github.com/KenProle/chainguard-mcp#readme">README</a> · <a href="https://github.com/KenProle/chainguard-mcp/releases/latest">Latest release</a> · <a href="https://github.com/KenProle/chainguard-mcp/blob/main/LICENSE">License</a></p>
+</footer>
+
+</body>
+</html>
