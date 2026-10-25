@@ -123,7 +123,7 @@ A name no step resolves SHALL be `unknown`. It SHALL NOT be given a best guess.
 - **THEN** the status is `unknown` with no packages and no alternatives
 
 ### Requirement: PM-9 Input validation
-A request SHALL be refused as invalid input when it has no names, more than 100 names, or a name that isn't a valid Debian package name (lowercase letters, digits and `+`, `-` or `.`, starting with a letter or digit, at least 2 characters). The error SHALL name the first offending value.
+A request SHALL be refused as invalid input when it has no names, more than 100 names, a name longer than 128 characters, or a name that isn't a valid Debian package name (lowercase letters, digits and `+`, `-` or `.`, starting with a letter or digit, at least 2 characters). The error SHALL name the first offending value, or the start of it when it is too long.
 
 #### Scenario: PM-9.1 Invalid name
 - **WHEN** the names `curl` and `Curl;rm` are mapped
@@ -136,6 +136,10 @@ A request SHALL be refused as invalid input when it has no names, more than 100 
 #### Scenario: PM-9.3 No names
 - **WHEN** an empty list is mapped
 - **THEN** the request is refused as invalid input
+
+#### Scenario: PM-9.5 Name too long
+- **WHEN** a valid-looking name of 129 characters is mapped
+- **THEN** the request is refused as invalid input, while a name of 128 characters is mapped
 
 ### Requirement: PM-10 Package index source and caching
 Packages SHALL be looked up in Wolfi's public x86_64 package index, read anonymously. The index SHALL be kept for 6 hours. When a refresh fails, the last copy SHALL be used, and the response's fetch time SHALL show its age.
