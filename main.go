@@ -82,7 +82,16 @@ func main() {
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintln(w, "ok") })
 		mux.Handle("/", newWebHandler(svc, embeddedUI()))
 		log.Printf("chainguard-mcp %s: web UI at http://%s/, MCP at http://%s/mcp", version, *httpAddr, *httpAddr)
-		log.Fatal(http.ListenAndServe(*httpAddr, mux))
+		// No write timeout: /mcp streams responses and comparisons can take a
+		// while. The header limits stop slow or oversized requests.
+		srv := &http.Server{
+			Addr:              *httpAddr,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       2 * time.Minute,
+			MaxHeaderBytes:    64 << 10,
+		}
+		log.Fatal(srv.ListenAndServe())
 	}
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

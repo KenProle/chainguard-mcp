@@ -10,6 +10,10 @@ import (
 
 const maxMapNames = 100
 
+// maxMapNameLen is far above any real Debian package name and keeps the
+// rules' work per name small (PM-9).
+const maxMapNameLen = 128
+
 // Statuses of a mapped package name.
 const (
 	mapExact      = "exact"
@@ -51,6 +55,9 @@ func validateMapNames(names []string) ([]string, error) {
 	var out []string
 	for _, n := range names {
 		n = strings.TrimSpace(n)
+		if len(n) > maxMapNameLen {
+			return nil, inputErrorf("package name %q… is too long: %d characters, at most %d", n[:32], len(n), maxMapNameLen)
+		}
 		if !validAptName.MatchString(n) {
 			return nil, inputErrorf("invalid package name %q: use a Debian package name such as \"libpq-dev\"", n)
 		}
@@ -75,6 +82,9 @@ func (s *Service) MapPackages(ctx context.Context, in MapPackagesInput) (*Packag
 	}
 	out := &PackageMappingResult{Results: make([]PackageMapping, 0, len(names)), IndexFetched: fetched, MappingCommit: s.DFC.Source.Commit}
 	for _, n := range names {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		out.Results = append(out.Results, mapPackage(idx, s.DFC.Debian, n))
 	}
 	return out, nil
@@ -281,11 +291,19 @@ func ruleCommand(idx *IndexData, name string) []match {
 // postgresql-18-client).
 func ruleStreams(idx *IndexData, name string) []match {
 	segs := strings.Split(name, "-")
+	// Every base starts with the first segment, so the index is scanned once.
+	var pool []string
+	for pkg := range idx.Pkgs {
+		if strings.HasPrefix(pkg, segs[0]+"-") {
+			pool = append(pool, pkg)
+		}
+	}
 	var out []match
 	for k := len(segs); k >= 1; k-- {
 		base, suffix := strings.Join(segs[:k], "-"), strings.Join(segs[k:], "-")
-		for pkg := range idx.Pkgs {
-			rest, ok := strings.CutPrefix(pkg, base+"-")
+		prefix := base + "-"
+		for _, pkg := range pool {
+			rest, ok := strings.CutPrefix(pkg, prefix)
 			if !ok {
 				continue
 			}

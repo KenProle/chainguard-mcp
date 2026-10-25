@@ -257,6 +257,26 @@ func TestPM9_4_NameBoundaries(t *testing.T) {
 	}
 }
 
+func TestPM9_5_NameTooLong(t *testing.T) {
+	long := strings.Repeat("q9-", 43) // 129 characters; no rule matches it
+	_, err := newFakeService(t).MapPackages(context.Background(), MapPackagesInput{Names: []string{long}})
+	var in *InputError
+	if !errors.As(err, &in) || !strings.Contains(err.Error(), long[:32]) {
+		t.Errorf("got %v", err)
+	}
+	if m := mapOne(t, long[:128]); m.Status != mapUnknown {
+		t.Errorf("got %+v", m)
+	}
+}
+
+func TestPM9_5_CancelledRequest(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := newFakeService(t).MapPackages(ctx, MapPackagesInput{Names: []string{"curl"}}); !errors.Is(err, context.Canceled) {
+		t.Errorf("got %v", err)
+	}
+}
+
 func TestPM11_2_MapPackagesWithoutIndex(t *testing.T) {
 	svc := newFakeService(t)
 	svc.Packages.URL = "http://127.0.0.1:1/APKINDEX.tar.gz"
