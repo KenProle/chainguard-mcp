@@ -4,4 +4,10 @@
   html {
     color-scheme: light dark;
   }
+
+  /* Tailwind 4 gives buttons the default cursor; restore the hand. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
