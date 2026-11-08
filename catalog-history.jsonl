@@ -44,3 +44,4 @@
 {"date":"2026-11-05","source":"live","total":3313,"free":59,"added":["adoptium-jdk-openssl-fips","amazon-corretto-jdk-openssl-fips","buildpack-deps","crossplane-azure-insights","crossplane-provider-opentofu","crossplane-provider-opentofu-fips","debezium-server","debezium-server-fips","openstack-mariadb-oshelm","openstack-mariadb-oshelm-fips","pg-protocol","rancher-turtles","spark-operator-kubectl","supabase-postgres-meta-fips"],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
 {"date":"2026-11-06","source":"live","total":3313,"free":59,"added":[],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
 {"date":"2026-11-07","source":"live","total":3313,"free":59,"added":[],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
+{"date":"2026-11-08","source":"live","total":3313,"free":59,"added":[],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
