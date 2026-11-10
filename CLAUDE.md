@@ -76,7 +76,7 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 
 ## Third-party libraries
 
-This is the project's one dependency policy; `openspec/config.yaml` points at it (a new Go or npm dependency needs a justification in the change's `design.md`, or the design says none are added).
+This is the project's one dependency policy; `openspec/config.yaml` points at it and requires a justification in the change's `design.md` for any new Go or npm dependency. The checks below also apply to the other third-party pieces the build uses: GitHub Actions in `.github/workflows/`, base images in the `Dockerfile`, and pinned tools (GoReleaser, OpenSpec).
 
 - Minimize third-party dependencies to reduce ongoing updates and maintenance. Prefer the Go standard library, browser APIs, or what the project already has (React, React Router, TanStack Query, Tailwind) when they meet the requirements. The hand-written dfc YAML reader in `mappings.go` is the model: a small, strict local implementation instead of a general library for a narrow job.
 - Add a library only when its benefits justify its ongoing maintenance, security, and upgrade costs, and record that justification in `design.md`. For simple, narrowly scoped functionality, consider a small local implementation when it is easier to maintain and verify. For security-sensitive functionality, especially cryptography, authentication, and complex parsing, use or retain established libraries or vetted platform APIs rather than hand-rolling replacements. Retain other specialized libraries when replacement would increase security, correctness, or maintenance risk.
