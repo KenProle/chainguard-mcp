@@ -1,10 +1,11 @@
 {
   "extraKnownMarketplaces": {
-    "sec-context": {
-      "source": { "source": "github", "repo": "KenProle/sec-context" }
+    "kenprole-plugins": {
+      "source": { "source": "github", "repo": "KenProle/claude-plugins" }
     }
   },
   "enabledPlugins": {
-    "sec-context@sec-context": true
+    "dev-workflow@kenprole-plugins": true,
+    "sec-context@kenprole-plugins": true
   }
 }
