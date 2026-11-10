@@ -2,6 +2,8 @@ module github.com/KenProle/chainguard-mcp
 
 go 1.27.0
 
+toolchain go1.27.3
+
 require github.com/modelcontextprotocol/go-sdk v1.8.0
 
 require (

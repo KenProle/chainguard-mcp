@@ -1,0 +1,14 @@
+# Version updates for the GitHub Actions in .github/workflows/ only. Go and npm
+# advisories are caught by the daily Vulnerability check workflow instead, and
+# the Dockerfile's cgr.dev/chainguard/*:latest bases have no versions to track.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
