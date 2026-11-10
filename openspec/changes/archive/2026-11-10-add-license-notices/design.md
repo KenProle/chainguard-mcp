@@ -59,7 +59,7 @@ A new `notices.go` renders everything as plain text, in a fixed order so repeate
 3. The dfc package mappings, with the commit from `dfc-source.json` and the text of `LICENSE-dfc`.
 4. The web UI packages by name, with version and SPDX identifier.
 
-Each entry starts with a separator line and `name version`, then each file as `--- <file name> ---` followed by its text. UI entries have one block, labelled with the identifier, since Vite doesn't give file names.
+Each entry starts with a separator line and `name version`, then each file as `--- <file name> ---` followed by its text. UI entries have one block, `--- license text (<identifier>) ---`, since Vite doesn't give file names (changed from a bare identifier in review, so it doesn't read as a file name).
 
 ### D5. Shipping the file
 
