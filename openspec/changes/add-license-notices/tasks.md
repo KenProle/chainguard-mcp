@@ -19,14 +19,14 @@
 
 ## 4. Shipping the file
 
-- [ ] 4.1 `.goreleaser.yaml`: add the hook `sh -c 'go run -ldflags "-X main.version={{ .Version }}" . -licenses > THIRD_PARTY_NOTICES'` after the web build, and add `THIRD_PARTY_NOTICES` to `archives.files`; add `/THIRD_PARTY_NOTICES` to `.gitignore` (design D5, LN-4). Verify: `goreleaser check` passes (in CI's `Release config check`), and `git status` stays clean after the hook runs.
-- [ ] 4.2 In `ci.yml`'s `Release config check` job, after the snapshot, check that `dist/chainguard-mcp_*_linux_amd64.tar.gz` contains `THIRD_PARTY_NOTICES` and that it equals the unpacked binary's `-licenses` output (LN-4.1). Verify: the job is green on the PR, and its log shows the check ran.
-- [ ] 4.3 Dockerfile: in the build stage, run `go run . -licenses > /out/THIRD_PARTY_NOTICES` before cross-compiling; in the final stage, `COPY --from=build /out/THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES` (LN-5). In `ci.yml`'s smoke test, check that `docker run --rm chainguard-mcp -licenses` exits 0 and contains `golang.org/x/sync`, `react-router` and `dfc`, and that `docker cp` of `/THIRD_PARTY_NOTICES` from a created container equals that output (LN-3.2, LN-5.1). Verify: the `Docker build` job is green on the PR.
+- [x] 4.1 `.goreleaser.yaml`: add the hook `sh -c 'go run -ldflags "-X main.version={{ .Version }}" . -licenses > THIRD_PARTY_NOTICES'` after the web build, and add `THIRD_PARTY_NOTICES` to `archives.files`; add `/THIRD_PARTY_NOTICES` to `.gitignore` (design D5, LN-4). Verify: `goreleaser check` passes (in CI's `Release config check`), and `git status` stays clean after the hook runs.
+- [x] 4.2 In `ci.yml`'s `Release config check` job, after the snapshot, check that `dist/chainguard-mcp_*_linux_amd64.tar.gz` contains `THIRD_PARTY_NOTICES` and that it equals the unpacked binary's `-licenses` output (LN-4.1). Verify: the job is green on the PR, and its log shows the check ran.
+- [x] 4.3 Dockerfile: in the build stage, run `go run . -licenses > /out/THIRD_PARTY_NOTICES` before cross-compiling; in the final stage, `COPY --from=build /out/THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES` (LN-5). In `ci.yml`'s smoke test, check that `docker run --rm chainguard-mcp -licenses` exits 0 and contains `golang.org/x/sync`, `react-router` and `dfc`, and that `docker cp` of `/THIRD_PARTY_NOTICES` from a created container equals that output (LN-3.2, LN-5.1). Verify: the `Docker build` job is green on the PR.
 
 ## 5. Verify end to end
 
 - [x] 5.1 Build the UI and the binary locally (`npm --prefix web run build`, `go build -o chainguard-mcp.exe .`), run `./chainguard-mcp.exe -licenses`, and check the output against `go version -m chainguard-mcp.exe` (same modules and versions) and `web/dist/licenses.json` (same packages) (LN-1, LN-2.3). Then run `./chainguard-mcp.exe -http 127.0.0.1:8080` and confirm in the browser pane that the UI still loads and `/licenses.json` is served. Record the outputs in the PR description.
-- [ ] 5.2 Confirm `go test ./...`, `go vet ./...`, `npm --prefix web run lint`, `npm --prefix web run typecheck`, `npm --prefix web test` and `openspec validate --all --strict` pass locally, and that all six required checks on the PR are green.
+- [x] 5.2 Confirm `go test ./...`, `go vet ./...`, `npm --prefix web run lint`, `npm --prefix web run typecheck`, `npm --prefix web test` and `openspec validate --all --strict` pass locally, and that all six required checks on the PR are green.
 
 ## Workflow follow-up
 

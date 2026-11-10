@@ -129,9 +129,8 @@ func checkBuildInfo(bi *debug.BuildInfo, notices []GoNotice) error {
 	}
 	built := map[string]string{}
 	for _, d := range bi.Deps {
-		if d.Replace != nil {
-			d = d.Replace
-		}
+		// Key on the original path and version, as go list reports them; a
+		// replace directive changes only where the license files come from.
 		built[d.Path] = d.Version
 	}
 	have := map[string]string{}
@@ -232,9 +231,9 @@ func renderNotices(ver string, goNotices []GoNotice, mappings fs.FS, ui fs.FS, b
 			title += " " + n.Version
 		}
 		entry(title + " (web UI)")
-		name := "license"
+		name := "license text"
 		if n.Identifier != "" {
-			name = n.Identifier
+			name = "license text (" + n.Identifier + ")"
 		}
 		file(name, n.Text)
 	}

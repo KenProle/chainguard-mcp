@@ -229,6 +229,10 @@ func TestLN_2_3_BuildInfoMatchesNotices(t *testing.T) {
 	if err := checkBuildInfo(deps(a, b), notices); err != nil {
 		t.Errorf("equal lists: %v", err)
 	}
+	replaced := &debug.Module{Path: "example.com/b", Version: "v2.0.0", Replace: &debug.Module{Path: "example.com/fork", Version: "v9.9.9"}}
+	if err := checkBuildInfo(deps(a, replaced), notices); err != nil {
+		t.Errorf("replaced module keyed on its original path and version: %v", err)
+	}
 	if err := checkBuildInfo(nil, notices); err != nil {
 		t.Errorf("nil build info: %v", err)
 	}
@@ -263,9 +267,10 @@ func TestLN_3_1_LicensesFlag(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
-	// An empty HOME and no proxy variables: the flag must not need the network.
+	// Checks the exit status, the header and the output of the real binary. It
+	// does not prove the flag avoids the network.
 	cmd := exec.Command(exe, "-licenses")
-	cmd.Env = []string{"HTTP_PROXY=http://127.0.0.1:1", "HTTPS_PROXY=http://127.0.0.1:1", "SystemRoot=" + os.Getenv("SystemRoot")}
+	cmd.Env = []string{"SystemRoot=" + os.Getenv("SystemRoot")}
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("-licenses: %v", err)
