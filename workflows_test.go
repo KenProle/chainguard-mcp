@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -51,6 +52,12 @@ func TestWorkflows(t *testing.T) {
 		if !regexp.MustCompile(`^v\d+\.\d+\.\d+$`).MatchString(m[0][1]) {
 			t.Errorf("govulncheck version %q is not an exact vX.Y.Z", m[0][1])
 		}
+		// CLAUDE.md's commands block runs the same pin locally.
+		for _, d := range re.FindAllStringSubmatch(readRepoFile(t, "CLAUDE.md"), -1) {
+			if d[1] != m[0][1] {
+				t.Errorf("CLAUDE.md runs govulncheck@%s, the workflow @%s", d[1], m[0][1])
+			}
+		}
 	})
 
 	t.Run("DV-3.2 vulncheck workflow has one job and the four triggers", func(t *testing.T) {
@@ -69,8 +76,9 @@ func TestWorkflows(t *testing.T) {
 			}
 			return keys
 		}
-		triggers := strings.Join(section("on"), ",")
-		if triggers != "pull_request,push,schedule,workflow_dispatch" {
+		on := section("on")
+		sort.Strings(on)
+		if triggers := strings.Join(on, ","); triggers != "pull_request,push,schedule,workflow_dispatch" {
 			t.Errorf("triggers = %q, want pull_request,push,schedule,workflow_dispatch", triggers)
 		}
 		if !strings.Contains(body, "    branches: [main]") {
@@ -83,7 +91,12 @@ func TestWorkflows(t *testing.T) {
 		if len(jobs) != 1 {
 			t.Fatalf("jobs = %v, want exactly one", jobs)
 		}
-		if strings.Count(body, "    name: Vulnerability check") != 1 {
+		// The job's own keys are indented four spaces; steps sit deeper.
+		named := false
+		for _, l := range lines {
+			named = named || l == "    name: Vulnerability check"
+		}
+		if !named {
 			t.Error(`the job is not named "Vulnerability check", the name the ruleset requires`)
 		}
 	})
