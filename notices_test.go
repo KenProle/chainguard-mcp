@@ -211,6 +211,9 @@ func TestRenderNoticesIsDeterministic(t *testing.T) {
 	if !strings.HasPrefix(a, "chainguard-mcp 1.2.3 third-party notices\n") {
 		t.Errorf("header = %.60q", a)
 	}
+	if !strings.Contains(a, "--- license text (MIT) ---") {
+		t.Error("UI entries lack the license text label")
+	}
 	if strings.Contains(a, "\r") {
 		t.Error("output contains carriage returns")
 	}
