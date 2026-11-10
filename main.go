@@ -29,10 +29,20 @@ func main() {
 	recordFile := flag.String("record-history", "", "take a live catalog snapshot, append it to this history file and exit")
 	backfillFile := flag.String("backfill-history", "", "build this empty history file from the Internet Archive's sitemap captures and exit")
 	refreshFile := flag.String("refresh-mappings", "", "download dfc's latest package mapping file to this path (with dfc-source.json and LICENSE-dfc beside it), print what changed and exit")
+	showLicenses := flag.Bool("licenses", false, "print the third-party license notices and exit")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version)
+		return
+	}
+	if *showLicenses {
+		text, err := licensesText()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		fmt.Print(text)
 		return
 	}
 	if *refreshFile != "" {

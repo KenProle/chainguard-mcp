@@ -225,6 +225,7 @@ Without the UI build, everything else still works and `/` shows how to build it.
 ./chainguard-mcp                     # stdio (for Claude Desktop / Claude Code)
 ./chainguard-mcp -http 127.0.0.1:8080  # web UI at /, MCP at /mcp, JSON API under /api/ (GET /api/ lists the endpoints), health check at /healthz
 ./chainguard-mcp -version
+./chainguard-mcp -licenses           # print the third-party license notices and exit
 ./chainguard-mcp -refresh-mappings mappings/dfc-builtin-mappings.yaml  # update the embedded dfc package mappings from upstream, print what changed and exit
 ```
 
@@ -359,6 +360,7 @@ git push origin v0.2.0
 | `tools.go` | MCP tool and prompt definitions. |
 | `web.go` | JSON API under `/api/`, security headers, and serving the UI. |
 | `webui.go` | Embeds the built UI from `web/dist`. |
+| `notices.go`, `notices/` | The `-licenses` third-party notices and the committed Go license texts they print. |
 | `catalog.go` | Image list from the directory sitemap. |
 | `registry.go` | Anonymous cgr.dev client: tokens, free-tier checks, tags, manifests, blobs. |
 | `details.go` | `get_image_details` and `pin_image`. |
@@ -377,6 +379,10 @@ git push origin v0.2.0
 ## Third-party data
 
 The embedded package mappings are [dfc](https://github.com/chainguard-dev/dfc)'s `builtin-mappings.yaml`, unchanged, at the upstream commit recorded in [`mappings/dfc-source.json`](mappings/dfc-source.json). dfc is Apache-2.0 licensed by Chainguard, Inc.; its license is in [`mappings/LICENSE-dfc`](mappings/LICENSE-dfc). This project only uses that file and is not affiliated with Chainguard or the dfc project. Run `-refresh-mappings` to update it.
+
+## Third-party notices
+
+The binary, the release archives and the Docker image include code from the Go standard library, Go modules, the dfc mappings and the npm packages bundled into the web UI, each under its own license. Their license notices are built into the binary: `chainguard-mcp -licenses` prints them (from the image: `docker run --rm chainguard-mcp -licenses`). Release archives and the image also contain them as a `THIRD_PARTY_NOTICES` file (in the image at `/THIRD_PARTY_NOTICES`).
 
 ## License
 

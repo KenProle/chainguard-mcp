@@ -79,6 +79,16 @@ jobs:
           curl -fs http://127.0.0.1:8080/ | grep -q "<title>Chainguard Image Explorer</title>"
           curl -fs http://127.0.0.1:8080/api/history | grep -q '"last_snapshot"'
           docker rm -f app
+      - name: Third-party notices
+        run: |
+          docker run --rm chainguard-mcp -licenses > notices.txt
+          grep -q "golang.org/x/sync" notices.txt
+          grep -q "react-router" notices.txt
+          grep -q "dfc" notices.txt
+          docker create --name nt chainguard-mcp
+          docker cp nt:/THIRD_PARTY_NOTICES image-notices.txt
+          docker rm nt
+          cmp notices.txt image-notices.txt
 
   goreleaser:
     name: Release config check
@@ -99,3 +109,11 @@ jobs:
         with:
           version: "~> v2"
           args: release --snapshot --clean
+      - name: Check the archive's third-party notices
+        run: |
+          archive=$(ls dist/chainguard-mcp_*_linux_amd64.tar.gz)
+          mkdir unpacked
+          tar -xzf "$archive" -C unpacked
+          test -s unpacked/THIRD_PARTY_NOTICES
+          unpacked/chainguard-mcp -licenses | cmp - unpacked/THIRD_PARTY_NOTICES
+          echo "THIRD_PARTY_NOTICES in $archive matches the binary's -licenses output"
