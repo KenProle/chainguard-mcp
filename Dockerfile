@@ -25,12 +25,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
+# The binary embeds the Go license notices (see notices.go).
+COPY notices ./notices
 # The binary embeds the dfc package mappings (see mappings.go).
 COPY mappings ./mappings
 # The binary embeds the built UI from web/dist (see webui.go).
 COPY --from=web /app/dist ./web/dist
 # The binary embeds the catalog history from historydata (see history_embed.go).
 COPY --from=web /app/historydata ./historydata
+# The third-party notices the image ships, written by the binary itself. It fails
+# if the notices are stale or the UI's license data is missing.
+RUN mkdir -p /out && CGO_ENABLED=0 go run . -licenses > /out/THIRD_PARTY_NOTICES
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" -o /out/chainguard-mcp .
 
@@ -38,6 +43,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 # manager, running as a non-root user.
 FROM cgr.dev/chainguard/static:latest
 COPY --from=build /out/chainguard-mcp /chainguard-mcp
+COPY --from=build /out/THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
 
 EXPOSE 8080
 ENTRYPOINT ["/chainguard-mcp"]

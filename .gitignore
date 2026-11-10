@@ -3,6 +3,9 @@
 *.exe~
 /dist/
 
+# Third-party notices written by the GoReleaser hook
+/THIRD_PARTY_NOTICES
+
 # Web UI
 web/node_modules/
 web/dist/*

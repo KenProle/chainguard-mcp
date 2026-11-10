@@ -11,6 +11,9 @@ before:
     # Download the catalog history the binaries embed (see history_embed.go).
     # A failed download fails the release, which must embed the history.
     - curl -fsSL --create-dirs -o historydata/catalog-history.jsonl https://raw.githubusercontent.com/KenProle/chainguard-mcp/data/catalog-history.jsonl
+    # Write the third-party notices the archives ship. -licenses fails if the
+    # notices are stale or the UI's license data is missing, which fails the release.
+    - sh -c 'go run -ldflags "-X main.version={{ .Version }}" . -licenses > THIRD_PARTY_NOTICES'
 
 builds:
   - env:
@@ -27,7 +30,7 @@ archives:
       - goos: windows
         formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files: [README.md, LICENSE]
+    files: [README.md, LICENSE, THIRD_PARTY_NOTICES]
 
 checksum:
   name_template: checksums.txt

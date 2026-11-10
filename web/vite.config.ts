@@ -16,6 +16,11 @@ const keepDistPlaceholder: Plugin = {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), keepDistPlaceholder],
+  build: {
+    // Record the licenses of the packages that end up in the bundle. The Go
+    // binary embeds dist/licenses.json and prints it with -licenses.
+    license: { fileName: 'licenses.json' },
+  },
   server: {
     // During development, run the Go server with -http 127.0.0.1:8080.
     proxy: { '/api': 'http://127.0.0.1:8080' },
