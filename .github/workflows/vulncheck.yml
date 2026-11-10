@@ -1,0 +1,42 @@
+name: Vulnerability check
+
+# Checks the Go modules, the Go toolchain's standard library and the web UI's
+# npm packages against published advisories. It runs daily as well as on
+# changes, so an advisory against a dependency nobody touched still turns it
+# red. Its own file, so the daily run doesn't repeat the rest of CI. Required
+# by the `Protect main` ruleset under the job name below.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    name: Vulnerability check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # Reads go.mod's toolchain line, so the standard library checked is
+          # the one releases are built with.
+          go-version-file: go.mod
+      - name: govulncheck
+        # Pinned; upgrade deliberately. Exits non-zero only for vulnerabilities
+        # the code reaches; unreached ones are listed in the summary.
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+      - name: npm audit
+        working-directory: web
+        # Reads package-lock.json, development dependencies included; fails on
+        # high or critical advisories.
+        run: npm audit --audit-level=high
