@@ -358,6 +358,16 @@ func TestSecurityScan(t *testing.T) {
 			if !regexp.MustCompile(`checkout --quiet [0-9a-f]{40}`).MatchString(body) {
 				t.Error("the plugin marketplace is not checked out at a full commit id")
 			}
+			// Claude Code refuses the reserved name for a local copy (the first
+			// run failed with "name 'claude-plugins-official' is reserved"), so
+			// the pinned copy is renamed and the plugin installed from that name.
+			if !strings.Contains(body, `.name = "claude-plugins-pinned"`) ||
+				!strings.Contains(body, "plugins: claude-security@claude-plugins-pinned") {
+				t.Error("the pinned marketplace is not renamed, or the plugin is not installed from the renamed marketplace")
+			}
+			if strings.Contains(body, "@claude-plugins-official") {
+				t.Error("the plugin is installed from the reserved marketplace name")
+			}
 		})
 
 		t.Run("SG-5.1 findings are uploaded even when the job fails", func(t *testing.T) {
