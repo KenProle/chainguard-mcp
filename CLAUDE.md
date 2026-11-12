@@ -78,6 +78,18 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 - `web/src/pages/pages.test.tsx`: page tests with `fetch` stubbed by `mockApi` (`web/src/test/render.tsx`).
 - `live_test.go`: skipped unless `CHAINGUARD_LIVE=1`; not run in CI. Chainguard rebuilds images constantly and renames packages, so assert stable properties (an OpenSSL library has an openssl origin), not exact package names or counts.
 
+## Security-sensitive code
+
+Before writing or changing any code that falls under `/sec-context:guide`'s description, load it for that topic first. This applies everywhere in the project. The cases that come up here:
+
+- **Parsing data from outside:** SBOM attestations (DSSE envelope → in-toto statement → SPDX), the APKINDEX gzip → tar stream, the dfc YAML reader, Docker Hub references, OSV and advisory-feed JSON, and the history file. Bound sizes, counts and work on all of them.
+- **Input from callers:** tool and API parameters (image names, references, package names) need length and work limits as well as validation; the 2026-10-24 scan found an unauthenticated DoS in package mapping (fixed in 86c4c46). They also reach outbound requests to cgr.dev, Docker Hub, OSV, the advisory feed and endoflife.date, so validate them before they're used in a URL, and keep timeouts and response caps.
+- **Writing files:** `save_sbom` goes through `os.Root` with validated plain names (see above).
+- **The HTTP surface:** API handlers, `writeError`, CSP and security headers, `/mcp`, and the background compare jobs (limits on how many run and how long they're kept).
+- **The web UI:** anything that renders API data; no `innerHTML` or `dangerouslySetInnerHTML`.
+- **CI and release:** workflows, repository secrets, action pins, GoReleaser hooks and the Dockerfile.
+- **New Go or npm dependencies**, together with the policy below.
+
 ## Third-party libraries
 
 This is the project's one dependency policy; `openspec/config.yaml` points at it and requires a justification in the change's `design.md` for any new Go or npm dependency. The checks below also apply to the other third-party pieces the build uses: GitHub Actions in `.github/workflows/`, base images in the `Dockerfile`, and pinned tools (GoReleaser, OpenSpec).
