@@ -40,25 +40,34 @@ func yamlLines(s string) []string {
 
 // pinnedUse matches a `uses:` line that names its action by a full commit SHA
 // followed by a comment with the release (DV-8).
-var pinnedUse = regexp.MustCompile(`^\s*(- )?uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+# v\d+(\.\d+)*\s*$`)
+var pinnedUse = regexp.MustCompile(`^\s*(-\s+)?uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+# v\d+(\.\d+)*\s*$`)
 
-var usesStart = regexp.MustCompile(`^s*(- )?uses:`)
+// usesStart finds a `uses:` step, allowing any spacing after the list dash.
+var usesStart = regexp.MustCompile(`^\s*(-\s+)?uses:`)
 
 // usesLine reports whether a workflow line is a `uses:` step (not a comment).
 func usesLine(l string) bool {
-	return regexp.MustCompile(`^\s*(- )?uses:`).MatchString(l)
+	return usesStart.MatchString(l)
 }
 
 func TestWorkflowPins(t *testing.T) {
 	t.Run("DV-8.1 every action is pinned to a commit SHA with a version comment", func(t *testing.T) {
+		// GitHub reads both extensions.
 		files, err := filepath.Glob(filepath.Join(".github", "workflows", "*.yml"))
-		if err != nil || len(files) == 0 {
-			t.Fatalf("no workflows found: %v", err)
+		more, err2 := filepath.Glob(filepath.Join(".github", "workflows", "*.yaml"))
+		files = append(files, more...)
+		if err != nil || err2 != nil || len(files) == 0 {
+			t.Fatalf("no workflows found: %v %v", err, err2)
 		}
 		uses := 0
 		for _, f := range files {
 			for i, l := range strings.Split(readRepoFile(t, f), "\n") {
 				if !usesLine(l) {
+					// A `uses:` the line matcher didn't classify (flow style such as
+					// `- {uses: x@v1}`) must not slip past the check.
+					if !strings.HasPrefix(strings.TrimSpace(l), "#") && strings.Contains(l, "uses:") {
+						t.Errorf("%s:%d has a `uses:` in a form this test can't check; write it as `- uses: owner/repo@<sha> # vX.Y.Z`: %s", f, i+1, strings.TrimSpace(l))
+					}
 					continue
 				}
 				uses++
@@ -86,6 +95,15 @@ func TestWorkflowPins(t *testing.T) {
 			if got := pinnedUse.MatchString(line); got != want {
 				t.Errorf("pinnedUse(%q) = %v, want %v", line, got, want)
 			}
+		}
+		// Extra spaces after the list dash are valid YAML and must still be seen.
+		for _, l := range []string{"- uses: a/b@v1", "-  uses: a/b@v1", "  uses: a/b@v1"} {
+			if !usesLine(l) {
+				t.Errorf("usesLine(%q) = false, want true", l)
+			}
+		}
+		if usesLine("      # uses: a/b@v1") {
+			t.Error("a commented-out uses line was treated as a step")
 		}
 	})
 }

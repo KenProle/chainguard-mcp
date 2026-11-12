@@ -7,8 +7,8 @@
 
 ## 2. Test
 
-- [x] 2.1 Add the subtest "DV-8.1 every action is pinned to a commit SHA with a version comment" to `TestWorkflows`, and "DV-8.2 a floating reference is rejected" as a check of the matcher on sample lines (DV-8). Verify: `go test -run TestWorkflows -v ./...` passes, and fails when one `uses:` line in a workflow is changed to `@v7` by hand, then when its comment is removed.
-- [x] 2.2 Update the `TestWorkflows` header comment if needed so it matches the new rule. Verify: `gofmt -l .` and `go vet ./...` are clean.
+- [x] 2.1 Add `TestWorkflowPins` to `workflows_test.go` with the subtests "DV-8.1 every action is pinned to a commit SHA with a version comment" (all `.yml`/`.yaml` workflows; a `uses:` it cannot classify also fails) and "DV-8.2 a floating reference is rejected" (the matcher on sample lines) (DV-8). Verify: `go test -run TestWorkflowPins -v ./...` passes, and fails when one `uses:` line in a workflow is changed to `@v7` by hand, then when its comment is removed.
+- [x] 2.2 Name the test in CLAUDE.md. Verify: `gofmt -l .` (line endings stripped) and `go vet ./...` are clean.
 
 ## 3. Verify end to end
 
