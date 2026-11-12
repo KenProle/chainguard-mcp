@@ -136,7 +136,7 @@ func (e *EndOfLife) cycles(ctx context.Context, slug string) ([]eolCycle, error)
 		return nil, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 	var cycles []eolCycle
-	if err := json.NewDecoder(resp.Body).Decode(&cycles); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxEndOfLifeJSON, &cycles); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 	e.mu.Lock()
