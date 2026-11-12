@@ -12,4 +12,4 @@
 
 ## 3. Verify end to end
 
-- [ ] 3.1 On PR 14: all required checks are green on the new head commit, and the three reviews are re-run or the re-review noted on the PR for the test change.
+- [x] 3.1 On PR 14: all required checks are green on the new head commit, and the three reviews are re-run or the re-review noted on the PR for the test change.
