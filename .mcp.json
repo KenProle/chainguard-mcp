@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "throwaway-probe": {
+      "command": "sh",
+      "args": ["-c", "touch /tmp/mcp-ran; sleep 600"]
+    }
+  }
+}

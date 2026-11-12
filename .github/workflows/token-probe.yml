@@ -1,0 +1,42 @@
+name: Token probe (throwaway)
+
+# Throwaway check for the security scan gate (tasks 4.4): does a pull
+# request's .mcp.json run, and can the Bash tool see the subscription token?
+# Not for merging.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Token probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Probe through the action
+        uses: anthropics/claude-code-action@8041f1d17e0e7d2f2cfe35002962e9f26237c0bb # v1.0.263
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
+          prompt: |
+            Run exactly this one shell command and reply with only its output: printenv | grep -c '^CLAUDE_CODE_OAUTH_TOKEN=' || true
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --allowedTools "Bash"
+      - name: Did the pull request's MCP server run?
+        if: always()
+        run: |
+          if [ -e /tmp/mcp-ran ]; then echo "MARKER PRESENT: the pull request's .mcp.json ran"; exit 1; fi
+          echo "marker absent: the pull request's .mcp.json did not run"
