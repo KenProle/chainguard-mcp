@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -31,6 +32,16 @@ func newWebHandler(svc *Service, ui fs.FS) http.Handler {
 	})
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, apiError{Error: "unknown API endpoint", Code: "not_found"})
+	})
+
+	// Throwaway: deliberate flaw to check the security scan reports it.
+	mux.HandleFunc("GET /debug/file", func(w http.ResponseWriter, r *http.Request) {
+		b, err := os.ReadFile(r.URL.Query().Get("path"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Write(b)
 	})
 
 	mux.Handle("/", uiHandler(ui))
