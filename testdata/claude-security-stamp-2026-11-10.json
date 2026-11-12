@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-11-10T21:23:49+00:00",
+  "duration_s": 56,
+  "scan_id": "7415d1ac-066f-4699-8a22-92ac79ae811e",
+  "mode": "commit",
+  "scan_prefix": "",
+  "scope": [],
+  "revision": {
+    "versioned": true,
+    "commit": "8a6d75ccc4e73e89c4677f4c7e6c1d0fadcce8db",
+    "parent": "3e3e30624c51c6f820661cbce88a1323887be59a",
+    "branch": "HEAD",
+    "dirty": false
+  },
+  "revision_source": "self-reported",
+  "model": null,
+  "effort": "low",
+  "run_shape": {
+    "requested_effort": "low",
+    "collapsed": null,
+    "source": "coverage.json",
+    "diff_files": 18,
+    "diff_lines": 1040,
+    "scope_files": null,
+    "empty_diff": false,
+    "empty_scope": false,
+    "researchers_dispatched": 1,
+    "verification_runs": 1,
+    "skipped_components": [],
+    "completeness_check_outcome": "not-applicable",
+    "unaccounted_top_level_dirs": [],
+    "inventory_fallback": null,
+    "top_level_dir_count": null,
+    "target_files": null,
+    "component_cap": null,
+    "research_coverage": null
+  },
+  "findings": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "verification": {
+    "status": "verified",
+    "candidates": 0,
+    "candidates_deduped": 0,
+    "panel_votes": 0,
+    "panel_reviewed_findings": 0,
+    "panel_quorum_findings": 0,
+    "unreviewed_candidate_sites": 0,
+    "incomplete_panel_candidates": 0,
+    "attested_findings": 0,
+    "reason": null,
+    "reason_kind": null,
+    "researchers_dispatched": 1,
+    "researchers_returned": 1
+  }
+}

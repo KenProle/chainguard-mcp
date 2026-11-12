@@ -1,0 +1,149 @@
+name: Security scan
+
+# Runs the Claude Security change scan on pull requests that touch
+# security-sensitive files, and fails on verified critical or high findings.
+# Required by the `Protect main` ruleset under the job name below. The job
+# always finishes with a pass or a fail: a required check that never starts
+# would block the merge forever, so "no scan needed" is a step inside the job,
+# not a path filter on the workflow.
+#
+# Design and requirements: openspec/specs/security-scan-gate (SG-1 to SG-12).
+# Only the `pull_request` trigger is used, never `pull_request_target` or
+# `workflow_run`: those run with the repository's secrets, and the token below
+# must never meet code from a fork (SG-6).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+concurrency:
+  group: security-scan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        # An explicit shell turns on pipefail, so `... | tee` below cannot hide
+        # a failing verdict.
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Decide whether to scan
+        id: decide
+        # Pull request fields are passed as environment variables, never
+        # spliced into the script text.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_ACTOR: ${{ github.actor }}
+        run: |
+          # NUL-separated so odd file names stay whole. If the list cannot be
+          # produced it is empty, and an empty list is scanned (SG-2.4).
+          # --no-renames lists both paths of a move, so moving a sensitive file
+          # into docs/ or a test file cannot hide it.
+          git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/changed.z" || : > "$RUNNER_TEMP/changed.z"
+          go run scripts/securityscan.go decide \
+            -repo "$REPO" -head-repo "$HEAD_REPO" -author "$PR_AUTHOR" -actor "$RUN_ACTOR" \
+            < "$RUNNER_TEMP/changed.z" | tee -a "$GITHUB_OUTPUT"
+
+      - name: No scan needed
+        if: steps.decide.outputs.decision == 'skip' || steps.decide.outputs.decision == 'skip-dependabot'
+        env:
+          REASON: ${{ steps.decide.outputs.reason }}
+        run: |
+          printf '## Security scan\n\nNo scan was run: %s.\n' "$REASON" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: This pull request cannot be scanned here
+        if: steps.decide.outputs.decision == 'fail-no-token'
+        env:
+          REASON: ${{ steps.decide.outputs.reason }}
+        run: |
+          printf '## Security scan\n\nThis pull request changes security-sensitive files, but %s. Run the scan locally and ask the repository owner to merge it.\n' "$REASON" >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Security scan::Cannot scan: $REASON"
+          exit 1
+
+      - name: Refuse a report that is already in the checkout
+        if: steps.decide.outputs.decision == 'scan'
+        run: |
+          if compgen -G 'CLAUDE-SECURITY-*' > /dev/null; then
+            echo "::error title=Security scan::The pull request contains a CLAUDE-SECURITY-* path; a scan result cannot be supplied by the change it judges."
+            exit 1
+          fi
+
+      - name: Fetch the pinned plugin marketplace
+        if: steps.decide.outputs.decision == 'scan'
+        # The action's own marketplace input follows a branch. A local clone
+        # at a reviewed commit changes only when this line is edited. Claude
+        # Code refuses the name claude-plugins-official for anything but the
+        # GitHub source, and any name that looks like an official one (it
+        # rejected "claude-plugins-pinned"), so this pinned copy gets a
+        # neutral name. Confirmed locally with `claude plugin marketplace add`.
+        run: |
+          git clone --quiet https://github.com/anthropics/claude-plugins-official.git "$RUNNER_TEMP/marketplace"
+          git -C "$RUNNER_TEMP/marketplace" checkout --quiet ca08d5e47d6402db586d37780c559a0c4c7ded9a
+          manifest="$RUNNER_TEMP/marketplace/.claude-plugin/marketplace.json"
+          jq '.name = "pinned-plugins"' "$manifest" > "$RUNNER_TEMP/marketplace.json"
+          mv "$RUNNER_TEMP/marketplace.json" "$manifest"
+
+      - name: Claude Security change scan
+        if: steps.decide.outputs.decision == 'scan'
+        # Pinned to a commit: this is the one step that holds the token.
+        uses: anthropics/claude-code-action@8041f1d17e0e7d2f2cfe35002962e9f26237c0bb # v1.0.263
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          plugin_marketplaces: ${{ runner.temp }}/marketplace
+          plugins: claude-security@pinned-plugins
+          settings: '{"enableWorkflows": true}'
+          # The prompt carries the cost acknowledgment the plugin asks for;
+          # this file is the repository owner's request.
+          prompt: |
+            Run a Claude Security scan of changes on the checked-out branch against base commit ${{ github.event.pull_request.base.sha }} (--base ${{ github.event.pull_request.base.sha }}) at medium effort. I understand this scan may take a long time and use a significant number of tokens, so do not ask me to confirm. This is a non-interactive CI run: do not ask questions, do not commit, push or switch branches, and do not suggest patches.
+          claude_args: >-
+            --agent claude-security:claude-security
+            --model claude-sonnet-5-5
+            --permission-mode acceptEdits
+            --allowedTools "Bash Read Write Edit Glob Grep Workflow Agent"
+
+      - name: Find the SARIF
+        id: sarif
+        if: always() && steps.decide.outputs.decision == 'scan'
+        run: |
+          shopt -s nullglob
+          files=(CLAUDE-SECURITY-*/CLAUDE-SECURITY-RESULTS.sarif)
+          if [ "${#files[@]}" -eq 1 ]; then echo "file=${files[0]}" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Upload findings to code scanning
+        if: always() && steps.sarif.outputs.file != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: ${{ steps.sarif.outputs.file }}
+          category: claude-security
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verdict
+        if: always() && steps.decide.outputs.decision == 'scan'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: go run scripts/securityscan.go verdict -head "$HEAD_SHA" -mode changes -effort medium . | tee -a "$GITHUB_STEP_SUMMARY"

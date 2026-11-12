@@ -1,0 +1,47 @@
+# Which changed files make a pull request worth a Claude Security scan.
+# Read by scripts/securityscan.go (see openspec/specs/security-scan-gate once archived).
+#
+# One glob per line. "**" crosses directories, "*" stays within one; a glob
+# with no "/" matches the file name in any directory. A leading "!" names files
+# that do NOT need a scan. For each changed file the LAST matching line wins,
+# and a file that no line matches is scanned, so a new kind of file errs towards
+# scanning. The pull request is scanned if any changed file needs it.
+#
+# Changing this file is itself a scan (.github/** is listed below).
+
+# Code that handles untrusted input or the network
+*.go
+web/src/**
+
+# Build, release and the container image
+Dockerfile
+.dockerignore
+.goreleaser.yaml
+.github/**
+
+# Dependencies and the files that feed the build
+go.mod
+go.sum
+web/package.json
+web/package-lock.json
+web/vite.config.ts
+mappings/**
+notices/**
+
+# Files that configure Claude, which a pull request could use to steer a scan
+.claude/**
+CLAUDE.md
+.mcp.json
+.claude.json
+
+# Exceptions: these never need a scan on their own
+!*_test.go
+!testdata/**
+!web/src/test/**
+!web/src/**/*.test.ts
+!web/src/**/*.test.tsx
+!openspec/**
+!docs/**
+!site/**
+!README.md
+!LICENSE
