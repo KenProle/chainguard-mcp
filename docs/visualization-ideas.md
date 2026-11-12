@@ -106,3 +106,5 @@ Before trusting OSV-based vulnerability numbers in the UI, compare them with an 
 
 - Plain SVG in React, sized with attributes so it works under the strict CSP (no chart libraries that inject `<style>` tags). The Compare tab and license breakdown use `web/src/components/HorizontalBars.tsx`, with no new dependencies.
 - Every chart has a text equivalent on the page (a table or summary), and works in light and dark mode and at 375 px wide.
+
+<!-- Throwaway check of the security scan gate (docs-only path). Not for merging. -->
