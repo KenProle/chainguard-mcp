@@ -78,6 +78,18 @@ The free tier only publishes `latest`/`latest-dev`-style tags; versioned tags ne
 - `web/src/pages/pages.test.tsx`: page tests with `fetch` stubbed by `mockApi` (`web/src/test/render.tsx`).
 - `live_test.go`: skipped unless `CHAINGUARD_LIVE=1`; not run in CI. Chainguard rebuilds images constantly and renames packages, so assert stable properties (an OpenSSL library has an openssl origin), not exact package names or counts.
 
+## Security-sensitive code
+
+Before writing or changing any code that falls under `/sec-context:guide`'s description, load it for that topic first. This applies everywhere in the project. If the sec-context plugin isn't installed, say so and carry on. Briefs for agents and build sessions that will write such code tell them to do the same. The cases that come up here:
+
+- **Parsing data from outside:** every response from cgr.dev (tokens, manifests, blobs), Docker Hub, the images.chainguard.dev sitemap, the Wolfi secdb and package index, OSV, the advisory feed, endoflife.date, the Internet Archive and the history file on the `data` branch. That includes SBOM attestations (in-toto statements with an SPDX predicate, bare from Docker Hub or in a DSSE envelope from cosign), the APKINDEX gzip → tar stream and the dfc YAML reader. Treat all of it as untrusted. When you read a response, cap its size (`io.LimitReader` or the registry's `maxBytes`) and bound the counts and work that come from it. Don't assume the code you're changing already does.
+- **Input from callers:** tool and API parameters (image names, Docker Hub references, package names) need length and work limits as well as validation. The 2026-10-24 scan found an unauthenticated DoS in package mapping (fixed in 86c4c46): any web page in the user's browser can send a plain GET to a server on 127.0.0.1, so binding to localhost doesn't protect an expensive endpoint. These parameters also reach outbound requests, so validate them before they're used in a URL, and keep timeouts.
+- **Writing files:** `save_sbom` goes through `os.Root` with validated plain names (see above).
+- **The HTTP surface:** API handlers, `writeError`, CSP and security headers, `/mcp`, and the background compare jobs (limits on how many run and how long they're kept).
+- **The web UI:** anything that renders API data; no `innerHTML` or `dangerouslySetInnerHTML`.
+- **CI and release:** workflows, repository secrets, action pins, GoReleaser hooks and the Dockerfile.
+- **New Go or npm dependencies**, together with the policy below.
+
 ## Third-party libraries
 
 This is the project's one dependency policy; `openspec/config.yaml` points at it and requires a justification in the change's `design.md` for any new Go or npm dependency. The checks below also apply to the other third-party pieces the build uses: GitHub Actions in `.github/workflows/`, base images in the `Dockerfile`, and pinned tools (GoReleaser, OpenSpec).
