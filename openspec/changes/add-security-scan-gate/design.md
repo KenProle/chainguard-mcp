@@ -51,6 +51,18 @@ No Go or npm dependency is added. New third-party pieces, all used only at CI ru
 
 `govulncheck` and `npm audit` do not apply to Actions; the sources checked were each repository's GitHub page, published security advisories and releases (2026-11-10). The existing Dependabot Actions group keeps these updated.
 
+## Observed in the rollout (PR 15 and throwaway PRs 18 to 20, 2026-11-12)
+
+| Check | Result |
+| --- | --- |
+| Docs-only change (PR 18, SG-1.1) | Passed in 17 s; "No scan was run"; plugin, SARIF and verdict steps skipped |
+| Planted file-read flaw (PR 19, SG-4.2, SG-5.1) | Failed in 2 m 32 s: 1 high finding (Path Traversal, `web.go:39`), verified, 2 of 2 researchers; SARIF uploaded; annotation and code-scanning alert on the PR |
+| `.mcp.json` in a pull request (PR 20, SG-7.1) | The server did not run (marker file absent); the action logged that it restored `.claude/`, `.mcp.json` and `CLAUDE.md` from the base branch |
+| Token visible to the Bash tool (PR 20) | No: `printenv | grep -c` printed 0 under the action, so no extra scrub setting was added |
+| The change itself (PR 15, 20 files, medium effort) | Passed in 3 m 14 s |
+
+Not observed: a candidate that predates the change (SG-5.2), because the scan reported none; the verdict does not filter for it, and the SARIF for the planted flaw held only the one finding. Usage against the Pro allowance (task 4.5) was not readable from CI; it needs the owner's usage meter before and after a run.
+
 ## Risks / Trade-offs
 
 - **Usage limits on a Pro plan.** Each scan draws on the owner's personal allowance; many risky pull requests in a day could exhaust the five-hour window, including for interactive work. → Medium effort only; narrow path list; measure real usage in task 4.5 before requiring the check; a rate-limited scan fails closed with its reason, and can be re-run later.
