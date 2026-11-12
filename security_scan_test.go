@@ -361,8 +361,10 @@ func TestSecurityScan(t *testing.T) {
 			// Claude Code refuses the reserved name for a local copy (the first
 			// run failed with "name 'claude-plugins-official' is reserved"), so
 			// the pinned copy is renamed and the plugin installed from that name.
-			if !strings.Contains(body, `.name = "claude-plugins-pinned"`) ||
-				!strings.Contains(body, "plugins: claude-security@claude-plugins-pinned") {
+			// The second run showed that a name containing "claude" is refused
+			// too ("claude-plugins-pinned" impersonates an official one).
+			if !strings.Contains(body, `.name = "pinned-plugins"`) ||
+				!strings.Contains(body, "plugins: claude-security@pinned-plugins") {
 				t.Error("the pinned marketplace is not renamed, or the plugin is not installed from the renamed marketplace")
 			}
 			if strings.Contains(body, "@claude-plugins-official") {

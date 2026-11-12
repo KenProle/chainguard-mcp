@@ -95,12 +95,14 @@ jobs:
         # The action's own marketplace input follows a branch. A local clone
         # at a reviewed commit changes only when this line is edited. Claude
         # Code refuses the name claude-plugins-official for anything but the
-        # GitHub source, so this pinned copy is renamed.
+        # GitHub source, and any name that looks like an official one (it
+        # rejected "claude-plugins-pinned"), so this pinned copy gets a
+        # neutral name. Confirmed locally with `claude plugin marketplace add`.
         run: |
           git clone --quiet https://github.com/anthropics/claude-plugins-official.git "$RUNNER_TEMP/marketplace"
           git -C "$RUNNER_TEMP/marketplace" checkout --quiet ca08d5e47d6402db586d37780c559a0c4c7ded9a
           manifest="$RUNNER_TEMP/marketplace/.claude-plugin/marketplace.json"
-          jq '.name = "claude-plugins-pinned"' "$manifest" > "$RUNNER_TEMP/marketplace.json"
+          jq '.name = "pinned-plugins"' "$manifest" > "$RUNNER_TEMP/marketplace.json"
           mv "$RUNNER_TEMP/marketplace.json" "$manifest"
 
       - name: Claude Security change scan
@@ -111,7 +113,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: ${{ runner.temp }}/marketplace
-          plugins: claude-security@claude-plugins-pinned
+          plugins: claude-security@pinned-plugins
           settings: '{"enableWorkflows": true}'
           # The prompt carries the cost acknowledgment the plugin asks for;
           # this file is the repository owner's request.
