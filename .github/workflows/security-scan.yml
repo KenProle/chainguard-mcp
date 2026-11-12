@@ -70,7 +70,8 @@ jobs:
         if: steps.decide.outputs.decision == 'skip' || steps.decide.outputs.decision == 'skip-dependabot'
         env:
           REASON: ${{ steps.decide.outputs.reason }}
-        run: printf '## Security scan\n\nNo scan was run: %s.\n' "$REASON" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          printf '## Security scan\n\nNo scan was run: %s.\n' "$REASON" >> "$GITHUB_STEP_SUMMARY"
 
       - name: This pull request cannot be scanned here
         if: steps.decide.outputs.decision == 'fail-no-token'

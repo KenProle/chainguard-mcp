@@ -222,6 +222,28 @@ func TestSecurityScan(t *testing.T) {
 			}
 		})
 
+		t.Run("SG-1.3 no plain scalar contains a colon and space", func(t *testing.T) {
+			// GitHub rejects the whole file ("workflow file issue") when a plain
+			// value such as `run: echo done: ok` has ": " inside it, and nothing
+			// else here parses the YAML. Values that are block scalars, quoted or
+			// flow collections are fine.
+			// Raw lines, not yamlLines: that helper cuts at any "#", including the
+			// one inside a quoted '## heading', and would hide the very line that
+			// broke. In YAML a comment starts at a "#" preceded by a space.
+			plain := regexp.MustCompile(`^\s*(?:- )?[A-Za-z_-]+: ([^|>"'\[{].*)$`)
+			for i, l := range strings.Split(raw, "\n") {
+				if strings.HasPrefix(strings.TrimSpace(l), "#") {
+					continue
+				}
+				if j := strings.Index(l, " #"); j >= 0 {
+					l = l[:j]
+				}
+				if m := plain.FindStringSubmatch(l); m != nil && strings.Contains(m[1], ": ") {
+					t.Errorf("line %d has a plain value containing \": \" (%q); make it a block scalar or quote it", i+1, strings.TrimSpace(l))
+				}
+			}
+		})
+
 		t.Run("SG-1.2 a new push cancels the running scan", func(t *testing.T) {
 			for _, want := range []string{
 				"  group: security-scan-${{ github.event.pull_request.number }}",
