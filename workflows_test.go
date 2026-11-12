@@ -38,6 +38,58 @@ func yamlLines(s string) []string {
 	return out
 }
 
+// pinnedUse matches a `uses:` line that names its action by a full commit SHA
+// followed by a comment with the release (DV-8).
+var pinnedUse = regexp.MustCompile(`^\s*(- )?uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+# v\d+(\.\d+)*\s*$`)
+
+var usesStart = regexp.MustCompile(`^s*(- )?uses:`)
+
+// usesLine reports whether a workflow line is a `uses:` step (not a comment).
+func usesLine(l string) bool {
+	return regexp.MustCompile(`^\s*(- )?uses:`).MatchString(l)
+}
+
+func TestWorkflowPins(t *testing.T) {
+	t.Run("DV-8.1 every action is pinned to a commit SHA with a version comment", func(t *testing.T) {
+		files, err := filepath.Glob(filepath.Join(".github", "workflows", "*.yml"))
+		if err != nil || len(files) == 0 {
+			t.Fatalf("no workflows found: %v", err)
+		}
+		uses := 0
+		for _, f := range files {
+			for i, l := range strings.Split(readRepoFile(t, f), "\n") {
+				if !usesLine(l) {
+					continue
+				}
+				uses++
+				if !pinnedUse.MatchString(l) {
+					t.Errorf("%s:%d is not pinned to a 40-character commit SHA with a `# vX.Y.Z` comment: %s", f, i+1, strings.TrimSpace(l))
+				}
+			}
+		}
+		if uses == 0 {
+			t.Error("found no `uses:` lines; the check is not looking at the workflows")
+		}
+	})
+
+	t.Run("DV-8.2 a floating reference is rejected", func(t *testing.T) {
+		const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+		for line, want := range map[string]bool{
+			"      - uses: actions/checkout@" + sha + " # v7.0.1": true,
+			"        uses: actions/deploy-pages@" + sha + " # v5": true,
+			"      - uses: actions/checkout@v7":                   false,
+			"      - uses: actions/checkout@main":                 false,
+			"      - uses: actions/checkout@" + sha:               false, // no version comment
+			"      - uses: actions/checkout@" + sha[:7] + " # v7": false, // abbreviated SHA
+			"      - uses: ./local-action":                        false,
+		} {
+			if got := pinnedUse.MatchString(line); got != want {
+				t.Errorf("pinnedUse(%q) = %v, want %v", line, got, want)
+			}
+		}
+	})
+}
+
 func TestWorkflows(t *testing.T) {
 	vuln := readRepoFile(t, ".github", "workflows", "vulncheck.yml")
 	lines := yamlLines(vuln)
