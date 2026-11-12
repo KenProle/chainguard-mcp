@@ -250,7 +250,7 @@ func (o *OSV) post(ctx context.Context, body []byte) (*osvQueryResponse, bool, e
 		return nil, resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 	var page osvQueryResponse
-	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxOSVPageBytes, &page); err != nil {
 		return nil, false, fmt.Errorf("decoding response: %w", err)
 	}
 	return &page, false, nil

@@ -69,7 +69,7 @@ func (c *Catalog) fetchImages(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("fetching sitemap: unexpected status %s", resp.Status)
 	}
 
-	return parseSitemap(resp.Body)
+	return parseSitemap(limitedReader(resp.Body, maxSitemapBytes))
 }
 
 // parseSitemap returns the sorted, de-duplicated image names listed in an
