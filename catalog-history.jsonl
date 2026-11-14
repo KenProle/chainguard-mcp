@@ -50,3 +50,4 @@
 {"date":"2026-11-11","source":"live","total":3353,"free":59,"added":["chainguard-k8s-node-gcp","dify-web","dify-web-fips","k8s-node-collector","kata-monitor","kata-monitor-fips","kgateway-envoy-wrapper","kgateway-envoy-wrapper-fips","kgateway-sds","kgateway-sds-fips","logstash-with-opensearch-syslog-output-plugins","logstash-with-opensearch-syslog-output-plugins-fips"],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
 {"date":"2026-11-12","source":"live","total":3353,"free":59,"added":[],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
 {"date":"2026-11-13","source":"live","total":3358,"free":59,"added":["gitaly-init-cgroups","gitaly-init-cgroups-fips","oc-mirror","querybook","querybook-fips"],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
+{"date":"2026-11-14","source":"live","total":3358,"free":59,"added":[],"removed":[],"became_free":[],"became_subscription":[],"unchecked":[]}
