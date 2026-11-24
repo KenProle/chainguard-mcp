@@ -165,3 +165,22 @@ A pull request opened by Dependabot, in a run started by Dependabot, that change
 #### Scenario: SG-10.1 The exception has limits
 - **WHEN** `CLAUDE.md` is read
 - **THEN** it says findings in a pull request's own changes may be public before the fix, and that details of an exploitable finding in merged code stay private until fixed
+
+### Requirement: SG-13 The gate runs the base commit's code and rules
+The program that decides whether a change is scanned and judges the scan's result, and the path list it reads, SHALL come from the pull request's base commit, not from the pull request. Only while the base commit has neither file SHALL the pull request's own copies be used, and the job summary SHALL say so.
+
+#### Scenario: SG-13.1 A change edits the path list to exempt itself
+- **WHEN** a pull request appends `!**` to `.github/security-scan-paths.txt` and changes `.github/workflows/release.yml` (checked locally on 2026-11-24: the tampered list gives `decision=skip`, the base list gives `decision=scan` because `release.yml` matches `.github/**`)
+- **THEN** the job decides with the base commit's list, so the change is scanned
+
+#### Scenario: SG-13.2 The pull request that adds the gate
+- **WHEN** the base commit has neither `scripts/securityscan.go` nor `.github/security-scan-paths.txt`
+- **THEN** the job uses the pull request's own copies and its summary says the pull request ran its own copy of the gate
+
+#### Scenario: SG-13.3 A change names another toolchain
+- **WHEN** a pull request changes the `toolchain` line in `go.mod`
+- **THEN** the decide and verdict steps run with `GOTOOLCHAIN=local` and download no other toolchain
+
+#### Scenario: SG-13.4 A change edits the workflow file
+- **WHEN** a pull request edits `.github/workflows/security-scan.yml`, which a `pull_request` run takes from the pull request itself
+- **THEN** the change is scanned (it matches `.github/**`) and is not trusted to have kept the gate, so it also gets the three manual reviews

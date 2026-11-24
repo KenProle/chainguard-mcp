@@ -7,7 +7,7 @@ name: Security scan
 # would block the merge forever, so "no scan needed" is a step inside the job,
 # not a path filter on the workflow.
 #
-# Design and requirements: openspec/specs/security-scan-gate (SG-1 to SG-12).
+# Design and requirements: openspec/specs/security-scan-gate (SG-1 to SG-13).
 # Only the `pull_request` trigger is used, never `pull_request_target` or
 # `workflow_run`: those run with the repository's secrets, and the token below
 # must never meet code from a fork (SG-6).
@@ -45,11 +45,36 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Take the gate from the base commit
+        id: gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The program that decides whether a change is scanned and judges the
+          # result, and the path list it reads, come from the pull request's
+          # base commit, never from the change they judge: a change cannot
+          # exempt itself by editing them (SG-13). Only while the base does not
+          # have them yet (the pull request that adds them) is the change's own
+          # copy used, and the summary says so.
+          mkdir -p "$RUNNER_TEMP/gate"
+          if git cat-file -e "$BASE_SHA:scripts/securityscan.go" && git cat-file -e "$BASE_SHA:.github/security-scan-paths.txt"; then
+            git show "$BASE_SHA:scripts/securityscan.go" > "$RUNNER_TEMP/gate/securityscan.go"
+            git show "$BASE_SHA:.github/security-scan-paths.txt" > "$RUNNER_TEMP/gate/security-scan-paths.txt"
+            echo "source=base" >> "$GITHUB_OUTPUT"
+          else
+            cp scripts/securityscan.go "$RUNNER_TEMP/gate/securityscan.go"
+            cp .github/security-scan-paths.txt "$RUNNER_TEMP/gate/security-scan-paths.txt"
+            echo "source=head" >> "$GITHUB_OUTPUT"
+            printf '## Security scan\n\nThe base commit has no scan gate yet, so this pull request ran its own copy of it.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Decide whether to scan
         id: decide
         # Pull request fields are passed as environment variables, never
-        # spliced into the script text.
+        # spliced into the script text. GOTOOLCHAIN=local stops a changed
+        # go.mod from making `go run` download another toolchain.
         env:
+          GOTOOLCHAIN: local
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
@@ -62,7 +87,8 @@ jobs:
           # --no-renames lists both paths of a move, so moving a sensitive file
           # into docs/ or a test file cannot hide it.
           git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/changed.z" || : > "$RUNNER_TEMP/changed.z"
-          go run scripts/securityscan.go decide \
+          go run "$RUNNER_TEMP/gate/securityscan.go" decide \
+            -paths "$RUNNER_TEMP/gate/security-scan-paths.txt" \
             -repo "$REPO" -head-repo "$HEAD_REPO" -author "$PR_AUTHOR" -actor "$RUN_ACTOR" \
             < "$RUNNER_TEMP/changed.z" | tee -a "$GITHUB_OUTPUT"
 
@@ -145,5 +171,6 @@ jobs:
       - name: Verdict
         if: always() && steps.decide.outputs.decision == 'scan'
         env:
+          GOTOOLCHAIN: local
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: go run scripts/securityscan.go verdict -head "$HEAD_SHA" -mode changes -effort medium . | tee -a "$GITHUB_STEP_SUMMARY"
+        run: go run "$RUNNER_TEMP/gate/securityscan.go" verdict -head "$HEAD_SHA" -mode changes -effort medium . | tee -a "$GITHUB_STEP_SUMMARY"

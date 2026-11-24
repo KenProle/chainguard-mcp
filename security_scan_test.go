@@ -386,6 +386,51 @@ func TestSecurityScan(t *testing.T) {
 			}
 		})
 
+		t.Run("SG-13.1 the gate's program and path list come from the base commit", func(t *testing.T) {
+			for _, want := range []string{
+				`git show "$BASE_SHA:scripts/securityscan.go" > "$RUNNER_TEMP/gate/securityscan.go"`,
+				`git show "$BASE_SHA:.github/security-scan-paths.txt" > "$RUNNER_TEMP/gate/security-scan-paths.txt"`,
+				`-paths "$RUNNER_TEMP/gate/security-scan-paths.txt"`,
+			} {
+				if !strings.Contains(body, want) {
+					t.Errorf("workflow lacks %q", want)
+				}
+			}
+			// Decide and verdict both run the copy taken from the base.
+			if n := strings.Count(body, `go run "$RUNNER_TEMP/gate/securityscan.go"`); n != 2 {
+				t.Errorf("%d runs of the base copy, want 2 (decide and verdict)", n)
+			}
+			// Nothing runs or reads the change's own copy, except the bootstrap `cp`.
+			for _, banned := range []string{"go run scripts/", "-paths .github/", "-paths ./"} {
+				if strings.Contains(body, banned) {
+					t.Errorf("workflow still uses the change's own copy: %q", banned)
+				}
+			}
+			// The copy is taken before it is used.
+			if take, decide := strings.Index(body, "Take the gate from the base commit"), strings.Index(body, "Decide whether to scan"); take < 0 || decide < 0 || take > decide {
+				t.Error("the gate is not taken from the base before the decide step")
+			}
+		})
+
+		t.Run("SG-13.2 before the base has the gate, the change's own copy is used and the summary says so", func(t *testing.T) {
+			// Comments and `#` inside quotes are cut from `body`, so read `raw`.
+			for _, want := range []string{
+				`echo "source=base" >> "$GITHUB_OUTPUT"`,
+				`echo "source=head" >> "$GITHUB_OUTPUT"`,
+				"so this pull request ran its own copy of it",
+			} {
+				if !strings.Contains(raw, want) {
+					t.Errorf("workflow lacks %q", want)
+				}
+			}
+		})
+
+		t.Run("SG-13.3 the gate steps never download another toolchain", func(t *testing.T) {
+			if n := strings.Count(body, "GOTOOLCHAIN: local"); n != 2 {
+				t.Errorf("%d steps set GOTOOLCHAIN: local, want 2 (decide and verdict)", n)
+			}
+		})
+
 		t.Run("SG-4 a failing verdict fails the job", func(t *testing.T) {
 			if !strings.Contains(body, "\n        shell: bash\n") {
 				t.Error("run steps do not set `shell: bash`, so `| tee` would hide a failing verdict")
