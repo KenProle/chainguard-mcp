@@ -39,8 +39,8 @@ func yamlLines(s string) []string {
 }
 
 // pinnedUse matches a `uses:` line that names its action by a full commit SHA
-// followed by a comment with the release (DV-8).
-var pinnedUse = regexp.MustCompile(`^\s*(-\s+)?uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+# v\d+(\.\d+)*\s*$`)
+// followed by a comment with the exact release, vX.Y.Z (DV-8).
+var pinnedUse = regexp.MustCompile(`^\s*(-\s+)?uses:\s+[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+# v\d+\.\d+\.\d+\s*$`)
 
 // usesStart finds a `uses:` step, allowing any spacing after the list dash.
 var usesStart = regexp.MustCompile(`^\s*(-\s+)?uses:`)
@@ -84,13 +84,15 @@ func TestWorkflowPins(t *testing.T) {
 	t.Run("DV-8.2 a floating reference is rejected", func(t *testing.T) {
 		const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1"
 		for line, want := range map[string]bool{
-			"      - uses: actions/checkout@" + sha + " # v7.0.1": true,
-			"        uses: actions/deploy-pages@" + sha + " # v5": true,
-			"      - uses: actions/checkout@v7":                   false,
-			"      - uses: actions/checkout@main":                 false,
-			"      - uses: actions/checkout@" + sha:               false, // no version comment
-			"      - uses: actions/checkout@" + sha[:7] + " # v7": false, // abbreviated SHA
-			"      - uses: ./local-action":                        false,
+			"      - uses: actions/checkout@" + sha + " # v7.0.1":     true,
+			"        uses: actions/deploy-pages@" + sha + " # v5.0.1": true,
+			"      - uses: actions/checkout@" + sha + " # v5":         false, // major only
+			"      - uses: actions/checkout@" + sha + " # v7.0":       false, // not the exact release
+			"      - uses: actions/checkout@v7":                       false,
+			"      - uses: actions/checkout@main":                     false,
+			"      - uses: actions/checkout@" + sha:                   false, // no version comment
+			"      - uses: actions/checkout@" + sha[:7] + " # v7":     false, // abbreviated SHA
+			"      - uses: ./local-action":                            false,
 		} {
 			if got := pinnedUse.MatchString(line); got != want {
 				t.Errorf("pinnedUse(%q) = %v, want %v", line, got, want)
