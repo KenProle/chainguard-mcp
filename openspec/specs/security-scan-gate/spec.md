@@ -206,7 +206,7 @@ The trigger omits `edited` on purpose. A pull request retargeted to `main` gets 
 - **WHEN** the base commit has one of `scripts/securityscan.go` and `.github/security-scan-paths.txt` but not the other
 - **THEN** the gate step fails the job instead of mixing the base's file with the pull request's
 
-#### Scenario: SG-13.1 The scan replaces the copied program
+#### Scenario: SG-13.8 The scan replaces the copied program
 - **WHEN** the scan agent overwrites the gate program in `$RUNNER_TEMP/gate` while it runs
 - **THEN** the verdict still runs the program as it is in the base commit (or the head commit while the base has no gate), taken again with `git show` just before it runs
 
