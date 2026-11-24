@@ -240,11 +240,14 @@ func onlyWorkflows(files []string) bool {
 // ---- verdict --------------------------------------------------------------
 
 type stamp struct {
-	Mode     *string `json:"mode"`
-	Effort   *string `json:"effort"`
-	RunShape *struct {
-		DiffFiles *int  `json:"diff_files"`
-		EmptyDiff *bool `json:"empty_diff"`
+	Mode       *string `json:"mode"`
+	Effort     *string `json:"effort"`
+	ScanPrefix *string `json:"scan_prefix"`
+	RunShape   *struct {
+		DiffFiles         *int               `json:"diff_files"`
+		EmptyDiff         *bool              `json:"empty_diff"`
+		EmptyScope        *bool              `json:"empty_scope"`
+		SkippedComponents *[]json.RawMessage `json:"skipped_components"`
 	} `json:"run_shape"`
 	Revision *struct {
 		Commit *string `json:"commit"`
@@ -261,6 +264,8 @@ type stamp struct {
 		Reason     *string `json:"reason"`
 		Dispatched *int    `json:"researchers_dispatched"`
 		Returned   *int    `json:"researchers_returned"`
+		Unreviewed *int    `json:"unreviewed_candidate_sites"`
+		Incomplete *int    `json:"incomplete_panel_candidates"`
 	} `json:"verification"`
 }
 
@@ -398,10 +403,35 @@ func judge(s *stamp, want expectation) (bool, string) {
 	if *v.Returned < *v.Dispatched {
 		return false, fmt.Sprintf("%d of %d researchers returned", *v.Returned, *v.Dispatched)
 	}
+	if why := incomplete(s); why != "" {
+		return false, why
+	}
 	if n := *fc.Critical + *fc.High; n > 0 {
 		return false, fmt.Sprintf("%d verified critical or high finding(s)", n)
 	}
 	return true, ""
+}
+
+// incomplete says why a scan that returned and verified may still not cover
+// the whole change: a narrowed scan or unreviewed candidates would otherwise
+// record "verified" with no findings and pass. Fields the stamp does not
+// carry count as a failure, like the finding counts do.
+func incomplete(s *stamp) string {
+	v, rs := s.Verification, s.RunShape
+	switch {
+	case s.ScanPrefix == nil || rs == nil || rs.SkippedComponents == nil || rs.EmptyScope == nil ||
+		v.Unreviewed == nil || v.Incomplete == nil:
+		return "the stamp does not say what the scan covered"
+	case *s.ScanPrefix != "":
+		return "the scan was limited to one directory"
+	case *rs.EmptyScope:
+		return "the scan's scope was empty"
+	case len(*rs.SkippedComponents) > 0:
+		return fmt.Sprintf("the scan skipped %d component(s)", len(*rs.SkippedComponents))
+	case *v.Unreviewed > 0 || *v.Incomplete > 0:
+		return fmt.Sprintf("%d candidate(s) were not fully reviewed", *v.Unreviewed+*v.Incomplete)
+	}
+	return ""
 }
 
 func runVerdict(args []string, out io.Writer) (bool, error) {

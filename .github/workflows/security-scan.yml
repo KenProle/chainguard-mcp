@@ -14,6 +14,10 @@ name: Security scan
 
 on:
   pull_request:
+    # Only pull requests into main: the ruleset that requires this check
+    # protects main alone, and a base branch cut before the gate existed would
+    # take the bootstrap copy below (SG-13).
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -56,6 +60,14 @@ jobs:
           # exempt itself by editing them (SG-13). Only while the base does not
           # have them yet (the pull request that adds them) is the change's own
           # copy used, and the summary says so.
+          # The checkout has full history (fetch-depth 0), so the base commit
+          # must be there. If it is not, "the base has no gate" below would be
+          # a wrong answer that hands the decision to the pull request's copy,
+          # so stop instead.
+          if ! git cat-file -e "$BASE_SHA^{commit}"; then
+            echo "::error title=Security scan::The base commit is not in the checkout, so the gate cannot be taken from it."
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/gate"
           if git cat-file -e "$BASE_SHA:scripts/securityscan.go" && git cat-file -e "$BASE_SHA:.github/security-scan-paths.txt"; then
             git show "$BASE_SHA:scripts/securityscan.go" > "$RUNNER_TEMP/gate/securityscan.go"

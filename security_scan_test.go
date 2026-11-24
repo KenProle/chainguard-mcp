@@ -425,6 +425,23 @@ func TestSecurityScan(t *testing.T) {
 			}
 		})
 
+		t.Run("SG-13.5 the check runs only for pull requests into main", func(t *testing.T) {
+			if !strings.Contains(body, "\n    branches: [main]\n") {
+				t.Error("the pull_request trigger has no `branches: [main]`, so a base branch that predates the gate would run the bootstrap copy")
+			}
+		})
+
+		t.Run("SG-13.6 a missing base commit stops the job instead of taking the pull request's copy", func(t *testing.T) {
+			check := strings.Index(body, `git cat-file -e "$BASE_SHA^{commit}"`)
+			files := strings.Index(body, `git cat-file -e "$BASE_SHA:scripts/securityscan.go"`)
+			if check < 0 || files < 0 || check > files {
+				t.Error("the base commit is not checked before the two gate files are looked up")
+			}
+			if !strings.Contains(body, "fetch-depth: 0") {
+				t.Error("the checkout has no full history, so the base commit may be missing")
+			}
+		})
+
 		t.Run("SG-13.3 the gate steps never download another toolchain", func(t *testing.T) {
 			if n := strings.Count(body, "GOTOOLCHAIN: local"); n != 2 {
 				t.Errorf("%d steps set GOTOOLCHAIN: local, want 2 (decide and verdict)", n)
@@ -563,6 +580,28 @@ func TestSecurityScan(t *testing.T) {
 				set(m, "verification", "reason", "the panel did not finish")
 			})
 			expect(t, p, 1, "**failed**", "unverified", "the panel did not finish")
+		})
+
+		t.Run("SG-4.5 a scan that covered less than the whole change fails", func(t *testing.T) {
+			// Each case edits a copy of the real stamp (a complete scan) so that
+			// one coverage field says the scan was narrower than asked.
+			for name, c := range map[string]struct {
+				edit func(m map[string]any)
+				want string
+			}{
+				"limited to a directory": {func(m map[string]any) { m["scan_prefix"] = "web/" }, "limited to one directory"},
+				"empty scope":            {func(m map[string]any) { set(m, "run_shape", "empty_scope", true) }, "scope was empty"},
+				"skipped component": {func(m map[string]any) {
+					set(m, "run_shape", "skipped_components", []any{map[string]any{"name": "web"}})
+				}, "skipped 1 component"},
+				"unreviewed candidate site": {func(m map[string]any) { set(m, "verification", "unreviewed_candidate_sites", 2) }, "2 candidate(s) were not fully reviewed"},
+				"incomplete panel":          {func(m map[string]any) { set(m, "verification", "incomplete_panel_candidates", 1) }, "1 candidate(s) were not fully reviewed"},
+				"no coverage fields":        {func(m map[string]any) { delete(m, "scan_prefix") }, "does not say what the scan covered"},
+			} {
+				t.Run(name, func(t *testing.T) {
+					expect(t, edited(t, c.edit), 1, "**failed**", c.want)
+				})
+			}
 		})
 
 		t.Run("SG-4.4 a researcher that did not return fails", func(t *testing.T) {

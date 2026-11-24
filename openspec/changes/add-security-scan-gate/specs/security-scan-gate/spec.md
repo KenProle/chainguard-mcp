@@ -48,7 +48,7 @@ When it scans, the job SHALL run the Claude Security change scan over exactly th
 - **THEN** the job fails and its summary says the scan timed out
 
 ### Requirement: SG-4 What blocks the merge
-The job SHALL fail when the scan's stamp reports one or more critical or high findings and a verification status of `verified`. The job SHALL also fail, rather than pass, when the stamp is missing or unreadable, the status is anything other than `verified`, fewer researchers returned than were dispatched, or the scan itself errors. Medium and low findings SHALL be listed in the summary without failing the job.
+The job SHALL fail when the scan's stamp reports one or more critical or high findings and a verification status of `verified`. The job SHALL also fail, rather than pass, when the stamp is missing or unreadable, the status is not `verified`, fewer researchers returned than were dispatched, the stamp shows the scan covered less than the change, or the scan errors. Medium and low findings SHALL be listed in the summary without failing the job.
 
 #### Scenario: SG-4.1 A clean verified scan
 - **WHEN** the stamp reports zero findings, status `verified`, and 1 researcher dispatched and 1 returned
@@ -65,6 +65,10 @@ The job SHALL fail when the scan's stamp reports one or more critical or high fi
 #### Scenario: SG-4.4 An incomplete scan is not a pass
 - **WHEN** the stamp is missing, or its status is `unverified`, or 1 of 2 researchers returned
 - **THEN** the job fails and says why
+
+#### Scenario: SG-4.5 A scan that covered less than the change
+- **WHEN** a stamp that is otherwise clean and `verified` names a `scan_prefix`, or has an empty scope, a skipped component, or candidates that were not fully reviewed (`unreviewed_candidate_sites` or `incomplete_panel_candidates` above zero), or lacks those fields
+- **THEN** the job fails and says the scan did not cover the whole change
 
 ### Requirement: SG-5 Findings appear on the pull request
 The job SHALL upload the scan's SARIF to GitHub code scanning, with a category naming this scan, so findings in the change show as annotations on the pull request. The upload SHALL happen even when the job fails because of those findings. It SHALL NOT upload findings that the scan reports as present before the change or outside the requested scope; the job summary SHALL give their number only.
@@ -180,6 +184,14 @@ The program that decides whether a change is scanned and judges the scan's resul
 #### Scenario: SG-13.3 A change names another toolchain
 - **WHEN** a pull request changes the `toolchain` line in `go.mod`
 - **THEN** the decide and verdict steps run with `GOTOOLCHAIN=local` and download no other toolchain
+
+#### Scenario: SG-13.5 A pull request into another branch
+- **WHEN** a pull request targets a branch other than `main`, such as one cut before the gate existed
+- **THEN** the workflow does not run for it, so the bootstrap copy of the gate is never used there
+
+#### Scenario: SG-13.6 The base commit is missing from the checkout
+- **WHEN** `$BASE_SHA` is not a commit in the checkout
+- **THEN** the gate step fails the job instead of treating the base as having no gate
 
 #### Scenario: SG-13.4 A change edits the workflow file
 - **WHEN** a pull request edits `.github/workflows/security-scan.yml`, which a `pull_request` run takes from the pull request itself
