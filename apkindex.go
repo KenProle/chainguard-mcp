@@ -138,7 +138,7 @@ func parseAPKIndex(r io.Reader) (*IndexData, error) {
 			return nil, fmt.Errorf("reading package index: %w", err)
 		}
 		if hdr.Name == "APKINDEX" {
-			return parseAPKIndexText(io.LimitReader(tr, maxIndexBytes))
+			return parseAPKIndexText(limitedReader(tr, maxIndexBytes))
 		}
 	}
 }

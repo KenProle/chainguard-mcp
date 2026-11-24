@@ -169,14 +169,20 @@ func (o *OSV) query(ctx context.Context, pkg OSVPackage) ([]OSVVuln, time.Time, 
 
 	var vulns []OSVVuln
 	token := ""
-	for {
+	for pages := 1; ; pages++ {
 		page, err := o.queryPage(ctx, pkg, token)
 		if err != nil {
 			return nil, time.Time{}, err
 		}
 		vulns = append(vulns, page.Vulns...)
+		if len(vulns) > maxOSVVulns {
+			return nil, time.Time{}, fmt.Errorf("%s %s@%s: %w: more than %d advisories", pkg.Ecosystem, pkg.Name, pkg.Version, errTooLarge, maxOSVVulns)
+		}
 		if page.NextPageToken == "" {
 			break
+		}
+		if pages >= maxOSVPages {
+			return nil, time.Time{}, fmt.Errorf("%s %s@%s: %w: more than %d pages", pkg.Ecosystem, pkg.Name, pkg.Version, errTooLarge, maxOSVPages)
 		}
 		token = page.NextPageToken
 	}
@@ -250,7 +256,7 @@ func (o *OSV) post(ctx context.Context, body []byte) (*osvQueryResponse, bool, e
 		return nil, resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 	var page osvQueryResponse
-	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxOSVPageBytes, &page); err != nil {
 		return nil, false, fmt.Errorf("decoding response: %w", err)
 	}
 	return &page, false, nil

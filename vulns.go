@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -71,7 +70,7 @@ func (s *SecDB) fetch(ctx context.Context) (map[string]map[string][]string, erro
 			} `json:"pkg"`
 		} `json:"packages"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&db); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxSecDBBytes, &db); err != nil {
 		return nil, fmt.Errorf("decoding security database: %w", err)
 	}
 	fixes := make(map[string]map[string][]string, len(db.Packages))

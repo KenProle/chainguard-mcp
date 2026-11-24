@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -131,7 +130,7 @@ func (f *AdvisoryFeed) get(ctx context.Context, id string) (*OSVVuln, bool, erro
 		return nil, resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 	var v OSVVuln
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&v); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxAdvisoryBytes, &v); err != nil {
 		return nil, false, fmt.Errorf("decoding advisory: %w", err)
 	}
 	if v.ID != id {

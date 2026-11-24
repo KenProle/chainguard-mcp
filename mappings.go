@@ -203,7 +203,7 @@ func (r *DFCRefresher) get(ctx context.Context, url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: unexpected status %s", url, resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	return io.ReadAll(limitedReader(resp.Body, maxMappingsBytes))
 }
 
 // LatestCommit returns the newest upstream commit that changed the mapping file.

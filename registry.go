@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -134,7 +133,7 @@ func (r *Registry) token(ctx context.Context, image string) (string, error) {
 		Token     string `json:"token"`
 		ExpiresIn int    `json:"expires_in"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxTokenBytes, &body); err != nil {
 		return "", fmt.Errorf("decoding registry token: %w", err)
 	}
 	lifetime := time.Duration(body.ExpiresIn) * time.Second
@@ -252,7 +251,7 @@ func (r *Registry) getJSON(ctx context.Context, image, path, accept string, v an
 		return "", err
 	}
 	defer resp.Body.Close()
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
+	if err := decodeJSONLimited(resp.Body, maxRegistryJSON, v); err != nil {
 		return "", fmt.Errorf("decoding %s: %w", path, err)
 	}
 	return resp.Header.Get("Docker-Content-Digest"), nil
