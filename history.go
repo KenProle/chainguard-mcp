@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -355,7 +354,7 @@ func (a *Archive) Captures(ctx context.Context) ([]string, error) {
 	defer resp.Body.Close()
 	body := resp.Body
 	var rows [][]string
-	if err := json.NewDecoder(io.LimitReader(body, 8<<20)).Decode(&rows); err != nil {
+	if err := decodeJSONLimited(body, maxArchiveCDXBytes, &rows); err != nil {
 		return nil, fmt.Errorf("decoding archive captures: %w", err)
 	}
 	var out []string
@@ -383,7 +382,7 @@ func (a *Archive) Sitemap(ctx context.Context, timestamp string) ([]string, erro
 	if !strings.Contains(resp.Request.URL.Path, "/web/"+timestamp+"if_/") {
 		return nil, fmt.Errorf("capture %s redirected to %s", timestamp, resp.Request.URL.Path)
 	}
-	names, err := parseSitemap(io.LimitReader(resp.Body, 64<<20))
+	names, err := parseSitemap(limitedReader(resp.Body, maxSitemapBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%w: capture %s: %v", errNotSitemap, timestamp, err)
 	}

@@ -19,9 +19,10 @@ import (
 //	images sitemap        1.6 MB                    -> 16 MB
 //	endoflife.date        5 KB per product          -> 1 MB
 //
-// Already capped elsewhere: Registry.Blob (caller's maxBytes), the advisory
-// feed (4 MB), the package index (maxIndexBytes), the history file and the
-// dfc refresh.
+// Capped with the same reader, with caps next to the code: Registry.Blob
+// (caller's maxBytes), the package index (maxIndexBytes), the history file
+// (maxHistoryBytes) and the dfc refresh. The advisory feed and the Archive's
+// capture list use the constants below.
 const (
 	maxTokenBytes    = 64 << 10
 	maxRegistryJSON  = 8 << 20
@@ -29,6 +30,19 @@ const (
 	maxSecDBBytes    = 64 << 20
 	maxSitemapBytes  = 16 << 20
 	maxEndOfLifeJSON = 1 << 20
+
+	// maxAdvisoryBytes caps one record of Chainguard's advisory feed.
+	maxAdvisoryBytes = 4 << 20
+	// maxArchiveCDXBytes caps the Internet Archive's capture list.
+	maxArchiveCDXBytes = 8 << 20
+
+	// OSV.dev pages a package's results. Measured 2026-11-24 with
+	// deliberately broad queries (version "1"): linux on Debian 12 took 5
+	// pages (about 11k advisories), chromium 8 pages (about 6k); a real
+	// installed version needs one or two. The caps are several times the
+	// worst of those, and bound the memory one package's result can take.
+	maxOSVPages = 50
+	maxOSVVulns = 50000
 )
 
 // errTooLarge is wrapped by every cap failure, so a response over its limit is
@@ -72,7 +86,10 @@ func decodeJSONLimited(r io.Reader, max int64, v any) error {
 		return err
 	}
 	// Drain the rest (trailing whitespace is fine) so an oversized body is
-	// reported even when the value itself decoded within the cap.
-	_, err := io.Copy(io.Discard, cr)
-	return err
+	// reported even when the value itself decoded within the cap. Any other
+	// read error after a complete value (a reset connection) doesn't undo it.
+	if _, err := io.Copy(io.Discard, cr); errors.Is(err, errTooLarge) {
+		return err
+	}
+	return nil
 }

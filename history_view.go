@@ -192,7 +192,7 @@ func (h *HistorySource) fetch(ctx context.Context) (*historyCopy, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s answered %s", h.URL, resp.Status)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxHistoryBytes))
+	data, err := io.ReadAll(limitedReader(resp.Body, maxHistoryBytes))
 	if err != nil {
 		return nil, err
 	}
