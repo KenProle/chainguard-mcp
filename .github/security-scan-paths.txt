@@ -1,0 +1,59 @@
+# Which changed files make a pull request worth a Claude Security scan.
+# Read by scripts/securityscan.go (see openspec/specs/security-scan-gate once archived).
+#
+# One glob per line. "**" crosses directories, "*" stays within one; a glob
+# with no "/" matches the file name in any directory. A leading "!" names files
+# that do NOT need a scan. For each changed file the LAST matching line wins,
+# and a file that no line matches is scanned, so a new kind of file errs towards
+# scanning. The pull request is scanned if any changed file needs it.
+#
+# Changing this file is itself a scan (.github/** is listed below).
+
+# Directories that are documentation by default. They come BEFORE the
+# sensitive rules, so a Go file or a CLAUDE.md inside one still matches a later
+# rule and is scanned (`go test ./...` compiles a .go file anywhere in the tree,
+# and Claude reads a CLAUDE.md in any directory it works in).
+!openspec/**
+!docs/**
+!site/**
+!README.md
+!LICENSE
+
+# Code that handles untrusted input or the network
+*.go
+web/src/**
+
+# Build, release and the container image
+Dockerfile
+.dockerignore
+.goreleaser.yaml
+.github/**
+
+# Dependencies and the files that feed the build
+go.mod
+go.sum
+web/package.json
+web/package-lock.json
+web/vite.config.ts
+mappings/**
+notices/**
+
+# Files that configure Claude, which a pull request could use to steer a scan
+.claude/**
+**/.claude/**
+CLAUDE.md
+.mcp.json
+.claude.json
+
+# Exceptions: these never need a scan on their own. They sit after the
+# sensitive rules for files that are tests or test data, so those stay exempt.
+!*_test.go
+!testdata/**
+!web/src/test/**
+!web/src/**/*.test.ts
+!web/src/**/*.test.tsx
+
+# ...except the tests that pin the gate and the workflows themselves: weakening
+# them weakens the gate, so a change to them is scanned.
+security_scan_test.go
+workflows_test.go
