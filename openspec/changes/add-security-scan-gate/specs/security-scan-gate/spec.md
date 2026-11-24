@@ -33,7 +33,7 @@ The job SHALL compare the pull request's head with its base and SHALL scan only 
 - **THEN** the job passes without a scan and says in its summary that no security-sensitive file changed
 
 #### Scenario: SG-2.5 A sensitive file inside a documentation directory
-- **WHEN** a pull request changes `openspec/changes/x/helper.go`, `docs/CLAUDE.md` or `site/CLAUDE.md`
+- **WHEN** a pull request changes `openspec/changes/x/helper.go`, `docs/CLAUDE.md`, `docs/.claude/settings.json`, `security_scan_test.go` or `workflows_test.go`
 - **THEN** the job runs the scan, because the directory exceptions come before the sensitive rules in the path list and a later rule wins
 
 #### Scenario: SG-2.4 A claim that cannot be checked
@@ -206,6 +206,10 @@ The trigger omits `edited` on purpose. A pull request retargeted to `main` gets 
 #### Scenario: SG-13.7 The base has only one gate file
 - **WHEN** the base commit has one of `scripts/securityscan.go` and `.github/security-scan-paths.txt` but not the other
 - **THEN** the gate step fails the job instead of mixing the base's file with the pull request's
+
+#### Scenario: SG-13.1 The scan replaces the copied program
+- **WHEN** the scan agent overwrites the gate program in `$RUNNER_TEMP/gate` while it runs
+- **THEN** the verdict still runs the program as it is in the base commit (or the head commit while the base has no gate), taken again with `git show` just before it runs
 
 #### Scenario: SG-13.4 A change edits the workflow file
 - **WHEN** a pull request edits `.github/workflows/security-scan.yml`, which a `pull_request` run takes from the pull request itself

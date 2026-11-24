@@ -40,6 +40,7 @@ notices/**
 
 # Files that configure Claude, which a pull request could use to steer a scan
 .claude/**
+**/.claude/**
 CLAUDE.md
 .mcp.json
 .claude.json
@@ -51,3 +52,8 @@ CLAUDE.md
 !web/src/test/**
 !web/src/**/*.test.ts
 !web/src/**/*.test.tsx
+
+# ...except the tests that pin the gate and the workflows themselves: weakening
+# them weakens the gate, so a change to them is scanned.
+security_scan_test.go
+workflows_test.go

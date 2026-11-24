@@ -118,7 +118,11 @@ func globToRegexp(glob string) (*regexp.Regexp, error) {
 	for i := 0; i < len(glob); i++ {
 		switch c := glob[i]; c {
 		case '*':
-			if i+1 < len(glob) && glob[i+1] == '*' {
+			if i+2 < len(glob) && glob[i+1] == '*' && glob[i+2] == '/' {
+				// "**/" also matches no directory at all, like .gitignore.
+				sb.WriteString("(?:.*/)?")
+				i += 2
+			} else if i+1 < len(glob) && glob[i+1] == '*' {
 				sb.WriteString(".*")
 				i++
 			} else {

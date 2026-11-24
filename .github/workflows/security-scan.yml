@@ -194,5 +194,14 @@ jobs:
         if: always() && steps.decide.outputs.decision == 'scan'
         env:
           GOTOOLCHAIN: local
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: go run "$RUNNER_TEMP/gate/securityscan.go" verdict -head "$HEAD_SHA" -mode changes -effort medium . | tee -a "$GITHUB_STEP_SUMMARY"
+          GATE_SOURCE: ${{ steps.gate.outputs.source }}
+        run: |
+          # The scan agent has Bash and Write and runs after the gate was copied
+          # to $RUNNER_TEMP/gate, so that copy could have been replaced. Take
+          # the program again from the commit, which the agent cannot change.
+          if [ "$GATE_SOURCE" = base ]; then ref="$BASE_SHA"; else ref="$HEAD_SHA"; fi
+          mkdir -p "$RUNNER_TEMP/verdict-gate"
+          git show "$ref:scripts/securityscan.go" > "$RUNNER_TEMP/verdict-gate/securityscan.go"
+          go run "$RUNNER_TEMP/verdict-gate/securityscan.go" verdict -head "$HEAD_SHA" -mode changes -effort medium . | tee -a "$GITHUB_STEP_SUMMARY"

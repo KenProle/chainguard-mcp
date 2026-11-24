@@ -125,6 +125,16 @@ func TestSecurityScan(t *testing.T) {
 					t.Errorf("%s: decision = %q, want scan", f, d)
 				}
 			}
+			// Claude configuration at any depth, and the tests that pin the gate.
+			for _, f := range []string{"docs/.claude/settings.json", "security_scan_test.go", "workflows_test.go"} {
+				if d, _, _ := decide(t, []string{f}); d != "scan" {
+					t.Errorf("%s: decision = %q, want scan", f, d)
+				}
+			}
+			// A test file directly in web/src/ is exempt like one in a subdirectory.
+			if d, _, _ := decide(t, []string{"web/src/format.test.ts"}); d != "skip" {
+				t.Errorf("web/src/format.test.ts: decision = %q, want skip", d)
+			}
 			// A test file or plain page in those directories stays exempt.
 			for _, f := range []string{"openspec/changes/x/helper_test.go", "docs/notes.md", "site/style.css"} {
 				if d, _, _ := decide(t, []string{f}); d != "skip" {
@@ -412,8 +422,16 @@ func TestSecurityScan(t *testing.T) {
 				}
 			}
 			// Decide and verdict both run the copy taken from the base.
-			if n := strings.Count(body, `go run "$RUNNER_TEMP/gate/securityscan.go"`); n != 2 {
-				t.Errorf("%d runs of the base copy, want 2 (decide and verdict)", n)
+			if n := strings.Count(body, `go run "$RUNNER_TEMP/gate/securityscan.go"`); n != 1 {
+				t.Errorf("%d runs of the gate copy, want 1 (decide)", n)
+			}
+			// The verdict takes the program again from the commit, because the scan
+			// agent runs between the copy and the verdict and could replace it.
+			if n := strings.Count(body, `go run "$RUNNER_TEMP/verdict-gate/securityscan.go"`); n != 1 {
+				t.Errorf("%d runs of the verdict copy, want 1", n)
+			}
+			if !strings.Contains(body, `git show "$ref:scripts/securityscan.go" > "$RUNNER_TEMP/verdict-gate/securityscan.go"`) {
+				t.Error("the verdict does not take its program from the commit")
 			}
 			// Nothing runs or reads the change's own copy, except the bootstrap `cp`.
 			for _, banned := range []string{"go run scripts/", "-paths .github/", "-paths ./"} {
