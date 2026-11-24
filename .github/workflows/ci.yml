@@ -25,7 +25,10 @@ jobs:
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)" || (gofmt -l . && echo "Run gofmt -w ." && exit 1)
       - name: Vet
-        run: go vet ./...
+        run: |
+          go vet ./...
+          # The gate program is `//go:build ignore`, so ./... skips it.
+          go vet scripts/securityscan.go
       - name: Test
         run: go test -count=1 ./...
       - name: Test with race detector
