@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // oversized serves prefix followed by padding until total bytes (at least one
@@ -103,6 +104,53 @@ func TestResponseSizeCaps(t *testing.T) {
 		r := NewRegistry(client)
 		r.BaseURL = srv.URL
 		if _, err := r.Tags(ctx, "python"); !errors.Is(err, errTooLarge) {
+			t.Fatalf("got %v", err)
+		}
+	})
+	t.Run("advisory feed", func(t *testing.T) {
+		srv := httptest.NewServer(oversized(`{"id":"`, maxAdvisoryBytes+1))
+		defer srv.Close()
+		f := NewAdvisoryFeed(client)
+		f.URL = srv.URL
+		if _, _, err := f.get(ctx, "CGA-test"); !errors.Is(err, errTooLarge) {
+			t.Fatalf("got %v", err)
+		}
+	})
+	t.Run("history file", func(t *testing.T) {
+		// Whole lines, so a copy cut at the cap would otherwise parse.
+		line := `{"date":"2026-01-01","added":["x"]}` + "\n"
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			chunk := []byte(strings.Repeat(line, (64<<10)/len(line)))
+			for n := 0; n <= maxHistoryBytes; n += len(chunk) {
+				if _, err := w.Write(chunk); err != nil {
+					return
+				}
+			}
+		}))
+		defer srv.Close()
+		h := &HistorySource{URL: srv.URL, HTTP: client, Timeout: 30 * time.Second}
+		if _, err := h.fetch(ctx); !errors.Is(err, errTooLarge) {
+			t.Fatalf("got %v", err)
+		}
+	})
+	t.Run("archive captures", func(t *testing.T) {
+		srv := httptest.NewServer(oversized(`[["`, maxArchiveCDXBytes+1))
+		defer srv.Close()
+		a := NewArchive(client)
+		a.CDXURL, a.Pause = srv.URL, 0
+		if _, err := a.Captures(ctx); !errors.Is(err, errTooLarge) {
+			t.Fatalf("got %v", err)
+		}
+	})
+	t.Run("archive sitemap", func(t *testing.T) {
+		srv := httptest.NewServer(oversized(`<urlset><!-- `, maxSitemapBytes+1))
+		defer srv.Close()
+		a := NewArchive(client)
+		a.WaybackURL, a.Pause = srv.URL, 0
+		// The backfill skips a capture it can't read as a sitemap, so the cap
+		// shows up as errNotSitemap with the reason in the message.
+		_, err := a.Sitemap(ctx, "20260101000000")
+		if !errors.Is(err, errNotSitemap) || !strings.Contains(err.Error(), errTooLarge.Error()) {
 			t.Fatalf("got %v", err)
 		}
 	})

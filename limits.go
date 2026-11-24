@@ -19,10 +19,11 @@ import (
 //	images sitemap        1.6 MB                    -> 16 MB
 //	endoflife.date        5 KB per product          -> 1 MB
 //
-// Capped with the same reader, with caps next to the code: Registry.Blob
-// (caller's maxBytes), the package index (maxIndexBytes), the history file
-// (maxHistoryBytes) and the dfc refresh. The advisory feed and the Archive's
-// capture list use the constants below.
+// Capped with this reader, with the cap next to the code: the package index
+// (maxIndexBytes) and the history file (maxHistoryBytes). Registry.Blob checks
+// the caller's maxBytes itself and also fails when a blob is over it. The
+// advisory feed, the Archive's capture list and the dfc refresh use the
+// constants below.
 const (
 	maxTokenBytes    = 64 << 10
 	maxRegistryJSON  = 8 << 20
@@ -35,13 +36,19 @@ const (
 	maxAdvisoryBytes = 4 << 20
 	// maxArchiveCDXBytes caps the Internet Archive's capture list.
 	maxArchiveCDXBytes = 8 << 20
+	// maxMappingsBytes caps the dfc mappings file -refresh-mappings downloads
+	// (about 60 KB in 2026-10).
+	maxMappingsBytes = 8 << 20
 
 	// OSV.dev pages a package's results. Measured 2026-11-24 with
 	// deliberately broad queries (version "1"): linux on Debian 12 took 5
 	// pages (about 11k advisories), chromium 8 pages (about 6k); a real
-	// installed version needs one or two. The caps are several times the
-	// worst of those, and bound the memory one package's result can take.
-	maxOSVPages = 50
+	// installed version needs one or two. The caps are over twice the worst
+	// of those. Together with maxOSVPageBytes they bound one package's result
+	// to maxOSVPages × maxOSVPageBytes (160 MB) of response; QueryAllAt runs
+	// up to osvMaxInFlight packages at once, so a broken or hostile OSV.dev
+	// could make a lookup hold several times that.
+	maxOSVPages = 20
 	maxOSVVulns = 50000
 )
 
