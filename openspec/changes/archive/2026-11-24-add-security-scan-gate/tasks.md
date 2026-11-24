@@ -25,7 +25,7 @@ Tests start their names with the scenario ID they cover (`SG-4.2 ...`). On this 
 
 - [x] 3.5 Third review pass fixes (2026-11-24): directory exceptions (`openspec/`, `docs/`, `site/`) moved before the sensitive rules so a nested `.go` or `CLAUDE.md` is scanned (SG-2.5); a base with only one gate file fails the job (SG-13.7); a planted report is deleted before the `always()` steps (SG-12.5); `verdict` requires `-head`, `-mode` and `-effort` (SG-12.6); the two coverage counts are range-checked in `loadStamp`; each missing coverage field is tested (SG-4.5). `edited` is left out of the trigger on purpose (see SG-13.5). Verified by `go test -run TestSecurityScan -v ./...`, and by putting the old path order back and seeing SG-2.5 fail.
 
-- [x] 3.6 Fourth review pass fixes (2026-11-24): the verdict re-extracts the program from the commit instead of reusing the copy the scan could overwrite (SG-13.1); `**/.claude/**` and the gate's own tests (`security_scan_test.go`, `workflows_test.go`) are scanned (SG-2.5); `**/` in a pattern also matches no directory; CI vets `scripts/securityscan.go`. Verified by `go test -run TestSecurityScan -v ./...`.
+- [x] 3.6 Fourth review pass fixes (2026-11-24): the verdict re-extracts the program from the commit instead of reusing the copy the scan could overwrite (SG-13.8); `**/.claude/**` and the gate's own tests (`security_scan_test.go`, `workflows_test.go`) are scanned (SG-2.5); `**/` in a pattern also matches no directory; CI vets `scripts/securityscan.go`. Verified by `go test -run TestSecurityScan -v ./...`.
 
 ## 4. Proving it on GitHub (needs the secret from 1.1; push and PR are approved by the owner)
 
