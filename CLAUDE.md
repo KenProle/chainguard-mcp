@@ -118,7 +118,7 @@ Features are specified before they're built, with [OpenSpec](https://github.com/
 - Requirements and scenarios carry stable IDs in their headers (`### Requirement: VC-3 …`, `#### Scenario: VC-3.1 …`), one prefix per capability. OpenSpec matches requirements by header text, so never renumber or reuse an ID. Tests start their names with the scenario ID they cover.
 - On this Windows machine, put Node and the npm global folder on `PATH` in Git Bash form (`/c/Program Files/nodejs`, `/c/Users/kprol/AppData/Roaming/npm`); a `C:\…` entry breaks Bash's `PATH`. Telemetry is turned off globally (`openspec config set telemetry.enabled false`).
 - `docs/visualization-ideas.md` is the backlog of web UI chart ideas not yet proposed as changes; update an idea's status when it's picked up.
-- Capability prefixes in use: `VC` (`image-variant-comparison`), `LB` (`image-license-breakdown`), `SF` (`image-security-fixes`), `WA` (`web-api`), `CM` (`catalog-map`), `FF` (`catalog-free-filter`), `CH` (`catalog-history`) and `UC` (`upstream-comparison`), `OA` (`image-open-advisories`), `HV` (`catalog-history-view`), `PM` (`package-mapping`), `PS` (`project-site`) and `DV` (`dependency-vulnerability-checks`) and `LN` (`license-notices`).
+- Capability prefixes in use: `VC` (`image-variant-comparison`), `LB` (`image-license-breakdown`), `SF` (`image-security-fixes`), `WA` (`web-api`), `CM` (`catalog-map`), `FF` (`catalog-free-filter`), `CH` (`catalog-history`) and `UC` (`upstream-comparison`), `OA` (`image-open-advisories`), `HV` (`catalog-history-view`), `PM` (`package-mapping`), `PS` (`project-site`) and `DV` (`dependency-vulnerability-checks`) and `LN` (`license-notices`) and `SG` (`security-scan-gate`).
 
 ## CI and releases
 
