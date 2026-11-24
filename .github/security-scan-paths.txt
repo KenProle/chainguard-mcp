@@ -9,6 +9,16 @@
 #
 # Changing this file is itself a scan (.github/** is listed below).
 
+# Directories that are documentation by default. They come BEFORE the
+# sensitive rules, so a Go file or a CLAUDE.md inside one still matches a later
+# rule and is scanned (`go test ./...` compiles a .go file anywhere in the tree,
+# and Claude reads a CLAUDE.md in any directory it works in).
+!openspec/**
+!docs/**
+!site/**
+!README.md
+!LICENSE
+
 # Code that handles untrusted input or the network
 *.go
 web/src/**
@@ -34,14 +44,10 @@ CLAUDE.md
 .mcp.json
 .claude.json
 
-# Exceptions: these never need a scan on their own
+# Exceptions: these never need a scan on their own. They sit after the
+# sensitive rules for files that are tests or test data, so those stay exempt.
 !*_test.go
 !testdata/**
 !web/src/test/**
 !web/src/**/*.test.ts
 !web/src/**/*.test.tsx
-!openspec/**
-!docs/**
-!site/**
-!README.md
-!LICENSE

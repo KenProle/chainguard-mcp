@@ -118,6 +118,21 @@ func TestSecurityScan(t *testing.T) {
 			want(t, d, "scan")
 		})
 
+		t.Run("SG-2.5 a sensitive file inside a documentation directory is scanned", func(t *testing.T) {
+			for _, f := range []string{"openspec/changes/x/helper.go", "docs/CLAUDE.md", "site/CLAUDE.md",
+				"docs/tools/main.go", "openspec/.mcp.json"} {
+				if d, _, _ := decide(t, []string{f}); d != "scan" {
+					t.Errorf("%s: decision = %q, want scan", f, d)
+				}
+			}
+			// A test file or plain page in those directories stays exempt.
+			for _, f := range []string{"openspec/changes/x/helper_test.go", "docs/notes.md", "site/style.css"} {
+				if d, _, _ := decide(t, []string{f}); d != "skip" {
+					t.Errorf("%s: decision = %q, want skip", f, d)
+				}
+			}
+		})
+
 		t.Run("SG-2.4 a list that cannot be trusted is scanned", func(t *testing.T) {
 			d, _, _ := decide(t, nil)
 			want(t, d, "scan")
@@ -442,6 +457,18 @@ func TestSecurityScan(t *testing.T) {
 			}
 		})
 
+		t.Run("SG-13.7 a base with only one gate file stops the job", func(t *testing.T) {
+			if !strings.Contains(body, "only one of the two gate files") {
+				t.Error("a base commit with exactly one gate file is not refused")
+			}
+		})
+
+		t.Run("SG-12.5 a planted report is deleted before the always() steps run", func(t *testing.T) {
+			if !strings.Contains(body, "rm -rf -- CLAUDE-SECURITY-*") {
+				t.Error("the refusal step leaves the planted report for the SARIF upload and the verdict")
+			}
+		})
+
 		t.Run("SG-13.3 the gate steps never download another toolchain", func(t *testing.T) {
 			if n := strings.Count(body, "GOTOOLCHAIN: local"); n != 2 {
 				t.Errorf("%d steps set GOTOOLCHAIN: local, want 2 (decide and verdict)", n)
@@ -493,9 +520,27 @@ func TestSecurityScan(t *testing.T) {
 			return p
 		}
 		set := func(m map[string]any, section, key string, v any) { m[section].(map[string]any)[key] = v }
+		// The real stamp is a commit scan at low effort of this commit; verdict
+		// requires -head, -mode and -effort, so each test supplies the ones it
+		// is not about.
+		const realHead = "8a6d75ccc4e73e89c4677f4c7e6c1d0fadcce8db"
+		defaults := map[string]string{"-head": realHead, "-mode": "commit", "-effort": "low"}
+		withDefaults := func(args []string) []string {
+			have := map[string]bool{}
+			for _, a := range args {
+				have[a] = true
+			}
+			var out []string
+			for _, f := range []string{"-head", "-mode", "-effort"} {
+				if !have[f] {
+					out = append(out, f, defaults[f])
+				}
+			}
+			return append(out, args...)
+		}
 		verdict := func(t *testing.T, arg string) (string, int) {
 			t.Helper()
-			out, code := runScan(t, exe, "", "verdict", arg)
+			out, code := runScan(t, exe, "", append([]string{"verdict"}, withDefaults([]string{arg})...)...)
 			if code == 2 {
 				t.Fatalf("verdict could not run: %q", out)
 			}
@@ -596,11 +641,24 @@ func TestSecurityScan(t *testing.T) {
 				}, "skipped 1 component"},
 				"unreviewed candidate site": {func(m map[string]any) { set(m, "verification", "unreviewed_candidate_sites", 2) }, "2 candidate(s) were not fully reviewed"},
 				"incomplete panel":          {func(m map[string]any) { set(m, "verification", "incomplete_panel_candidates", 1) }, "1 candidate(s) were not fully reviewed"},
-				"no coverage fields":        {func(m map[string]any) { delete(m, "scan_prefix") }, "does not say what the scan covered"},
 			} {
 				t.Run(name, func(t *testing.T) {
 					expect(t, edited(t, c.edit), 1, "**failed**", c.want)
 				})
+			}
+		})
+
+		t.Run("SG-4.5 a stamp missing any one coverage field fails", func(t *testing.T) {
+			for _, field := range []string{"scan_prefix", "run_shape.skipped_components", "run_shape.empty_scope",
+				"verification.unreviewed_candidate_sites", "verification.incomplete_panel_candidates"} {
+				p := edited(t, func(m map[string]any) {
+					if section, key, ok := strings.Cut(field, "."); ok {
+						delete(m[section].(map[string]any), key)
+					} else {
+						delete(m, field)
+					}
+				})
+				t.Run(field, func(t *testing.T) { expect(t, p, 1, "**failed**", "does not say what the scan covered") })
 			}
 		})
 
@@ -625,17 +683,22 @@ func TestSecurityScan(t *testing.T) {
 			expect(t, write("empty.json", "{}"), 1, "**failed**", "no finding counts")
 			expect(t, write("nover.json", `{"findings":{"total":0,"critical":0,"high":0,"medium":0,"low":0}}`),
 				1, "**failed**", "no verification record")
-			expect(t, edited(t, func(m map[string]any) { set(m, "findings", "high", -1) }), 1, "**failed**", "negative")
+			expect(t, edited(t, func(m map[string]any) { set(m, "findings", "high", -1) }), 1, "**failed**", "out of range")
+			// The two coverage counts are held to the same range.
+			for _, k := range []string{"unreviewed_candidate_sites", "incomplete_panel_candidates"} {
+				for _, n := range []int64{-1, 1 << 40} {
+					expect(t, edited(t, func(m map[string]any) { set(m, "verification", k, n) }), 1, "**failed**", "out of range")
+				}
+			}
 			expect(t, edited(t, func(m map[string]any) { set(m, "findings", "high", 1) }), 1, "**failed**", "do not add up")
 			expect(t, edited(t, func(m map[string]any) { set(m, "verification", "researchers_dispatched", 0) }),
 				1, "**failed**")
 			expect(t, write("big.json", strings.Repeat(" ", 2<<20)), 1, "**failed**", "too large")
 		})
 
-		const realHead = "8a6d75ccc4e73e89c4677f4c7e6c1d0fadcce8db"
 		withFlags := func(t *testing.T, wantCode int, contains string, args ...string) {
 			t.Helper()
-			out, code := runScan(t, exe, "", append([]string{"verdict"}, args...)...)
+			out, code := runScan(t, exe, "", append([]string{"verdict"}, withDefaults(args)...)...)
 			if code != wantCode {
 				t.Errorf("verdict %v: exit code %d, want %d; output:\n%s", args, code, wantCode, out)
 			}
@@ -667,9 +730,22 @@ func TestSecurityScan(t *testing.T) {
 		})
 
 		t.Run("SG-12.5 a head that is not a full commit id is refused", func(t *testing.T) {
-			_, code := runScan(t, exe, "", "verdict", "-head", "8a6d75c", scanStampFile)
+			_, code := runScan(t, exe, "", "verdict", "-head", "8a6d75c", "-mode", "commit", "-effort", "low", scanStampFile)
 			if code != 2 {
 				t.Errorf("exit code %d, want 2", code)
+			}
+		})
+
+		t.Run("SG-12.6 all of -head, -mode and -effort are required", func(t *testing.T) {
+			for _, args := range [][]string{
+				{scanStampFile},
+				{"-mode", "commit", "-effort", "low", scanStampFile},
+				{"-head", realHead, "-effort", "low", scanStampFile},
+				{"-head", realHead, "-mode", "commit", scanStampFile},
+			} {
+				if out, code := runScan(t, exe, "", append([]string{"verdict"}, args...)...); code != 2 {
+					t.Errorf("verdict %v: exit code %d, want 2; output %q", args, code, out)
+				}
 			}
 		})
 

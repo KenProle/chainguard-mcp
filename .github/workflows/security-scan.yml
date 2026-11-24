@@ -69,7 +69,14 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/gate"
-          if git cat-file -e "$BASE_SHA:scripts/securityscan.go" && git cat-file -e "$BASE_SHA:.github/security-scan-paths.txt"; then
+          have=0
+          git cat-file -e "$BASE_SHA:scripts/securityscan.go" 2>/dev/null && have=$((have + 1))
+          git cat-file -e "$BASE_SHA:.github/security-scan-paths.txt" 2>/dev/null && have=$((have + 1))
+          if [ "$have" -eq 1 ]; then
+            echo "::error title=Security scan::The base commit has only one of the two gate files, so it is not clear which gate to use."
+            exit 1
+          fi
+          if [ "$have" -eq 2 ]; then
             git show "$BASE_SHA:scripts/securityscan.go" > "$RUNNER_TEMP/gate/securityscan.go"
             git show "$BASE_SHA:.github/security-scan-paths.txt" > "$RUNNER_TEMP/gate/security-scan-paths.txt"
             echo "source=base" >> "$GITHUB_OUTPUT"
@@ -125,6 +132,9 @@ jobs:
         run: |
           if compgen -G 'CLAUDE-SECURITY-*' > /dev/null; then
             echo "::error title=Security scan::The pull request contains a CLAUDE-SECURITY-* path; a scan result cannot be supplied by the change it judges."
+            # Delete it, so the always() steps below can neither upload it as
+            # SARIF nor read it as a stamp.
+            rm -rf -- CLAUDE-SECURITY-*
             exit 1
           fi
 

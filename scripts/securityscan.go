@@ -31,6 +31,7 @@ const (
 	defaultPaths    = ".github/security-scan-paths.txt"
 	maxListBytes    = 4 << 20 // changed-file list on stdin
 	maxStampBytes   = 1 << 20 // the scan's revision stamp
+	maxCount        = 1 << 24 // the largest count a stamp may carry
 	maxPatternBytes = 200
 	dependabot      = "dependabot[bot]"
 	workflowsPrefix = ".github/workflows/"
@@ -345,10 +346,19 @@ func loadStamp(file string) (*stamp, error) {
 	if v == nil || v.Status == nil || v.Dispatched == nil || v.Returned == nil {
 		return nil, errors.New("the revision stamp has no verification record")
 	}
-	for _, n := range []int{*s.Findings.Total, *s.Findings.Critical, *s.Findings.High,
-		*s.Findings.Medium, *s.Findings.Low, *v.Dispatched, *v.Returned} {
-		if n < 0 {
-			return nil, errors.New("the revision stamp has a negative count")
+	counts := []int{*s.Findings.Total, *s.Findings.Critical, *s.Findings.High,
+		*s.Findings.Medium, *s.Findings.Low, *v.Dispatched, *v.Returned}
+	if v.Unreviewed != nil {
+		counts = append(counts, *v.Unreviewed)
+	}
+	if v.Incomplete != nil {
+		counts = append(counts, *v.Incomplete)
+	}
+	// Negative counts could cancel others out and huge ones could wrap the sums
+	// in judge, so both are refused here.
+	for _, n := range counts {
+		if n < 0 || n > maxCount {
+			return nil, errors.New("the revision stamp has a count out of range (negative or too large)")
 		}
 	}
 	return &s, nil
@@ -447,7 +457,13 @@ func runVerdict(args []string, out io.Writer) (bool, error) {
 	if fs.NArg() != 1 {
 		return false, errors.New("usage: securityscan verdict [-head SHA] [-mode MODE] [-effort TIER] DIR_OR_STAMP")
 	}
-	if *wantHead != "" && !hex40.MatchString(strings.ToLower(*wantHead)) {
+	// All three are required: an empty one would skip its check in
+	// expectation.check, so a workflow that forgot a flag would pass a stamp
+	// from some other scan.
+	if *wantHead == "" || *wantMode == "" || *wantEffort == "" {
+		return false, errors.New("-head, -mode and -effort are all required")
+	}
+	if !hex40.MatchString(strings.ToLower(*wantHead)) {
 		return false, errors.New("-head is not a full commit id")
 	}
 	args = fs.Args()

@@ -32,6 +32,10 @@ The job SHALL compare the pull request's head with its base and SHALL scan only 
 - **WHEN** a pull request changes only files under `openspec/`, `docs/`, `site/` and `*_test.go`
 - **THEN** the job passes without a scan and says in its summary that no security-sensitive file changed
 
+#### Scenario: SG-2.5 A sensitive file inside a documentation directory
+- **WHEN** a pull request changes `openspec/changes/x/helper.go`, `docs/CLAUDE.md` or `site/CLAUDE.md`
+- **THEN** the job runs the scan, because the directory exceptions come before the sensitive rules in the path list and a later rule wins
+
 #### Scenario: SG-2.4 A claim that cannot be checked
 - **WHEN** the list of changed files cannot be produced
 - **THEN** the job runs the scan rather than passing
@@ -146,7 +150,11 @@ The job SHALL accept a scan result only if its revision stamp records the pull r
 
 #### Scenario: SG-12.5 A planted report
 - **WHEN** a pull request adds a directory named `CLAUDE-SECURITY-planted` containing a clean stamp
-- **THEN** the job fails before the scan starts
+- **THEN** the job fails before the scan starts and the planted directory is deleted, so the later upload and verdict steps cannot use it
+
+#### Scenario: SG-12.6 A missing expectation
+- **WHEN** `verdict` is run without `-head`, `-mode` or `-effort`
+- **THEN** it exits with a usage error instead of skipping that check
 
 ### Requirement: SG-11 Dependabot pull requests
 A pull request opened by Dependabot, in a run started by Dependabot, that changes only files under `.github/workflows/` SHALL pass without a scan, because GitHub gives Dependabot runs a separate set of secrets and the token is deliberately not shared with them. Such pull requests keep the existing human review. Any other Dependabot-run pull request that needs a scan SHALL fail as one that cannot use the token; a run started by a person SHALL follow SG-2 and SG-6.
@@ -171,7 +179,7 @@ A pull request opened by Dependabot, in a run started by Dependabot, that change
 - **THEN** it says findings in a pull request's own changes may be public before the fix, and that details of an exploitable finding in merged code stay private until fixed
 
 ### Requirement: SG-13 The gate runs the base commit's code and rules
-The program that decides whether a change is scanned and judges the scan's result, and the path list it reads, SHALL come from the pull request's base commit, not from the pull request. Only while the base commit has neither file SHALL the pull request's own copies be used, and the job summary SHALL say so.
+The program that decides whether a change is scanned and judges the scan's result, and the path list it reads, SHALL come from the pull request's base commit, not from the pull request. Only while the base commit has neither file SHALL the pull request's own copies be used, and the job summary SHALL say so; a base with exactly one of them fails the job.
 
 #### Scenario: SG-13.1 A change edits the path list to exempt itself
 - **WHEN** a pull request appends `!**` to `.github/security-scan-paths.txt` and changes `.github/workflows/release.yml` (checked locally on 2026-11-24: the tampered list gives `decision=skip`, the base list gives `decision=scan` because `release.yml` matches `.github/**`)
@@ -189,9 +197,15 @@ The program that decides whether a change is scanned and judges the scan's resul
 - **WHEN** a pull request targets a branch other than `main`, such as one cut before the gate existed
 - **THEN** the workflow does not run for it, so the bootstrap copy of the gate is never used there
 
+The trigger omits `edited` on purpose. A pull request retargeted to `main` gets no run until it is pushed to or reopened, which keeps the required check missing and so blocks the merge. Adding `edited` would also run on title and body edits, and a skipped run on a commit whose scan failed could read as a pass.
+
 #### Scenario: SG-13.6 The base commit is missing from the checkout
 - **WHEN** `$BASE_SHA` is not a commit in the checkout
 - **THEN** the gate step fails the job instead of treating the base as having no gate
+
+#### Scenario: SG-13.7 The base has only one gate file
+- **WHEN** the base commit has one of `scripts/securityscan.go` and `.github/security-scan-paths.txt` but not the other
+- **THEN** the gate step fails the job instead of mixing the base's file with the pull request's
 
 #### Scenario: SG-13.4 A change edits the workflow file
 - **WHEN** a pull request edits `.github/workflows/security-scan.yml`, which a `pull_request` run takes from the pull request itself
