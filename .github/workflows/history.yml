@@ -9,8 +9,8 @@ on:
     - cron: "17 6 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
+# Nothing by default; the job asks for only what it needs.
+permissions: {}
 
 concurrency:
   group: catalog-history
@@ -20,8 +20,13 @@ jobs:
   snapshot:
     name: Snapshot
     runs-on: ubuntu-latest
+    permissions:
+      # Only to push the new line to the data branch.
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -32,11 +37,17 @@ jobs:
         with:
           ref: data
           path: history
+          # Kept out of .git/config so the build and the snapshot, which read
+          # from outside services, never have the write token. Only the push
+          # step below gets it.
+          persist-credentials: false
       - name: Take the snapshot
         # A refused snapshot exits 1 and fails the job before anything is committed.
         run: ./chainguard-mcp -record-history history/catalog-history.jsonl
       - name: Commit and push
         working-directory: history
+        env:
+          PUSH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- catalog-history.jsonl; then
             echo "No new line to publish."
@@ -47,4 +58,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add catalog-history.jsonl
           git commit -m "$message"
-          git push origin HEAD:data
+          # The token goes in a header for this one command, the way
+          # actions/checkout would set it, so it is never written to
+          # .git/config or put in the remote URL. Actions masks its value in logs.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin HEAD:data
