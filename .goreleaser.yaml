@@ -5,8 +5,10 @@ project_name: chainguard-mcp
 
 before:
   hooks:
-    # Build the web UI so the binaries embed it (see webui.go).
-    - npm --prefix web ci --no-fund --no-audit
+    # Build the web UI so the binaries embed it (see webui.go). The release job
+    # holds a write token, so no package's install scripts run here; the build
+    # needs none (the only package with one, fsevents, is optional and macOS-only).
+    - npm --prefix web ci --no-fund --no-audit --ignore-scripts
     - npm --prefix web run build
     # Download the catalog history the binaries embed (see history_embed.go).
     # A failed download fails the release, which must embed the history.

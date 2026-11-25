@@ -9,7 +9,7 @@ on:
     - cron: "17 6 * * *"
   workflow_dispatch:
 
-# Nothing by default; the job asks for only what it needs.
+# Nothing by default; each job asks for only what it needs.
 permissions: {}
 
 concurrency:
@@ -20,9 +20,12 @@ jobs:
   snapshot:
     name: Snapshot
     runs-on: ubuntu-latest
+    # Builds the project and reads from outside services, so it gets no write
+    # token. It hands the updated file to the publish job as an artifact.
     permissions:
-      # Only to push the new line to the data branch.
-      contents: write
+      contents: read
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,29 +40,51 @@ jobs:
         with:
           ref: data
           path: history
-          # Kept out of .git/config so the build and the snapshot, which read
-          # from outside services, never have the write token. Only the push
-          # step below gets it.
           persist-credentials: false
       - name: Take the snapshot
-        # A refused snapshot exits 1 and fails the job before anything is committed.
+        # A refused snapshot exits 1 and fails the job before anything is published.
         run: ./chainguard-mcp -record-history history/catalog-history.jsonl
-      - name: Commit and push
+      - name: Check for a new line
+        id: check
         working-directory: history
-        env:
-          PUSH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- catalog-history.jsonl; then
             echo "No new line to publish."
-            exit 0
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Hand the file to the publish job
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-history
+          path: history/catalog-history.jsonl
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: snapshot
+    if: needs.snapshot.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    # Runs no project code: only checkout, the artifact download, jq and git.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the data branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: data
+      - name: Take the updated file
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-history
+      - name: Commit and push
+        run: |
           message=$(tail -n 1 catalog-history.jsonl | jq -r '"snapshot \(.date): \(.total) images (+\(.added | length) −\(.removed | length)), \(.free) free"')
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add catalog-history.jsonl
           git commit -m "$message"
-          # The token goes in a header for this one command, the way
-          # actions/checkout would set it, so it is never written to
-          # .git/config or put in the remote URL. Actions masks its value in logs.
-          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
-          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin HEAD:data
+          git push origin HEAD:data
