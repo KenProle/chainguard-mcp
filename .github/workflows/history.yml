@@ -80,6 +80,22 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: catalog-history
+          # Outside the checkout, so nothing in the artifact can land in .git
+          # (a hook there would run with the write token).
+          path: ${{ runner.temp }}/incoming
+      - name: Check and copy the file
+        env:
+          INCOMING: ${{ runner.temp }}/incoming
+        run: |
+          # Exactly one regular file, catalog-history.jsonl, and every line JSON.
+          found=$(find "$INCOMING" -mindepth 1 -printf '%y %P\n')
+          if [ "$found" != "f catalog-history.jsonl" ]; then
+            echo "::error title=History::Unexpected artifact contents:"
+            printf '%s\n' "$found"
+            exit 1
+          fi
+          jq -e . "$INCOMING/catalog-history.jsonl" > /dev/null
+          cp "$INCOMING/catalog-history.jsonl" catalog-history.jsonl
       - name: Commit and push
         run: |
           message=$(tail -n 1 catalog-history.jsonl | jq -r '"snapshot \(.date): \(.total) images (+\(.added | length) −\(.removed | length)), \(.free) free"')
